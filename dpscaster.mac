@@ -1,0 +1,433 @@
+
+||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+|
+| DPS Pet Caster - Farming and Looting - Master script
+|
+| Set the Pet Caster running this macro as the Group MA 
+| 
+|   Requires the following:
+|   Hotkey2 - build a hotkey macro with a low and slow DPS rotation
+|   Hotkey3 - /pet attack
+|   Hotkey4 - build a hotkey macro with a heavy DPS burn rotation - NOT IMPLEMENTED YET
+|   Hotkey6 - /assist %tankname (put the real tank name in plz)
+|   Hotkey9 - /Sit
+|   Active Pet for pulling targets
+|   Requires you to SET ROLES for Main Tank and Main Assist. <<-- Very Important!
+|   
+|   This macro has 3 startup parameter:
+|  Param1 - search radius for mobs (think in terms of feet on a scale basis)
+|  Param2 - 1 if you would like to set your current position as the "Sticky" point. 0 or blank to ignore sticky
+|
+|  Example startup: /macro dpscaster 150 1
+|      The above startup will actively scan a 150 foot radius around the char based on
+|       whatever your current location is and attack anything that has a partial name
+|       match for whatever names you specified in the ini file.
+|
+|  This macro will loot the nearest corpse to the player that has a partial name match
+|     to the currently active target name, approach it and loot all items unless limits or
+|     zeros are set in the DPSCaster.ini file.
+|
+|    Props to the Forage and Farm macros had been modified by many people.
+|    Props also to zizak51 for his easy to use being attacked sub-routine Logic
+|
+||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+#include ninjadvloot.inc
+
+#event Farm_talk "#*#tells you#*#"
+#event We_Died "#*#entered The Plane of Knowledge#*#"
+#event Check_Damage "#*# hits YOU for#*#"
+#event Check_Damage "#*# mauls YOU for#*#"
+#event Check_Damage "#*# bashes YOU for#*#"
+#event Exp "You gain#*#Experience#*#"
+#event Stickin "#*# tell your party,'Camping here#*#"
+
+#turbo
+
+Sub Main
+/declare pull int outer 1
+/declare stickyon int outer ${Param1}
+/declare HaveMoved int outer
+/declare PrctExp float outer
+/declare PrctAAExp float outer
+/declare Exper float outer
+/declare Exper1 float outer
+/declare Exper2 float outer
+/declare AAExp float outer
+/declare Expstart float outer
+/declare AAstart float outer
+/declare targ1 string outer
+/declare targ2 string outer
+/declare targ3 string outer
+/declare targ4 string outer
+/declare targ5 string outer
+/declare dist int outer ${Param0}
+/declare locy float outer
+/declare locx float outer
+/declare mob string outer
+/declare i int local
+/declare AlertTank string outer FALSE
+/declare UnderAttack string outer FALSE
+/declare snaregem int outer 3
+/declare nukeDelay timer outer ${If[${Select[${Me.Class.ShortName},PAL,SHD,BST,BRD,RNG]},8s,1s]}
+/varset HaveMoved 0
+/varset PrctExp 0
+/varset PrctAAExp 0
+/varset Exper ${Me.PctExp}
+/varset Exper1 0
+/varset Exper2 0
+/varset AAExp ${Me.PctAAExp}
+/varset Expstart ${Me.Exp}
+/varset AAstart ${Me.PctAAExp}
+/varset targ1 ${Ini[DPSCaster.ini,MobList,name1]}
+/varset targ2 ${Ini[DPSCaster.ini,MobList,name2]}
+/varset targ3 ${Ini[DPSCaster.ini,MobList,name3]}
+/varset targ4 ${Ini[DPSCaster.ini,MobList,name4]}
+/varset targ5 ${Ini[DPSCaster.ini,MobList,name5]}
+/varset mob ${targ1}
+/call SetupAdvLootVars
+|====  Check if the Sticky flag has been set ====
+   /if (${stickyon}==1) {
+      /call Event_Stickin
+   } else {
+      /echo No stickypoint set
+   }
+   :startpoint
+   /squelch /target clear 
+   /delay 2s
+   /call CheckCombat
+|====  Move to sticky point if not already in combat ====
+   /squelch /target clear
+   /if (${Me.XTarget}==0 && !${Me.Sitting} && ${locy}!=0 && ${HaveMoved}==1) {
+	   /moveto loc ${locy} ${locx}
+	   /varset HaveMoved 0
+	   /delay 10s !${Me.Moving}
+   }
+   /squelch /target clear
+   |/if (${Me.Class.PetClass}) /call Pet
+   /call CheckCombat
+   /if (${UnderAttack.Equal[FALSE]}) {
+	|   /call CheckLoot
+	   /call LootMobs
+	   /call buff
+	   /call CheckMana
+	   /if (${HaveMoved}==1) /goto :startpoint
+   }
+   /if (!${Target.ID}) {
+	   /delay 5s
+	   /call FindMob
+   }
+   /if ((${Target.ID}>0 && ${Me.XTarget}==0) || ${UnderAttack.Equal[TRUE]}) {
+	   /call Snare
+	   /call Combat
+   }
+   /doevents
+   /goto :startpoint
+/return   
+
+Sub Event_Stickin
+   /echo Setting location ${Me.Y} ${Me.X}
+   /varset locy ${Me.Y}
+   /varset locx ${Me.X}
+/return
+
+Sub Event_Exp
+   /declare RunTime int local
+   /declare RunTime1 float local
+   /varset RunTime1 0
+   /varcalc RunTime ${Macro.RunTime}/60
+| Exper = XP from last Kill
+   /varcalc Exper ${Me.Exp}-${Exper}
+| Exper2 is running total of XP gained since start
+   /varcalc Exper2 ${Exper2}+${Exper}
+| PrctExp is the Percent left to level
+   /varcalc PrctExp 100-${Me.PctExp}
+   /varcalc RunTime1 ${RunTime}/60
+   /if (${RunTime1}<.01) /varset RunTime1 .01
+|Exper1 is Approx XP per hour
+   /varcalc Exper1 ${Exper2}/${RunTime1}
+   /echo [Last Kill]: ${Exper} [Total EXP]: ${Exper2} in [${RunTime}] Minutes...
+   /echo [%EXP to level]: ${PrctExp}%   [Exp per hr]: ${Exper1}
+   /call LootMobs
+/return
+
+Sub Event_Check_Damage
+   /gsay ${Target.CleanName} is attacking me!! Get it off!
+   /call MoveBack
+   /doevents flush Check_Damage
+   /call CheckCombat
+/return
+
+Sub SpellCheck2
+/if (!${Target.ID}||(${Target.Type.Equal[pc]}||${Target.Master.Type.Equal[pc]}||${Target.Type.Equal[corpse]})||${nukeDelay}) /return
+/declare i int local
+/for i 1 to 12
+	/if (!${Target.ID}||(${Target.Type.Equal[pc]}||${Target.Master.Type.Equal[pc]}||${Target.Type.Equal[corpse]})||${nukeDelay}) /return
+	/if (${Me.CurrentMana}>${Me.Gem[${i}].Mana} && ${Me.Gem[${i}].Category.Length} && !${Me.GemTimer[${i}]}) {
+		/if (${Me.Gem[${i}].Category.Find[Direct Damage]} && ${Me.PctAggro}<65 && (${Me.Gem[${i}].TargetType.Equal[${Target.Body}]}||!${Select[${Me.Gem[${i}].TargetType},Animal,Humanoid,Undead,Plant,Summoned,Uber Giants,Uber Dragons]})) {
+			/casting "${Me.Gem[${i}]}" gem${i} -maxtries|3
+			/delay 5
+			/delay 10s !${Me.Casting.ID}
+			/varset nukeDelay ${nukeDelay.OriginalValue}
+		}
+		/if (${Me.CurrentMana}>${Me.Gem[${i}].Mana} && ${Me.Gem[${i}].Category.Find[Damage Over Time]} && !${timer${i}}  && (${Me.Gem[${i}].TargetType.Equal[${Target.Body}]}||!${Select[${Me.Gem[${i}].TargetType},Animal,Humanoid,Undead,Plant,Summoned,Uber Giants,Uber Dragons]})) {
+			/casting "${Me.Gem[${i}]}" gem${i} -maxtries|3
+			/delay 5
+			/delay 10s !${Me.Casting.ID}
+			/if (${Cast.Result.Equal["CAST_SUCCESS"]}) {
+				/if (!${Defined[${Me.XTarget[${x}].ID}_${Me.Name}_${i}]}) /declare ${Me.XTarget[${x}].ID}_${Me.Name}_${i} timer outer
+				/varset ${Target.ID}_${Me.Name}_${i} ${Me.Gem[${i}].Duration.TotalSeconds}s
+			}
+		}
+		/if (${Me.CurrentMana}>${Me.Gem[${i}].Mana} && ${Me.Gem[${i}].TargetType.Equal[LifeTap]} && ${Me.CurrentHPs}<85 && ${Me.PctAggro}<65 && (${Me.Gem[${i}].TargetType.Equal[${Target.Body}]}||!${Select[${Me.Gem[${i}].TargetType},Animal,Humanoid,Undead,Plant,Summoned,Uber Giants,Uber Dragons]})) {
+			/casting "${Me.Gem[${i}]}" gem${i} -maxtries|3
+			/delay 5
+			/delay 10s !${Me.Casting.ID}
+		}
+		/if (${Me.CurrentMana}>${Me.Gem[${i}].Mana} && ${Select[${Me.Gem[${i}].Subcategory},Slow,Resist Debuffs,Disempowering,Mana Drain]} && (!${${Target.ID}_${Me.Name}_${i}}||${${Target.ID}_${Me.Name}_${i}}!<5)  && (${Me.Gem[${i}].TargetType.Equal[${Target.Body}]}||!${Select[${Me.Gem[${i}].TargetType},Animal,Humanoid,Undead,Plant,Summoned,Uber Giants,Uber Dragons]})) {
+			/casting "${Me.Gem[${i}]}" gem${i} -maxtries|3
+			/delay 5
+			/delay 10s !${Me.Casting.ID}
+			/if (${Cast.Result.Equal["CAST_SUCCESS"]}) {
+				/if (!${Defined[${Me.XTarget[${x}].ID}_${Me.Name}_${i}]}) /declare ${Me.XTarget[${x}].ID}_${Me.Name}_${i} timer outer
+				/varset ${Target.ID}_${Me.Name}_${i} ${Me.Gem[${i}].Duration.TotalSeconds}s
+			}
+		}
+		/if (${Me.CurrentMana}>${Me.Gem[${i}].Mana} && ${Select[${Me.Gem[${i}].Subcategory},Enthrall]} && ${Me.XTarget}>1) {
+			/declare x int local
+			/for x 1 to ${Me.XTarget}
+				/if (${Me.XTarget[${x}].ID} && ${Spawn[${Me.XTarget[${x}].ID}].Level}<=${Me.Gem[${i}].MaxLevel} && !${Me.XTarget[${x}].ID} && !${Spawn[${Me.XTarget[${x}].ID}].Named} && (${Spell[${Me.Gem[${i}]}].TargetType.Equal[${Spawn[${Me.XTarget[${x}].ID}].Body}]}||!${Select[${Me.Gem[${i}].TargetType},Animal,Humanoid,Undead,Plant,Summoned,Uber Giants,Uber Dragons]})) {
+					/squelch /tar id ${Me.XTarget[${x}].ID}
+					/delay 1s ${Target.ID}==${Me.XTarget[${x}].ID}
+					/casting "${Me.Gem[${i}]}" gem${i} -maxtries|3
+					/delay 5
+					/delay 10s !${Me.Casting.ID}
+					/if (${Cast.Result.Equal["CAST_SUCCESS"]}) {
+						/if (!${Defined[${Me.XTarget[${x}].ID}_${Me.Name}_${i}]}) /declare ${Me.XTarget[${x}].ID}_${Me.Name}_${i} timer outer
+						/varset ${Me.XTarget[${x}].ID}_${Me.Name}_${i} ${Me.Gem[${i}].Duration.TotalSeconds}s
+						/if (!${MezList.Find[${Me.XTarget[${x}].ID}]}) /varset MezList ${Me.XTarget[${x}].ID}|
+						/echo MezList: ${MezList}
+					}
+				}
+			/next x
+		}
+	}
+	/doevents
+/next i
+/return
+
+		
+Sub Buff
+	/declare i int local
+    /for i 1 to 12
+		/if (${Me.CurrentMana}>${Me.Gem[${i}].Mana} && ${Me.Gem[${i}].SpellType.Equal[beneficial]} && ${Me.Gem[${i}].Duration.TotalSeconds}>300 && !${Me.Gem[${i}].TargetType.Equal[pet]} && !${Me.Gem[${i}].TargetType.Equal[self]} && !${Select[${Me.Gem[${i}].Subcategory},Misc,Invisibility,Undead,Invulnerability]}) {
+			/echo bufftimer if (!${Defined[bufftimer_${Me.Name}_${i}]} || ${bufftimer_${Me.Name}_${i}}<10)
+			/if (!${Defined[bufftimer_${Me.Name}_${i}]} || ${bufftimer_${Me.Name}_${i}}<10) {
+				/squelch /tar ${Group.MainTank}
+				/casting "${Me.Gem[${i}]}" gem${i} -maxtries|3
+				/delay 2s
+				/delay 10s !${Me.Casting.ID}
+				/if (${Cast.Result.Equal["CAST_SUCCESS"]}) {
+					/if (!${Defined[bufftimer_${Me.Name}_${i}]}) /declare bufftimer_${Me.Name}_${i} timer outer
+					/varset bufftimer_${Me.Name}_${i} ${Me.Gem[${i}].Duration.TotalSeconds}s
+					/echo setting timer bufftimer_${Me.Name}_${i}
+				}		
+			}
+            /call CheckCombat
+            /if (${UnderAttack.Equal[TRUE]}) {
+            	/squelch /tar ${Me.XTarget[1]}
+            	/return
+            }
+      }
+   /next i
+   /squelch /target clear
+/return
+
+Sub FindMob
+   /varset mob ${targ1}
+   :targetloop
+   /squelch /target npc radius ${dist} zradius 50 ${mob} los
+   /if (!${Target.ID}) {
+      /if (${mob.Equal[${targ1}]}) {
+         /varset mob ${targ2}
+         /goto :targetloop
+      }
+      /if (${mob.Equal[${targ2}]}) {
+         /varset mob ${targ3}
+         /goto :targetloop
+      }
+      /if (${mob.Equal[${targ3}]}) {
+         /varset mob ${targ4}
+         /goto :targetloop
+      }
+      /if (${mob.Equal[${targ4}]}) {
+         /varset mob ${targ5}
+         /goto :targetloop
+      }
+      /if (${mob.Equal[${targ5}]}) {
+         /varset mob ${targ1}
+      }
+   }
+/return
+
+Sub GetCombatTarget
+   /target ${Me.XTarget[1]}
+   /delay 2s
+| ========= Assist the main tank =========
+   /if (!${Target.ID} || ${Target.Type.Equal[corpse]}) {
+      /assist ${Group.MainTank}
+      /delay 2s
+   }
+| ========= Last Resort - We know something is there so lets just blindly swing at it =========
+   /if (!${Target.ID} || ${Target.Type.Equal[corpse]}) {
+      /keypress F8
+      /delay 2s
+   }
+   /varset mob ${Target.CleanName}
+   /delay 2s
+   /call Snare
+/return
+
+Sub CheckCombat
+   /if (${Me.XTarget}>0) {
+      /if (!${Target.ID} || ${Target.Type.Equal[corpse]}) {
+         /call GetCombatTarget
+      }
+      /varset UnderAttack TRUE
+      /if (${Me.Sitting}) /stand
+      /return
+   }
+   /varset UnderAttack FALSE
+/return
+
+Sub CheckMana
+   /if (${Me.PctMana}<61) /call MedBreak
+   /call buff
+/return
+
+Sub MoveBack
+		/face fast
+		/keypress back hold
+		/delay 1s
+		/keypress back
+		/squelch /target clear 
+		/delay 1s
+/return
+
+Sub Combat
+   /if (${stickyon}==1) /varset HaveMoved 1
+   /declare i int local
+   /declare c int local
+   /if (${Target.Distance}>150) {
+      /face fast nolook
+      /keypress forward hold
+      :moveloop
+      /if (${Target.ID}) /face fast nolook
+      /if (${Target.Distance}>150) /goto :moveloop
+      /keypress forward
+   } 
+   /delay 1s
+   /call Snare
+   /casting "${Me.Gem[${pull}]}" gem${pull}
+   /doevents Check_Damage
+   /delay 4s
+   :combatloop
+   /call CheckCombat
+   /if (${UnderAttack.Equal[FALSE]}) /goto :endcombat
+   /if (${Target.ID}) {
+      /if (${Target.ID}) /face fast nolook
+      /if (${Me.Pet.ID}) /pet attack
+      :finishcastloop
+      /if (!${Me.Casting.ID}) {
+         /call SpellCheck2
+         /varset i 1 
+         :beingattacked
+         /call CheckCombat
+         /if (${UnderAttack.Equal[FALSE]}) /goto :endcombat
+         /if (${i}<5) {
+            /varcalc i ${i}+1
+            /delay 3s
+            /doevents Check_Damage
+            /goto :beingattacked
+         }
+         /goto :combatloop
+      }
+      /delay 2s
+      /goto :finishcastloop
+   }
+   :endcombat
+/return
+
+Sub Event_Farm_talk
+   /if (${afkset}) {
+      /camp
+      /endmac
+   }
+/return
+
+Sub Event_We_Died
+   /gsay Logging
+   /camp
+   /endmac
+/return
+
+Sub MedBreak
+   /gsay Medding
+   /keypress 9
+   :medloop
+   /call CheckCombat
+   /if (${UnderAttack.Equal[TRUE]}) /return
+   /if (!${Me.Sitting}) /sit
+   /delay 5s
+   /if (${Me.PctMana}<95) /goto :medloop
+/return
+		
+Sub Snare
+/declare inm int local
+/if (!${Target.ID}||(${Target.Type.Equal[pc]}||${Target.Master.Type.Equal[pc]}||${Target.Type.Equal[corpse]})) /return
+/echo Snaretimer if ((!${Defined[Snare_${Target.ID}]} || ${Snare_${Target.ID}}<15) || ((${Target.PctHPs}<=30) && (${Target.PctHPs}>=20)))
+/if ((!${Defined[Snare_${Target.ID}]} || ${Snare_${Target.ID}}<15) || ((${Target.PctHPs}<=30) && (${Target.PctHPs}>=20))) {
+	/for inm 1 to 12
+		/if (${Me.CurrentMana}>${Me.Gem[${inm}].Mana} && ${Me.Gem[${i}].Subcategory.Equal[Snare]}) {
+			/casting "${Me.Gem[${inm}]}" gem${inm}
+			/delay 1s
+			/delay 10s !${Me.Casting.ID}
+			/if (${Cast.Result.Equal["CAST_SUCCESS"]}) {
+				/echo Snare ${Cast.Result}
+				/if (!${Defined[Snare_${Target.ID}]}) /declare Snare_${Target.ID} timer outer
+				/varset Snare_${Target.ID} ${Me.Gem[${snaregem}].Duration.TotalSeconds}s
+				/echo set timer Snare_${Target.ID}
+			}
+		}
+	/next inm
+}
+/return
+		
+		Sub Pet
+		/if (${Target.ID}) /declare temp int local ${Target.ID}
+		   /if (!${Me.Pet.ID}) {
+			  /declare ipet int local
+			  /for ipet 1 to 12
+			  /if (${Me.CurrentMana}>${Me.Gem[${ipet}].Mana} && ${Me.Gem[${ipet}].Category.Equal[pet]} && ${Me.Gem[${ipet}].Subcategory.Find[summon]}) {
+				 /delay 10s !${Me.Casting.ID}
+				 /casting "${Me.Gem[${ipet}]}" gem${ipet}
+				 /delay 2s
+				 /delay 10s !${Me.Casting.ID}
+				 /return
+			  }
+			  /next ipet
+		   }
+		   /if (${Me.Pet.ID}) {
+			  /declare ipet2 int local
+			  /for ipet2 1 to 12
+			  /if (${Me.CurrentMana}>${Me.Gem[${ipet2}].Mana} && ${Me.Gem[${ipet2}].Category.Equal[pet]} && ${Me.Gem[${ipet2}].Subcategory.Find[pet haste]} && ${Me.Gem[${ipet2}].StacksPet} && !${Me.Pet.Buff[${Me.Gem[${ipet2}]}]}) {
+				 /delay 10s !${Me.Casting.ID}
+				 /casting "${Me.Gem[${ipet2}]}" gem${ipet2}
+				 /delay 2s
+				 /delay 10s !${Me.Casting.ID}
+				 /return
+			  }
+			  /next ipet2
+		   }
+		/if (${temp}) /squelch /tar id ${temp}
+		/return

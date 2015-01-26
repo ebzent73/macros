@@ -1,0 +1,219 @@
+|---------------------------------------------------------------------------------
+| Advanced Fishing Macro
+| adv_fishing.mac
+| Author      : panther
+| Version     : v1.0beta 2004-07-01 18:58pm GMT
+| Useage      : /macro adv_fishing
+| Description :
+| This macro will fish for you and keep all items in FishingLoot.ini. You need a
+| fisherman's companion in an inventory slot for this macro to work properly.
+|---------------------------------------------------------------------------------
+
+#turbo 10
+
+#event BrokenPole "Your fishing pole broke!"
+#event LostBait "You lost your bait!"
+#event NeedPole "You can't fish without a fishing pole, go buy one."
+#event NothingCaught "You didn't catch anything."
+#event OutOfBait "You can't fish without fishing bait, go buy some."
+#event PrimaryHand "You need to put your fishing pole in your primary hand."
+#event SkillUp "You have become better at #1#! (#2#)"
+#event SpillBeer "You spill your beer while bringing in your line."
+
+Sub Main
+
+   |------------------------------------------------------------
+   |Should I display fishing stats? (1 for yes, 0 for no)
+   |------------------------------------------------------------
+   /declare RV_DisplayStats     int outer  1
+
+
+   /echo Starting up ${Macro}
+   /declare int_BrokenPole     int outer  0
+   /declare int_ItemsDropped     int outer  0
+   /declare int_LostBait     int outer  0
+   /declare int_NothingCaught     int outer  0
+   /declare int_SpillBeer     int outer  0
+   /declare int_TotalCasts     int outer  0
+   |------------------------------------------------------------
+   |Load in Loot Table.
+   |------------------------------------------------------------
+   /call ReadINI FishingLoot.ini "${Zone.Name}" Loot
+   /if (!${Defined[RV_LootArray]}) {
+      /echo No Loot Table Created... Please create one.
+      /endmacro
+   }
+
+   /autoinventory
+
+   :Start
+      /call GMCheck
+      /delay 2s
+      /if (${Cursor.ID}) /call Looting
+      /if (${Me.AbilityReady[Fishing]}) {
+         /delay 1s
+         /varcalc int_TotalCasts ${int_TotalCasts}+1
+         /doability Fishing
+      }
+      /doevents
+   /goto :Start
+/return
+
+
+|--------------------------------------------------------------------------------
+|SUB: Display fishing stats.
+|--------------------------------------------------------------------------------
+Sub DisplayStats
+
+   /declare nArray  int local
+   /echo Total number of casts = ${int_TotalCasts}
+   /echo Items fished so far
+   /echo -------------------
+   /if (${Defined[RV_LootArray]}) {
+      /for nArray 1 to ${RV_LootArray.Size}
+         /echo ${Int[${RV_LootStats[${nArray}]}]} - ${RV_LootArray[${nArray}]}'s
+      /next nArray
+   }
+   /echo
+   /echo Bad fishing so far
+   /echo ------------------
+   /echo ${int_BrokenPole} - Broken poles
+   /echo ${int_ItemsDropped} - Items dropped
+   /echo ${int_LostBait} - Lost bait
+   /echo ${int_NothingCaught} - Nothing caught
+   /echo ${int_SpillBeer} - Spilt your beer
+/return
+
+|--------------------------------------------------------------------------------
+|SUB: Check for GM's in zone.
+|--------------------------------------------------------------------------------
+Sub GMCheck
+
+   /if (${Spawn[gm].ID}) {
+      /beep
+      /beep
+      /beep
+      /echo GM entered the zone!
+      /echo For safty reasons ending the macro...
+      /endmacro
+   }
+
+/return
+
+|--------------------------------------------------------------------------------
+|SUB: Looting based on FishingLoot.ini.
+|--------------------------------------------------------------------------------
+Sub Looting
+
+   /declare LootCheck   int inner  0
+
+   /for LootCheck 1 to ${RV_LootArray.Size}
+      /if (${Cursor.Name.Find[${RV_LootArray[${LootCheck}]}]}) {
+         /echo Keeping a ${Cursor.Name}... WOOT!
+         /varcalc RV_LootStats[${LootCheck}] ${RV_LootStats[${LootCheck}]}+1
+         /autoinventory
+      }
+   /next LootCheck
+
+   /if (${Cursor.ID}) {
+      /echo Dropping a ${Cursor.Name}...
+      /drop
+      /varcalc int_ItemsDropped ${int_ItemsDropped}+1
+   }
+
+   /if (${RV_DisplayStats}) /call DisplayStats
+/return
+
+|--------------------------------------------------------------------------------
+|SUB: Read loot table from the INI file.
+|--------------------------------------------------------------------------------
+Sub ReadINI(FileName,SectionName,ArrayType)
+
+   /echo Attempting to Read Section "${SectionName}" Zone Information from ${FileName}...
+   /delay 1s
+
+   /if (${Ini[${FileName},${SectionName},-1,NO].Equal[NO]}) {
+      /echo "${SectionName}" is not a Valid Section for FILE:${FileName}, ending macro...
+      /delay 1s
+      /return
+   }
+   /declare nValues     int local  1
+   /declare nArray      int local  0
+   /declare KeySet      string local  ${Ini[${FileName},${SectionName}]}
+
+   :CounterLoop
+   /if (${String[${Ini[${FileName},${SectionName},${ArrayType}${nValues}]}].Equal[null]}) {
+      /varcalc nValues ${nValues}-1
+      /goto :MakeArray
+   }
+   /varcalc nValues ${nValues}+1
+   /goto :CounterLoop
+
+   :MakeArray
+   /if (!${nValues}) /return
+   /if (${FileName.Equal["FishingLoot.ini"]}&&${nValues}>0) {
+      /echo Declaring Loot Array...
+      /declare RV_LootArray[${nValues}]  string outer
+      /declare RV_LootStats[${nValues}]  string outer
+   }
+
+   /for nArray 1 to ${nValues}
+      /if (${FileName.Equal["FishingLoot.ini"]}) {
+         /varset RV_LootArray[${nArray}] ${Ini[${FileName},${SectionName},${ArrayType}${nArray}]}
+         /varset RV_LootStats[${nArray}] 0
+      }
+   /next nArray
+
+   /echo "${SectionName}" Zone Information Read Successfully from ${FileName}...
+   /delay 1s
+
+/return
+
+
+|--------------------------------------------------------------------------------
+|SUB: Event subroutines.
+|--------------------------------------------------------------------------------
+Sub Event_BrokenPole
+   /varcalc int_BrokenPole ${int_BrokenPole}+1
+   /varcalc int_NothingCaught ${int_NothingCaught}-1
+/return
+
+Sub Event_LostBait
+   /varcalc int_LostBait ${int_LostBait}+1
+   /varcalc int_NothingCaught ${int_NothingCaught}-1
+/return
+
+Sub Event_NeedPole
+   /cast item "Fisherman's Companion"
+   /delay 11s
+   /autoinventory
+/return
+
+Sub Event_NothingCaught
+   /varcalc int_NothingCaught ${int_NothingCaught}+1
+/return
+
+Sub Event_OutOfBait
+   /Echo Ran out of Bait.
+   /sit off
+   /sit on
+   /camp
+   /endmacro
+/return
+
+Sub Event_PrimaryHand
+   /cast item "Fisherman's Companion"
+   /delay 11s
+   /autoinventory
+/return
+
+Sub Event_SkillUp(SkillUpText,Skill,int Amount)
+   /popup Fishing increased to - ${Amount}
+   /echo Fishing increased to - ${Amount}
+/return
+
+Sub Event_SpillBeer
+   /varcalc int_SpillBeer ${int_SpillBeer}+1
+   /varcalc int_NothingCaught ${int_NothingCaught}-1
+/return
+|--------------------------------------------------------------------------------

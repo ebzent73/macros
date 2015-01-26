@@ -1,0 +1,369 @@
+Code:
+|===========|
+| 06.14.04b |
+|___________|
+|           |
+| stick.mac |
+| by m0nk   |
+|___________|
+|
+| Startup:
+|  /mac stick "OpenCorpse (0 or 1)" "MeleeAbility_1" "MeleeAbility_2" "MeleeAbility_3"
+|  /mac stick (will use stick-pc.ini settings)
+|  /mac stick 0 "bash" (will not loot and only bash)
+|  /mac stick 1 "Flying Kick" "Disarm" "mend" (will Open Corpse, Flying Kick ,disarm, mend, when avail)
+|
+| Toggles:
+|  /echo tt (Will Toggle Tanking) - Not Implemented
+|  /echo toc (Will Toggle Opening Corpses)
+|  /echo tal (Will Toggle Auto Looting) - Not Implemented
+|
+|
+#turbo
+#event slain "#*#You have slain#*#"
+#event slain "#*#has been slain by#*#"
+#event RageON "#*#has become ENRAGED.#*#"
+#event RageOFF "#*#is no longer enraged#*#"
+#event MobGate "#*# Gates.#*#"
+#event Invited "#*#To join the group, click on the 'FOLLOW' option, or 'DISBAND' to cancel#*#"
+#event StunON "#*#You are stunned#*#"
+#event StunON "#*#You lose control of yourself!#*#"
+#event StunOFF "#*#You are unstunned#*#"
+#event StunOFF "#*#You have control of yourself again.#*#"
+|#event TankThisRound "#*#to ignore others and attack you!#*#"
+|#event ToggleTank "#*#[MQ2] tt#*#"
+#event ToggleOpenCorpse "#*#[MQ2] toc#*#"
+
+Sub main
+  :setDeclares
+    /declare PCini outer
+    /declare NPCini outer
+    /declare MA_SB outer
+    /declare MobID outer
+    /declare CharX outer
+    /declare CharY outer
+    /declare MOBini outer
+    /declare AutoLoot outer
+    /declare OpenCorpse outer
+    /declare TankToggle outer
+    /declare MeleeAttack_1 outer
+    /declare MeleeAttack_2 outer
+    /declare MeleeAttack_3 outer
+    /declare MeleeDistance outer
+    /declare DefaultMeleeDistance outer
+
+  :setGenericVars
+    /varset MA_SB NULL
+    /varset TankToggle NULL
+    /varset PCini stick-pc.ini
+    /varset NPCini stick-npc.ini
+ 
+  :NewCharacterCheck
+    /varset OpenCorpse ${Ini[${PCini},${Me.Name},OpenCorpse]}
+    /if (${OpenCorpse.Equal[NULL]}) /goto :NewCharacter
+
+  :setParams
+    /if (${Defined[Param0]}) {
+      /varset OpenCorpse ${Param0}
+        } else {
+          /varset OpenCorpse ${Ini[${PCini},${Me.Name},OpenCorpse]}
+          }
+        }
+    /if (${Defined[Param1]}) {
+      /varset MeleeAttack_1 ${Param1}
+        } else {
+          /varset MeleeAttack_1 ${Ini[${PCini},${Me.Name},MeleeAttack_1]}
+          }
+        }
+    /if (${Defined[Param2]}) {
+      /varset MeleeAttack_2 ${Param2}
+        } else {
+          /varset MeleeAttack_2 ${Ini[${PCini},${Me.Name},MeleeAttack_2]}
+          }
+        }
+    /if (${Defined[Param3]}) {
+      /varset MeleeAttack_3 ${Param3}
+        } else {
+          /varset MeleeAttack_3 ${Ini[${PCini},${Me.Name},MeleeAttack_3]}
+          }
+        }
+
+  :setINIvalues
+    /if (${OpenCorpse.Equal[NULL]}) /varset OpenCorpse ${Ini[${PCini},${Me.Name},OpenCorpse]}
+    /if (${MeleeAttack_1.Equal[NULL]}) /varset MeleeAttack_1 ${Ini[${PCini},${Me.Name},MeleeAttack_1]}
+    /if (${MeleeAttack_2.Equal[NULL]}) /varset MeleeAttack_2 ${Ini[${PCini},${Me.Name},MeleeAttack_2]}
+    /if (${MeleeAttack_3.Equal[NULL]}) /varset MeleeAttack_3 ${Ini[${PCini},${Me.Name},MeleeAttack_3]}
+    /varset DefaultMeleeDistance ${Ini[${PCini},${Me.Name},DefaultMeleeDistance]}
+
+  :StickBegin
+    /if (!${MeleeAttack_1.Equal[NONE]}) /echo Auto ${MeleeAttack_1} when available.
+    /if (!${MeleeAttack_2.Equal[NONE]}) /echo Auto ${MeleeAttack_2} when available.
+    /if (!${MeleeAttack_3.Equal[NONE]}) /echo Auto ${MeleeAttack_3} when available.
+    /if (!${OpenCorpse.Equal[0]}) /echo Auto Open Corpse
+  /goto :mainloop
+ 
+  :NewCharacter
+    /ini "${PCini}" ${Me.Name} AutoLoot 0
+    /ini "${PCini}" ${Me.Name} OpenCorpse 0
+    /ini "${PCini}" ${Me.Name} DefaultMeleeDistance 13
+     
+    /ini "${PCini}" ${Me.Name} MeleeAttack_1 NONE
+    /ini "${PCini}" ${Me.Name} MeleeAttack_2 NONE
+    /ini "${PCini}" ${Me.Name} MeleeAttack_3 NONE
+
+    /ini "${PCini}" ${Me.Name} ClickItem_1 NONE
+    /ini "${PCini}" ${Me.Name} ClickItemSlot_1 NONE
+    /ini "${PCini}" ${Me.Name} ClickItemSpell_1 NONE
+    /ini "${PCini}" ${Me.Name} ClickItem_2 NONE
+    /ini "${PCini}" ${Me.Name} ClickItemSlot_2 NONE
+    /ini "${PCini}" ${Me.Name} ClickItemSpell_2 NONE
+    /ini "${PCini}" ${Me.Name} ClickItem_3 NONE
+    /ini "${PCini}" ${Me.Name} ClickItemSlot_3 NONE
+    /ini "${PCini}" ${Me.Name} ClickItemSpell_3 NONE
+    /ini "${PCini}" ${Me.Name} ClickItem_4 NONE
+    /ini "${PCini}" ${Me.Name} ClickItemSlot_4 NONE
+    /ini "${PCini}" ${Me.Name} ClickItemSpell_4 NONE
+    /ini "${PCini}" ${Me.Name} ClickItem_5 NONE
+    /ini "${PCini}" ${Me.Name} ClickItemSlot_5 NONE
+    /ini "${PCini}" ${Me.Name} ClickItemSpell_5 NONE
+    /ini "${PCini}" ${Me.Name} ClickItem_6 NONE
+    /ini "${PCini}" ${Me.Name} ClickItemSlot_6 NONE
+    /ini "${PCini}" ${Me.Name} ClickItemSpell_6 NONE
+    /ini "${PCini}" ${Me.Name} ClickItem_7 NONE
+    /ini "${PCini}" ${Me.Name} ClickItemSlot_7 NONE
+    /ini "${PCini}" ${Me.Name} ClickItemSpell_7 NONE
+    /ini "${PCini}" ${Me.Name} ClickItem_8 NONE
+    /ini "${PCini}" ${Me.Name} ClickItemSlot_8 NONE
+    /ini "${PCini}" ${Me.Name} ClickItemSpell_8 NONE
+   
+    /ini "${PCini}" ${Me.Name} RestSpellName_1 NONE
+    /ini "${PCini}" ${Me.Name} RestSpellBuff_1 NONE
+    /ini "${PCini}" ${Me.Name} RestSpellName_2 NONE
+    /ini "${PCini}" ${Me.Name} RestSpellBuff_2 NONE
+    /ini "${PCini}" ${Me.Name} RestSpellName_3 NONE
+    /ini "${PCini}" ${Me.Name} RestSpellBuff_3 NONE
+    /ini "${PCini}" ${Me.Name} RestSpellName_4 NONE
+    /ini "${PCini}" ${Me.Name} RestSpellBuff_4 NONE
+    /ini "${PCini}" ${Me.Name} RestSpellName_5 NONE
+    /ini "${PCini}" ${Me.Name} RestSpellBuff_5 NONE
+    /ini "${PCini}" ${Me.Name} RestSpellName_6 NONE
+    /ini "${PCini}" ${Me.Name} RestSpellBuff_6 NONE
+    /ini "${PCini}" ${Me.Name} RestSpellName_7 NONE
+    /ini "${PCini}" ${Me.Name} RestSpellBuff_7 NONE
+    /ini "${PCini}" ${Me.Name} RestSpellName_8 NONE
+    /ini "${PCini}" ${Me.Name} RestSpellBuff_8 NONE
+   
+    /ini "${PCini}" ${Me.Name} InstantClickItem_1 NONE
+    /ini "${PCini}" ${Me.Name} InstantClickItemSlot_1 NONE
+    /ini "${PCini}" ${Me.Name} InstantClickItemSpell_1 NONE
+    /ini "${PCini}" ${Me.Name} InstantClickItem_2 NONE
+    /ini "${PCini}" ${Me.Name} InstantClickItemSlot_2 NONE
+    /ini "${PCini}" ${Me.Name} InstantClickItemSpell_2 NONE
+    /ini "${PCini}" ${Me.Name} InstantClickItem_3 NONE
+    /ini "${PCini}" ${Me.Name} InstantClickItemSlot_3 NONE
+    /ini "${PCini}" ${Me.Name} InstantClickItemSpell_3 NONE
+    /ini "${PCini}" ${Me.Name} InstantClickItem_4 NONE
+    /ini "${PCini}" ${Me.Name} InstantClickItemSlot_4 NONE
+    /ini "${PCini}" ${Me.Name} InstantClickItemSpell_4 NONE
+    /ini "${PCini}" ${Me.Name} InstantClickItem_5 NONE
+    /ini "${PCini}" ${Me.Name} InstantClickItemSlot_5 NONE
+    /ini "${PCini}" ${Me.Name} InstantClickItemSpell_5 NONE
+    /ini "${PCini}" ${Me.Name} InstantClickItem_6 NONE
+    /ini "${PCini}" ${Me.Name} InstantClickItemSlot_6 NONE
+    /ini "${PCini}" ${Me.Name} InstantClickItemSpell_6 NONE
+    /ini "${PCini}" ${Me.Name} InstantClickItem_7 NONE
+    /ini "${PCini}" ${Me.Name} InstantClickItemSlot_7 NONE
+    /ini "${PCini}" ${Me.Name} InstantClickItemSpell_7 NONE
+    /ini "${PCini}" ${Me.Name} InstantClickItem_8 NONE
+    /ini "${PCini}" ${Me.Name} InstantClickItemSlot_8 NONE
+    /ini "${PCini}" ${Me.Name} InstantClickItemSpell_8 NONE
+
+  /echo ${Me.Name} has been added to ${PCini}. Please re-run macro (also go edit ${PCini})
+/endmacro
+ 
+  :mainloop
+    /if (${Me.Combat}) /call Attack
+    /doevents
+  /goto :mainloop
+/endmacro
+
+Sub attack
+  :attackCheck
+    /if (!${Target.Type.Equal["NPC"]}) {
+      /attack off
+      /return
+      }
+
+    /if (${Target.Distance}&gt;150) /attack off
+
+  :attackSetup
+    /varset MobID ${Target.ID}
+
+  :attackPreFight
+    /call ClearReturn
+    /if (${Me.Pet.ID}) /pet attack
+
+    /varset MeleeDistance ${Ini[${NPCini},${Zone.ShortName},${Target.CleanName}.DistanceMelee]}
+    /if (${MeleeDistance.Equal[NULL]}) {
+      /ini "${NPCini}" "${Zone.ShortName}" "${Target.CleanName}.DistanceMelee" "${DefaultMeleeDistance}"
+      /varset MeleeDistance ${Ini[${NPCini},${Zone.ShortName},${Target.CleanName}.DistanceMelee]}
+      }
+
+  :attackMeleeLoop
+    /doevents slain
+    /doevents RageOn
+    /doevents MobGate
+    /doevents StunON
+    /doevents ToggleTank
+    /doevents TankThisRound
+    /if (${Target.ID}!=${MobID}) /goto :attackend
+    /if (${Macro.Return.Equal["EndATK"]}) /goto :attackend
+    /if (!${Me.Combat}) /goto :attackend
+    /if (${Target.ID}==${MobID}) /if (!${Me.Casting.ID} && ${Me.FeetWet})  /face fast
+    /if (${Target.ID}==${MobID}) /if (!${Me.Casting.ID} && !${Me.FeetWet}) /face fast nolook
+    /if (${Target.ID}==${MobID} && !${Me.Casting.ID}) /if (${Target.Distance}&gt;${MeleeDistance}) /keypress FORWARD HOLD
+    /if (${Target.ID}==${MobID} && !${Me.Casting.ID}) /if (${Target.Distance}&lt;=${MeleeDistance}) /keypress FORWARD
+    /if (${Target.ID}==${MobID} && !${Me.Casting.ID}) /if (${Target.Distance}&lt;=${Math.Calc[${MeleeDistance}-5]}) /keypress BACK HOLD
+    /if (!${MeleeAttack_1.Equal[NONE]}) /if (!${Me.Casting.ID}) /if (${Target.Distance}&lt;=${MeleeDistance}) /if (${Me.AbilityReady[${MeleeAttack_1}]}) /doability ${MeleeAttack_1}
+    /if (!${MeleeAttack_2.Equal[NONE]}) /if (!${Me.Casting.ID}) /if (${Target.Distance}&lt;=${MeleeDistance}) /if (${Me.AbilityReady[${MeleeAttack_2}]}) /doability ${MeleeAttack_2}
+    /if (!${MeleeAttack_3.Equal[NONE]}) /if (!${Me.Casting.ID}) /if (${Target.Distance}&lt;=${MeleeDistance}) /if (${Me.AbilityReady[${MeleeAttack_2}]}) /doability ${MeleeAttack_3}
+    /if (${TankToggle.NotEqual[NULL]}) /if (!${Me.Casting.ID}) /if (${Target.Distance}&lt;=${MeleeDistance}) /if (${Me.AbilityReady[Tank]}) /doability "Tank"
+
+    |/if (${Me.Class.Name.Equal[Shadow Knight]}) /if (${Target.ID}==${MobID}) /if (!${Me.Casting.ID}) /if (${Target.Distance}&lt;=${MeleeDistance}) /goto :attackSpellsSK
+  /goto :attackMeleeLoop
+
+  :attackSpellsSK
+
+    /if (${Me.Gem[Zevfeer's Bite]}&gt;0) /if (${Me.PctMana}&gt;20) /if (${Target.PctHPs}&lt;90) /call cast "Zevfeer's Bite"
+    /if (${Me.Gem[Aura of Hate]}&gt;0) /if (${Me.PctMana}&gt;20) /if (${Target.PctHPs}&lt;90) /call cast "Aura of Hate"
+    /if (${Me.Gem[Spear of Decay]}&gt;0) /if (${Me.PctMana}&gt;50) /if (${Target.PctHPs}&lt;90) /call cast "Spear of Decay"
+    /if (${Me.Gem[Spear of Plague]}&gt;0) /if (${Me.PctMana}&gt;50) /if (${Target.PctHPs}&lt;90) /call cast "Spear of Plague"
+    /if (${Me.PctHPs}&lt;90) /if (!${Me.Buff[Bond of Death Recourse]}) /if (${Me.Gem[Bond of Death]}&gt;0)  /if (${Me.PctMana}&gt;20) /if (${Target.PctHPs}&lt;90) /call cast "Bond of Death"
+  /goto :attackMeleeLoop
+
+  :attackend
+    /if (${OpenCorpse}==1) {
+    /doevents slain
+      }
+    /varset MobID 0
+    /if (${TankToggle.NotEqual[NULL]}) /varset TankToggle NULL
+    /attack off
+    /pet backoff
+    /pet hold
+    /keypress FORWARD
+/return
+
+Sub ClearReturn
+/return NULL
+
+Sub event_slain
+  /if (${Target.CurrentHPs}&gt;0) /return
+  /if (${OpenCorpse}==0) /return EndATK
+  |/if (${Target.Type.NotEqual[Corpse]})
+  /target id ${MobID}
+  /loot
+  /keypress FORWARD
+  /loot
+  /loot
+  /loot
+/return EndATK
+
+Sub event_RageOn
+  /if (${Target.CurrentHPs}&gt;15) /return
+  /if (${Target.CurrentHPs}==0) /return
+  /if (${Target.ID}==${MobID}) /if (!${Me.Casting.ID}) /keypress FORWARD
+  /call ClearReturn
+  /echo Rage On
+  /attack off
+  /pet back off
+  /pet hold
+  /call ClearReturn
+
+  :waitRage
+    /doevents
+    /if (${Target.ID}!=${MobID}) /return EndATK
+    /if (${Macro.Return.Equal["EndATK"]}) /return EndATK
+    /if (${Macro.Return.Equal["RageOFF"]}) /return
+/goto :waitRage
+
+Sub event_RageOFF
+  /echo Rage OFF
+  /attack on
+/return RageOFF
+
+Sub event_MobGate
+  /if (${Target.Distance}&lt;100) /return
+  /echo MOB GATED!
+  /attack off
+/return EndATK
+
+Sub event_Invited
+  /invite
+/return
+
+Sub event_StunON
+  /doevents flush StunOFF
+  /call ClearReturn
+
+  :LoopStunOFF
+    /doevents StunOFF
+    /if (${Macro.Return.Equal["StunOFF"]}) {
+    /call ClearReturn
+    /return
+      }
+/goto :LoopStunOFF
+
+Sub event_StunOFF
+/return StunOFF
+
+Sub event_TankThisRound
+  /if (${TankToggle.NotEqual[Yes]}) /if (${MeleeAttack_1.NotEqual[Tank]}) /if (${MeleeAttack_2.NotEqual[Tank]}) /if (${MeleeAttack_3.NotEqual[Tank]) {
+  /echo Tanking this round against %t
+  /varset TankToggle Yes
+    }
+/return
+
+Sub event_ToggleTank
+  /if (${MeleeAttack_1.Equal[Tank]}) {
+    /varset MeleeAttack_1 NULL
+    /echo Will no longer Tank.
+    /return
+    }
+  /if (${MeleeAttack_2.Equal[Tank]}) {
+    /varset MeleeAttack_2 NULL
+    /echo Will no longer Tank.
+    /return
+    }
+  /if (${MeleeAttack_3.Equal[Tank]}) {
+    /varset MeleeAttack_3 NULL
+    /echo Will no longer Tank.
+    /return
+    }
+  /if (${MeleeAttack_1.Equal[NULL]}) {
+    /varset MeleeAttack_1 Tank
+    /echo Auto ${MeleeAttack_1} when availiable.
+    /return
+    }
+  /if (${MeleeAttack_2.Equal[NULL]}) {
+    /varset MeleeAttack_2 Tank
+    /echo Auto ${MeleeAttack_2} when availiable.
+    /return
+    }
+  /if (${MeleeAttack_3.Equal[NULL]}) {
+    /varset MeleeAttack_3 Tank
+    /echo Auto ${MeleeAttack_3} when availiable.
+    /return
+    }
+/return
+
+Sub event_ToggleOpenCorpse
+  /if (${OpenCorpse}==0) {
+    /varset OpenCorpse 1
+    /echo OpenCorpse On
+    /return
+    }
+  /if (${OpenCorpse}==1) {
+  /varset OpenCorpse 0
+    /echo OpenCorpse Off
+    }
+/return

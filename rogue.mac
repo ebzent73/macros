@@ -1,0 +1,207 @@
+#turbo 40
+
+| Macstab.mac by Stabulous
+
+#event Success "You have stolen #1#"
+#event Backstab "You backstab #1# for #2# points of damage."
+#event MyDamage "You pierce #1# for #2# points of damage."
+#event NonMelDamage "Stabulous hit #1# for #2# points of non-melee damage."
+/declare timeStart int outer
+/declare timeEnd int outer
+/declare timeElapsed int outer
+/declare bsDmg int outer
+/declare myDmg int outer
+/declare nonDmg int outer
+/declare fltExp float outer
+/declare UnderAttack string outer FALSE
+/varset fltExp ${Me.PctExp}
+
+Sub Main
+	:MainLoop
+		/if (${UnderAttack.Equal[TRUE]}) {
+			/echo Attacking ${Target.Name}, a ${Target.Level} ${Target.Class}
+			/stick behind 10
+			/varset timeStart ${Time.SecondsSinceMidnight}
+			/if (${Me.AbilityReady[Backstab]}) /doability Backstab
+			/attack on
+			:Loop
+				/doevents
+				/face fast
+				/call DoBS
+				/if (${Me.AbilityReady[Intimidation]}) /doability Intimidation
+				/if (${Me.AbilityReady[Disarm]}) /doability Disarm
+				/if (${Me.AbilityReady[Pick Pockets]}) /call PickPockets
+				/if (${Me.PctHPs}<75) /call SaveMyself
+				/delay 2
+			/if (${Target.ID}) /goto :Loop
+			/varset timeEnd ${Time.SecondsSinceMidnight}
+			/varset timeElapsed ${Math.Calc[${timeEnd} - ${timeStart}]}
+			/declare TotalDamage int inner
+			/varset TotalDamage ${Math.Calc[${bsDmg} + ${nonDmg} + ${myDmg}]}
+			/echo Duration: ${timeElapsed} seconds.
+			/echo Std Damage: ${myDmg} BS Damage: ${bsDmg}
+			/echo Non-melee Damage: ${nonDmg} /echo Total Damage: ${TotalDamage}
+			/echo Damage Per Second: ${Math.Calc[${TotalDamage} / ${timeElapsed}]}
+		}
+		/call FollowMA
+		/call HideSneak
+		/squelch /target clear
+		/call CheckCombat
+	/goto :MainLoop
+
+/return
+		
+Sub SaveMyself
+
+      /attack off
+      
+      |/aa act Assassin's Feign
+      /target clear
+      /keypress down hold
+      /delay 1
+      |/aa act Escape
+      /delay 2
+      /keypress down
+      /endmac
+
+/return
+
+Sub Event_Success(string Param1)
+   /timed 10 /autoinv
+   /echo Stole ${Param1}
+/return
+
+Sub PickPockets
+
+   /attack off
+   /delay 1
+   /doability "Pick Pockets"
+   /delay 1
+   /call CheckCursor
+   /attack on
+
+/return
+
+Sub DeathCheck
+   /if (${Me.State.Equal[HOVER]}) {
+	  /gsay I died, Waiting for rez plz
+	  /call Wait4Rez
+   }
+/return
+		
+Sub CheckCombat
+   /call DeathCheck
+   /if (${Me.XTarget}>0) {
+	  /varset UnderAttack TRUE
+	  /if (${Target.Type.Equal[group]}) /squelch /target clear
+	  /if (${Me.Sitting}) /stand
+	  /if (!${Target.ID} || ${Target.Type.Equal[corpse]}) /call GetCombatTarget   
+	  /return
+   }
+   /varset UnderAttack FALSE
+/return
+		
+Sub GetCombatTarget
+   :aquiretargetloop
+   /assist ${Group.MainAssist}
+   /delay 2s
+   /if (!${Target.ID} || ${Target.Type.Equal[corpse]} || ${Target.Type.Equal[group]}) {
+	  /squelch /target clear
+	  /delay 1s
+	  /if (${Me.XTarget}>0) /goto :aquiretargetloop
+   }
+/return
+		
+Sub Wait4Rez
+   :rezwait
+   /if (!${Window[ConfirmationDialogBox].Open}) {
+		 /delay 5s ${Window[ConfirmationDialogBox].Open}
+		 /doevents Have_Released
+		 /goto :rezwait
+	  }
+   /if (${Window[ConfirmationDialogBox].Open}) /notify ConfirmationDialogBox Yes_Button leftmouseup
+   /delay 2s
+   /if (${Window[RespawnWnd].Open}) /nomodkey /notify RespawnWnd RW_OptionsList listselect 2  
+   /delay 1s
+   /nomodkey /notify RespawnWnd RW_SelectButton leftmouseup
+   /delay 2s
+/return
+
+Sub DoBS
+   /if (${Me.AbilityReady[Backstab]}) /doability Backstab
+/return
+
+Sub DoRazorarc
+   /if (${Me.CombatAbilityReady[Razorarc]}) /doability Razorarc
+/return
+
+Sub Event_MyDamage(string Line, string Mob, int Damage)
+   /varset myDmg ${Math.Calc[${myDmg}+${Damage}]}
+/return
+
+Sub Event_Backstab(string Line, string Mob, int Damage)
+   /echo ${Damage}
+   /if (${Damage}>17000) /g BS'd for ${Damage}!
+   /varset bsDmg ${Math.Calc[${bsDmg}+${Damage}]}
+/return
+
+Sub Event_NonMelDamage(string Line, string Mob, int Damage)
+   /varset nonDmg ${Math.Calc[${nonDmg}+${Damage}]}
+/return
+
+Sub StayClose
+   /declare intRange int inner
+   /varcalc intRange ${Math.Calc[${Target.MaxRangeTo}-(${Target.MaxRangeTo}/4)]}
+   :StayCloseLoop
+   /if (${Target.Distance}>${intRange}) /keypress up hold
+   /face fast
+   /delay 1
+   /if (${Target.Distance}>${intRange}) /goto :StayCloseLoop
+   /keypress up
+/return
+
+Sub HideSneak
+   /call DoSneak
+   /call DoHide
+   /echo Ready to backstab!
+/return
+
+Sub DoHide
+   :TryHide
+   /if (${Me.AbilityReady[Hide]}) /doability Hide
+   /delay 5
+   /if (!${Me.Invis}) /goto :TryHide
+/return
+
+Sub DoSneak
+   :TrySneak
+   /if (${Me.AbilityReady[Sneak]}) /doability Sneak
+   /delay 5
+   /if (!${Me.Sneaking}) /goto :TrySneak
+/return
+		
+Sub FollowMA
+/tar ${Group.MainAssist}  
+	/delay 1s
+	:FollowLoop
+	/face fast
+	/if (${Target.Distance}>30) {
+		/if (${Me.Sneaking}) /doability "Sneak"
+		/keypress up hold
+	}
+	/if (${Target.Distance}<20) {
+		/keypress up
+		/return
+	}
+  /goto :FollowLoop
+/return
+		
+Sub CheckCursor
+   :ALauto_inv
+   /if (${Cursor.ID}) {
+	  /if (${Cursor.NoDrop} && !${Me.FreeInventory}) /return
+	  /timed 5 /autoinventory
+	  /delay 2s !${Cursor.ID}
+	  /goto :ALauto_inv
+   }
+/return

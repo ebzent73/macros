@@ -1,0 +1,12 @@
+#Event Sell "#*#You receive#*# for the #1#(s)#*#""
+
+sub main
+	:watching
+	/doevents
+	/goto :watching
+/return
+
+Sub Event_Sell(string soldstr, string ItemName)
+      /echo Setting ${ItemName} to sell
+      /ini "loot.ini" "${ItemName.Left[1]}" "${ItemName}" Sell
+/return

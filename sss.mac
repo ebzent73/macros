@@ -1,0 +1,8 @@
+| Sellstuff.mac v1.1 by Maskoi 11/27/2010
+| Target the vendor you want to sell to and type /mac sellstuff
+| Required  Ninjadvloot.inc v2.1 and a loot.ini file with items marked as sell
+#include Ninjadvloot.inc
+Sub Main
+   /call SetupAdvLootVars
+   /call DoLootStuff sell
+/return

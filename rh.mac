@@ -1,0 +1,1937 @@
+|--------------------------------------------------------------------------------- 
+| 
+| Rogue Helper (RH) Macro 
+| - v6.0 by Jerle (10/26/04) 
+| 
+| Documentation for RH is now separated from the macro proper. Please look for
+| RHDocs.html for syntax and use, or RHChangeLog.txt for the implementation
+| change log.
+|
+|--------------------------------------------------------------------------------- 
+| 
+| RH Syntax: 
+| 
+| Usage: /mac rh 
+| 
+| Default settings can be changed by their respective controlling /command
+|
+| Type /rhhelp for help or /status to see current settings!
+| 
+|--------------------------------------------------------------------------------- 
+
+#Chat tell 
+#Event StrikeVic "#*#Seeking a Victim#*#" 
+#Event AttackOn "#*#Auto attack is on#*#" 
+#Event AttackOff "#*#Auto attack is off#*#" 
+#Event Enraged "#*#|${Target.CleanName}| has become ENRAGED#*#" 
+#Event NLEnraged "#*#|${Target.CleanName}| is no longer enraged#*#" 
+#Event TooFarAway "#*#Your target is too far away, get closer#*#"
+#Event Exp "#*#You gain#*#experience#*#" 
+#Event Slain "#*# slain#*#"
+#Event Zoned "#*#You have entered#*#"
+#Event GotHit "#1#YOU for#*#points of damage."
+#Event GotMissed "#1#to#*#YOU, but #*#" 
+#Event SpellBounced "#*#Your spell did not take hold#*#"
+#Event SwitchWeapon "#*#|${switchtext}|#*#"
+#Event FTrap "#*#You sense a trap in this direction." 
+#Event BTrap "#*#You are certain that #*#" 
+#Event TogEvade "[MQ2] Autoevade#*#"
+#Event TogAAttack "[MQ2] Aattack#*#"
+#Event TogIntimidation "[MQ2] Autointimidation#*#"
+#Event TogDisarm "[MQ2] Autodisarm#*#"
+#Event TogPick "[MQ2] Autopick#*#"
+#Event TogStick "[MQ2] Autostick#*#" 
+#Event TogHS "[MQ2] Auto Hide & Sneak#*#" 
+#Event TogLeash "[MQ2] Leash#*#" 
+#Event TogAuto "[MQ2] Autoassist#*#" 
+#Event TogDynaggro "[MQ2] Dynaggro#*#" 
+#Event TogPause "[MQ2] Pause#*#"
+#Event TogTSwitch "[MQ2] AutoTargetSwitch#*#"
+#Event TogTraps "[MQ2] AutoTraps#*#"
+#Event TogDynclose "[MQ2] Dynclose#*#" 
+#Event LinkParse "[MQ2] LinkParse#*#" 
+#Event SetStopFighting "[MQ2] SetStopFighting#*#"
+#Event SetEndFloor "[MQ2] SetEndFloor#*#"
+#Event SetStrikeDisc "[MQ2] SetStrikeDisc#*#"
+#Event SetCloseness "[MQ2] SetCloseness#*#"
+#Event SetFirstassist "[MQ2] SetMainassist#*#"
+#Event SetSecondassist "[MQ2] SetSecondassist#*#"
+#Event SetThirdassist "[MQ2] SetThirdassist#*#"
+#Event SetAutoNinja "[MQ2] SetAutoNinja#*#"
+#Event SetWeaponSwitch "[MQ2] SetWeaponSwitch#*#"
+#Event SetStickDist "[MQ2] SetStickDist#*#"
+#Event SetChicken "[MQ2] SetChicken#*#"
+#Event SetDisc1 "[MQ2] SetDisc1#*#"
+#Event SetDisc2 "[MQ2] SetDisc2#*#"
+#Event SetLeashFlex "[MQ2] SetLeashFlex#*#"
+#Event SetVerbosity "[MQ2] SetVerbosity#*#"
+#Event SetChannel "[MQ2] SetChannel#*#"
+#Event DragBodies "[MQ2] DragBodies#*#"
+#Event LootMyCorpse "[MQ2] LootMyCorpse#*#"
+#Event AutoFollow "[MQ2] AutoFollow#*#"
+#Event AddMaster "[MQ2] AddMaster#*#"
+#Event RemMaster "[MQ2] RemoveMaster#*#"
+#Event ItemSet "[MQ2] ItemSet#*#"
+#Event ItemBounce "[MQ2] ItemBounce#*#"
+#Event ItemCast "[MQ2] ItemCast#*#"
+#Event HelpInfo "[MQ2] RH Help#*#"
+#Event StatInfo "[MQ2] RH Status#*#"
+
+Sub Main
+
+/echo Loading Rogue Helper... Please Wait!
+
+/declare doAAttack bool outer FALSE
+/declare doEvade bool outer TRUE 
+/declare doDisarm bool outer FALSE
+/declare doIntimidation bool outer FALSE
+/declare StopFightingHealth int outer 30 
+/declare StrikeSkill string outer Assassin 
+/declare MinEndurance int outer 80 
+/declare isEnraged bool outer FALSE 
+/declare strikeReady bool outer FALSE 
+/declare strikeTimer timer outer 0 
+/declare LDExp float outer ${Me.PctGroupLeaderExp} 
+/declare AAExp float outer ${Me.PctAAExp} 
+/declare Exp float outer ${Me.PctExp} 
+/declare doStick bool outer TRUE 
+/declare X float outer 
+/declare Y float outer 
+/declare behindTarget bool outer FALSE 
+/declare i int outer 
+/declare dir int outer 
+/declare delta int outer 
+/declare strafedir string outer 
+/declare closeness int outer 70
+/declare doHideSneak bool outer TRUE
+/declare doLeash bool outer FALSE 
+/declare leashlength int outer 0
+/declare stakeX int outer ${Me.X}
+/declare stakeY int outer ${Me.Y}
+/declare leashholder string outer Nobody
+/declare doAutoassist bool outer FALSE 
+/declare mainassist string outer Nobody
+/declare firstassist string outer Nobody
+/declare secondassist string outer Nobody
+/declare thirdassist string outer Nobody
+/declare assistpct int outer 98 
+/declare oldtargetID int outer ${Target.ID}
+/declare assisttimer timer outer 0
+/declare doDynaggro bool outer FALSE
+/declare gotHit bool outer FALSE
+/declare aggrotimer timer outer 0
+/declare ialias string outer None
+/declare doIclick bool outer FALSE
+/declare bouncenum int outer 1
+/declare ibounce string outer None
+/declare itemspellname string outer None
+/declare clicktimer timer outer 0
+/declare isPaused bool outer FALSE
+/declare ninjamode string outer OFF
+/declare ninjadist int outer 50
+/declare doPick bool outer FALSE 
+/declare doSwitch bool outer FALSE 
+/declare switchtext string outer +Undefined+
+/declare weapon1 string outer None
+/declare weapon2 string outer None
+/declare wstype string outer Detrimental
+/declare doTSwitch bool outer TRUE
+/declare lastevent string outer None
+/declare rngtarget int outer 200
+/declare rngtank int outer 100
+/declare useMU bool outer FALSE
+/declare doTraps bool outer FALSE
+/declare oldheading string outer Default
+/declare doChicken bool outer FALSE
+/declare nimblehealth int outer 20
+/declare doEscape bool outer FALSE
+/declare nimbletimer timer outer 0
+/declare nimbleactive timer outer 0
+/declare chickentimer timer outer 0
+/declare doDisc1 bool outer FALSE
+/declare disc1 string outer Deadly Precision
+/declare disc1end int outer 60
+/declare disc1reuse int outer 5
+/declare disc1reusetimer timer outer 0
+/declare doDisc2 bool outer FALSE
+/declare disc2 string outer Kinesthetics
+/declare disc2end int outer 60
+/declare disc2reuse int outer 5
+/declare disc2reusetimer timer outer 0
+/declare discactive timer outer 0
+/declare leashflex int outer 10
+/declare doDynclose bool outer TRUE
+/declare closenessdesired int outer 70
+/declare acquiretimer timer outer 0
+/declare snuggleup bool outer FALSE
+/declare isTanking bool outer FALSE
+/declare verbosity int outer 2
+/declare channel string outer echo
+/declare rhversion string outer 6.0
+
+/if (${verbosity}>=0) /${channel} Setting Aliases...
+/squelch /alias /status /echo RH Status
+/squelch /alias /rhhelp /echo RH Help
+/squelch /alias /aattack /echo Aattack
+/squelch /alias /autoevade /echo Autoevade
+/squelch /alias /autointimidation /echo Autointimidation
+/squelch /alias /autodisarm /echo Autodisarm
+/squelch /alias /autopick /echo Autopick
+/squelch /alias /stopfight /echo SetStopFighting
+/squelch /alias /strikedisc /echo SetStrikeDisc
+/squelch /alias /endfloor /echo SetEndFloor
+/squelch /alias /autostick /echo Autostick 
+/squelch /alias /autohs /echo Auto Hide & Sneak
+/squelch /alias /leash /echo Leash 
+/squelch /alias /autoassist /echo Autoassist 
+/squelch /alias /dynaggro /echo Dynaggro
+/squelch /alias /closeness /echo SetCloseness
+/squelch /alias /mainassist /echo SetMainassist
+/squelch /alias /secondassist /echo SetSecondassist
+/squelch /alias /thirdassist /echo SetThirdassist
+/squelch /alias /drag /echo DragBodies
+/squelch /alias /lootmycorpse /echo LootMyCorpse
+/squelch /alias /autofollow /echo AutoFollow
+/squelch /alias /iset /echo ItemSet
+/squelch /alias /ibounce /echo ItemBounce
+/squelch /alias /iclick /echo ItemCast
+/squelch /alias /pause /echo Pause
+/squelch /alias /autoninja /echo SetAutoNinja
+/squelch /alias /addmaster /echo AddMaster
+/squelch /alias /remmaster /echo RemoveMaster
+/squelch /alias /weaponswitch /echo SetWeaponSwitch
+/squelch /alias /targetswitch /echo AutoTargetSwitch
+/squelch /alias /stickdist /echo SetStickDist
+/squelch /alias /autotraps /echo AutoTraps
+/squelch /alias /autochicken /echo SetChicken
+/squelch /alias /autodisc1 /echo SetDisc1
+/squelch /alias /autodisc2 /echo SetDisc2
+/squelch /alias /leashflex /echo SetLeashFlex
+/squelch /alias /verbosity /echo SetVerbosity
+/squelch /alias /channel /echo SetChannel
+/squelch /alias /dynclose /echo Dynclose
+/squelch /alias /lp /echo LinkParse
+
+:EndAlias
+
+|-- Update the Version information
+/ini "RHSettings.ini" "General" "Version" "${rhversion}"
+
+|-- Read in INI settings, if defined... Leashing is only stored TRUE if there is a Leash-holding Master!
+/if (${Ini[RHSettings.ini,General,AutoEvade].NotEqual[NULL]}) /varset doEvade ${Ini[RHSettings.ini,General,AutoEvade]}
+/if (${Ini[RHSettings.ini,General,AutoDisarm].NotEqual[NULL]}) /varset doDisarm ${Ini[RHSettings.ini,General,AutoDisarm]}
+/if (${Ini[RHSettings.ini,General,AutoIntimidation].NotEqual[NULL]}) /varset doIntimidation ${Ini[RHSettings.ini,General,AutoIntimidation]}
+/if (${Ini[RHSettings.ini,General,AAttack].NotEqual[NULL]}) /varset doAAttack ${Ini[RHSettings.ini,General,AAttack]}
+/if (${Ini[RHSettings.ini,General,StopFightingHealth].NotEqual[NULL]}) /varset StopFightingHealth ${Ini[RHSettings.ini,General,StopFightingHealth]}
+/if (${Ini[RHSettings.ini,General,StrikeSkill].NotEqual[NULL]}) /varset StrikeSkill ${Ini[RHSettings.ini,General,StrikeSkill]} 
+/if (${Ini[RHSettings.ini,General,MinEndurance].NotEqual[NULL]}) /varset MinEndurance ${Ini[RHSettings.ini,General,MinEndurance]} 
+/if (${Ini[RHSettings.ini,General,AutoStick].NotEqual[NULL]}) /varset doStick ${Ini[RHSettings.ini,General,AutoStick]} 
+/if (${Ini[RHSettings.ini,General,Closeness].NotEqual[NULL]}) /varset closeness ${Ini[RHSettings.ini,General,Closeness]} 
+/if (${Ini[RHSettings.ini,General,AutoHideSneak].NotEqual[NULL]}) /varset doHideSneak ${Ini[RHSettings.ini,General,AutoHideSneak]}
+/if (${Ini[RHSettings.ini,General,Leashing].NotEqual[NULL]}) /varset doLeash ${Ini[RHSettings.ini,General,Leashing]} 
+/if (${Ini[RHSettings.ini,General,LeashHolder].NotEqual[NULL]}) /varset leashholder ${Ini[RHSettings.ini,General,LeashHolder]} 
+/if (${Ini[RHSettings.ini,General,LeashLength].NotEqual[NULL]}) /varset leashlength ${Ini[RHSettings.ini,General,LeashLength]} 
+/if (${Ini[RHSettings.ini,General,LeashFlex].NotEqual[NULL]}) /varset leashflex ${Ini[RHSettings.ini,General,LeashFlex]}
+/if (${Ini[RHSettings.ini,General,AutoAssist].NotEqual[NULL]}) /varset doAutoassist ${Ini[RHSettings.ini,General,AutoAssist]} 
+/if (${Ini[RHSettings.ini,General,AssistPercentage].NotEqual[NULL]}) /varset assistpct ${Ini[RHSettings.ini,General,AssistPercentage]} 
+/if (${Ini[RHSettings.ini,General,MainAssist].NotEqual[NULL]}) /varset mainassist ${Ini[RHSettings.ini,General,MainAssist]} 
+/if (${Ini[RHSettings.ini,General,MainAssist].NotEqual[NULL]}) /varset firstassist ${Ini[RHSettings.ini,General,MainAssist]}
+/if (${Ini[RHSettings.ini,General,SecondAssist].NotEqual[NULL]}) /varset secondassist ${Ini[RHSettings.ini,General,SecondAssist]} 
+/if (${Ini[RHSettings.ini,General,ThirdAssist].NotEqual[NULL]}) /varset thirdassist ${Ini[RHSettings.ini,General,ThirdAssist]} 
+/if (${Ini[RHSettings.ini,General,DynamicAggro].NotEqual[NULL]}) /varset doDynaggro ${Ini[RHSettings.ini,General,DynamicAggro]} 
+/if (${Ini[RHSettings.ini,General,AutoNinjaMode].NotEqual[NULL]}) /varset ninjamode ${Ini[RHSettings.ini,General,AutoNinjaMode]} 
+/if (${Ini[RHSettings.ini,General,AutoNinjaDistance].NotEqual[NULL]}) /varset ninjadist ${Ini[RHSettings.ini,General,AutoNinjaDistance]} 
+/if (${Ini[RHSettings.ini,General,AutoPickPocket].NotEqual[NULL]}) /varset doPick ${Ini[RHSettings.ini,General,AutoPickPocket]}
+/if (${Ini[RHSettings.ini,General,WeaponSwitching].NotEqual[NULL]}) /varset doSwitch ${Ini[RHSettings.ini,General,WeaponSwitching]}
+/if (${Ini[RHSettings.ini,General,TargetSwitching].NotEqual[NULL]}) /varset doTSwitch ${Ini[RHSettings.ini,General,TargetSwitching]}
+/if (${Ini[RHSettings.ini,General,StickRangeToTarget].NotEqual[NULL]}) /varset rngtarget ${Ini[RHSettings.ini,General,StickRangeToTarget]}
+/if (${Ini[RHSettings.ini,General,StickRangeToTank].NotEqual[NULL]}) /varset rngtank ${Ini[RHSettings.ini,General,StickRangeToTank]}
+/if (${Ini[RHSettings.ini,General,TrapNegotiation].NotEqual[NULL]}) /varset doTraps ${Ini[RHSettings.ini,General,TrapNegotiation]}
+/if (${Ini[RHSettings.ini,General,AutoChicken].NotEqual[NULL]}) /varset doChicken ${Ini[RHSettings.ini,General,AutoChicken]}
+/if (${Ini[RHSettings.ini,General,NimbleHealth].NotEqual[NULL]}) /varset nimblehealth ${Ini[RHSettings.ini,General,NimbleHealth]}
+/if (${Ini[RHSettings.ini,General,ContingencyEscape].NotEqual[NULL]}) /varset doEscape ${Ini[RHSettings.ini,General,ContingencyEscape]}
+/if (${Ini[RHSettings.ini,General,AutoDisc1].NotEqual[NULL]}) /varset doDisc1 ${Ini[RHSettings.ini,General,AutoDisc1]}
+/if (${Ini[RHSettings.ini,General,Disc1].NotEqual[NULL]}) /varset disc1 ${Ini[RHSettings.ini,General,Disc1]}
+/if (${Ini[RHSettings.ini,General,Disc1Endurance].NotEqual[NULL]}) /varset disc1end ${Ini[RHSettings.ini,General,Disc1Endurance]}
+/if (${Ini[RHSettings.ini,General,Disc1Reuse].NotEqual[NULL]}) /varset disc1reuse ${Ini[RHSettings.ini,General,Disc1Reuse]}
+/if (${Ini[RHSettings.ini,General,AutoDisc2].NotEqual[NULL]}) /varset doDisc2 ${Ini[RHSettings.ini,General,AutoDisc2]}
+/if (${Ini[RHSettings.ini,General,Disc2].NotEqual[NULL]}) /varset disc2 ${Ini[RHSettings.ini,General,Disc2]}
+/if (${Ini[RHSettings.ini,General,Disc2Endurance].NotEqual[NULL]}) /varset disc2end ${Ini[RHSettings.ini,General,Disc2Endurance]}
+/if (${Ini[RHSettings.ini,General,Disc2Reuse].NotEqual[NULL]}) /varset disc2reuse ${Ini[RHSettings.ini,General,Disc2Reuse]}
+/if (${Ini[RHSettings.ini,General,DynamicCloseness].NotEqual[NULL]}) /varset doDynclose ${Ini[RHSettings.ini,General,DynamicCloseness]}
+|-- /stick loose ${Math.Calc[${Target.MaxRangeTo}-2]} - If it gives me trouble /varset doDynclose ${Ini[RHSettings.ini,General,DynamicCloseness]}
+/if (${Ini[RHSettings.ini,General,Verbosity].NotEqual[NULL]}) /varset verbosity ${Ini[RHSettings.ini,General,Verbosity]}
+/if (${Ini[RHSettings.ini,General,Channel].NotEqual[NULL]}) /varset channel ${Ini[RHSettings.ini,General,Channel]}
+/if (${Ini[RHSettings.ini,Weapons,Weapon1].NotEqual[NULL]}) /varset weapon1 ${Ini[RHSettings.ini,Weapons,Weapon1]}
+/if (${Ini[RHSettings.ini,Weapons,Weapon2].NotEqual[NULL]}) /varset weapon2 ${Ini[RHSettings.ini,Weapons,Weapon2]}
+/if (${Ini[RHSettings.ini,Weapons,SwitchText].NotEqual[NULL]}) /varset switchtext ${Ini[RHSettings.ini,Weapons,SwitchText]}
+/varset closenessdesired ${closeness}
+/varset wstype ${FindItem[${weapon1}].Spell.SpellType}
+
+|- Build Empty master list in RHSettings.ini file if it doesn't exist
+/if (!${Ini[RHSettings.ini,Masters,Controller1].Length}) {
+|- It's not in there yet
+/for i 1 to 20
+/ini "RHSettings.ini" "Masters" "Controller${i}" "Nobody"
+/next i
+}
+
+/echo =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= 
+/echo Jerle's Rogue Helper Macro (v${rhversion}) Starting... 
+/echo =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= 
+/echo Use "/rhhelp" to display help information
+/echo RH Status
+
+:ForeverLoop 
+
+|- Service any events 
+
+/doevents 
+
+|- If we're stunned or RH is paused, just service events 
+
+/if (${Me.State.Equal[STUN]} || ${isPaused}) {
+/delay 2
+/goto :ForeverLoop 
+}
+
+|- While fighting or not fighting...
+
+|- Turn attacking back on if enraged target, and no longer facing it
+/if (${isEnraged} && ${Target.ID} && ${doAutoassist} && !${Me.Combat}) {
+/call Check_Behind
+/varset behindTarget ${Macro.Return} 
+/if (${Target.ID} && ${behindTarget}) {
+/attack on
+/if (${verbosity}>=1) /${channel} ** Attack re-started (No Enrage Risk): ${Target.CleanName}
+} 
+}
+
+|- Check if we should chicken out
+/if (${doChicken} && (${Me.PctHPs}<=${nimblehealth}) && !${chickentimer}) {
+/if (${verbosity}>=1) /${channel} Autochicken to the rescue!
+/if (!${nimbletimer}) {
+/disc nimble
+/if (${verbosity}>=1) /${channel} Nimble mode activated!
+/varset nimbletimer 21m
+/varset nimbleactive 12s
+} else /if (${Me.AltAbilityReady[Escape]} && !${nimbleactive}) {
+/if (${verbosity}>=1) /${channel} Contingency Escape activated! (Nimble expired/unavailable)
+/attack off
+/alt activate 102 
+/varset chickentimer 30s
+} else {
+/if (${verbosity}>=1) /${channel} ... or not! Can't escape, can't nimble... Farewell!
+/varset chickentimer 2m
+}
+}
+
+|- Stop fighting if we lose our target
+/if (${Me.Combat} && !${Target.ID}) /attack off 
+
+|- Are we supposed to stick to a target?
+/if ((${Me.Combat} || ${strikeReady}) && ${Target.ID} && ${doStick} && (${Target.Distance}<${rngtarget}) && (${Target.Type.Equal[NPC]} || ${Target.Type.Equal[Chest]})) { 
+
+|- Check to see if we're too far from our tank (if applicable)
+/if (${doAutoassist} && (${Spawn[${mainassist}].Distance}>${rngtank})) {
+/if (${useMU} && ${Stick.Status.Equal[ON]}) /squelch /stick off
+/goto :DoneSticking
+}
+
+|- Check to see if we're mounted and dismount if so
+/if (${Me.Buff[Summon Drogmor].ID} || ${Me.Buff[Summon Horse].ID}) /dismount
+
+|- Use MQ2MoveUtils ? If so, start sticking and bypass RH movement tools
+/if (${Target.Class.Name.Equal[Destructible Object]}) {
+/varset closeness 30
+/delay 5
+}
+/if (${useMU}) {
+/varset isTanking FALSE
+/if (${aggrotimer.Value} || ${Me.TargetOfTarget.Name.Equal[${Me}]}) /varset isTanking TRUE
+/if (!${Stick.Status.Equal[ON]} || ${snuggleup}) {
+/if (${isTanking}) {
+/squelch /stick ${closeness}% mpause ${If[${Me.Underwater},uw,]}
+} else {
+/squelch /stick ${closeness}% behind mpause ${If[${Me.Underwater},uw,]}
+}
+/varset snuggleup FALSE
+} else {
+/if (${Stick.MoveBehind}) {
+/if (${isTanking}) {
+/squelch /stick off
+/if (${verbosity}>=2) /${channel} Switched to frontal sticking...
+}
+} else {
+/if (!${isTanking}) {
+/squelch /stick off
+/if (${verbosity}>=2) /${channel} Maneuvering behind target again...
+}
+}
+}
+/goto :DoneSticking
+}
+
+/if (${Target.ID}) /face ${If[${Me.Underwater},,nolook]} 
+
+|- If we're too far away to hit it, get 1 second closer, unless we can hit it in less time 
+/if (${Target.Distance}>${Math.Calc[${Target.MaxRangeTo}*${closeness}/100]}) { 
+
+|- Set current position first before potentially moving (in case we get stuck) 
+/varset X ${Me.X} 
+/varset Y ${Me.Y} 
+
+/if (!${Target.ID}) /goto :Foreverloop 
+
+|- Move
+/keypress forward hold 
+/delay 1s ${Target.Distance}<${Math.Calc[${Target.MaxRangeTo}*${closeness}/100]} 
+/keypress forward 
+
+|- Check to see if we got stuck trying that 
+/if ((${Me.X}==${X}) && (${Me.Y}==${Y})) { 
+|- We're stuck, back off a second, move left or right (randomly) for .5 seconds 
+/if (${verbosity}>=2) /${channel} We're STUCK on something, backing up... 
+/keypress back hold 
+/delay 1s 
+/keypress back 
+/if (${Math.Rand[2]}) { 
+/varset strafedir STRAFE_LEFT 
+} else { 
+/varset strafedir STRAFE_RIGHT 
+} 
+/if (${verbosity}>=2) /${channel} Unsticking: Strafing ${strafedir} a half-second... 
+/keypress ${strafedir} hold 
+/delay 5 
+/keypress ${strafedir} 
+} 
+} 
+
+/if (!${Target.ID}) /goto :Foreverloop 
+
+|- If we are close enough to hit it (and don't have aggro), lets try to get behind it a little bit at a time 
+
+/if ((${Target.Distance}<=${Target.MaxRangeTo}) && !${aggrotimer.Value} && !${Me.TargetOfTarget.Name.Equal[${Me}]}) { 
+
+/call Check_Behind
+/varset behindTarget ${Macro.Return} 
+
+|- If we're not behind it, strafe around it a little 
+/if (!${behindTarget}) { 
+|- Which way do we strafe? 
+/varcalc delta ${Me.Heading.Clock}-${Target.Heading.Clock} 
+/if (${delta}>12) /varcalc delta ${delta}-12 
+/if (${delta}<-12) /varcalc delta ${delta}+12 
+/if (${delta}<0) { 
+/varset strafedir STRAFE_LEFT 
+} else { 
+/varset strafedir STRAFE_RIGHT 
+} 
+|- Set current position first before moving (in case we get stuck) 
+/varset X ${Me.X} 
+/varset Y ${Me.Y} 
+
+/if (!${Target.ID}) /goto :Foreverloop 
+
+|- Execute a strafe in the correct direction 
+/keypress ${strafedir} hold 
+/delay 2
+/keypress ${strafedir} 
+/if (${Target.ID}) /face fast ${If[${Me.Underwater},,nolook]} 
+|- Check if we're stuck and warn if so (go through target to fix it)
+/if ((${Me.X}==${X}) && (${Me.Y}==${Y})) { 
+/if (${verbosity}>=2) /${channel} We're STUCK trying to get behind target!
+/delay 1s
+} 
+} 
+} 
+} else {
+/if (${useMU} && ${Stick.Status.Equal[ON]}) /squelch /stick off
+}
+:DoneSticking
+
+|- Check on switching weapons (assuming it's a buff-weapon and buff is down)
+
+/if (${doSwitch} && ${wstype.Equal[Beneficial]}) {
+/varset itemspellname ${FindItem[${weapon1}].Spell}
+/if (${itemspellname.NotEqual[${Me.Buff[${itemspellname}]}]} && !${FindItem[${weapon1}].InvSlot.Name.Equal[mainhand]} && !${FindItem[${weapon1}].InvSlot.Name.Equal[offhand]}) {
+/if (${verbosity}>=1) /${channel} ** Beneficial proc-weapon swapping...
+/call Weapon_Swap "${weapon1}" "${weapon2}"
+}
+}
+
+|- Are we fighting? 
+
+/if (${Me.Combat}) { 
+|- ** We are fighting ** 
+
+|- Respond to enraged targets
+/if (${isEnraged} && ${Target.ID}) {
+/call Check_Behind
+/varset behindTarget ${Macro.Return} 
+/if (${Target.ID} && !${behindTarget}) {
+/attack off
+/if (${verbosity}>=1) /${channel} ** Attack ceased (Enrage Risk): ${Target.CleanName}
+} 
+}
+
+|- If we're sneaking, stop... since it serves no purpose and affects strafing
+/if (${Me.Sneaking}) /doability "Sneak" 
+
+|- Check up on our autoassist targets if applicable, and switch if MA switches (1 second checks)
+/if (${doTSwitch} && ${doAutoassist} && ${Target.ID} && !${assisttimer}) {
+/varset oldtargetID ${Target.ID}
+/assist ${mainassist}
+/varset assisttimer 1s
+}
+
+|- Did we just switch targets? If so, turn off attack and start the loop over!
+/if (${doAutoassist} && ${Target.ID}!=${oldtargetID}) {
+/if (${verbosity}>=1) /${channel} --> *SWITCH* target to: ${Target.CleanName}
+/varset oldtargetID ${Target.ID}
+/attack off
+/delay 2
+/varset assisttimer 1s
+/goto :ForeverLoop
+}
+
+|- Check for leash tugging and move back to stake some if so 
+/if (${doLeash}) { 
+/if (${leashholder.Equal[Nobody]} && (${Math.Distance[${Me.Y},${Me.X}:${stakeY},${stakeX}]}>${leashlength})) {
+/if (${verbosity}>=2) /${channel} CHOKE! We're at the leash's length! (${leashlength} ft.) 
+/if (${verbosity}>=1) /${channel} ** Autoassist is now OFF!
+/varset doAutoassist FALSE 
+/attack off
+/if (${useMU}) /squelch /stick off
+/face ${If[${Me.Underwater},,nolook]} loc ${stakeY},${stakeX} 
+/keypress forward hold 
+/delay 1s ${Math.Distance[${Me.Y},${Me.X}:${stakeY},${stakeX}]}<${Math.Calc[${leashlength}*${leashflex}/100]}
+/keypress forward 
+|- Slow 180degree turns take time, and we may have turned off attack, so...
+/goto :ForeverLoop
+}
+/if (!${leashholder.Equal[Nobody]} && ${Spawn[${leashholder}].ID} && (${Spawn[${leashholder}].Distance}>${leashlength})) {
+/if (${verbosity}>=2) /${channel} CHOKE! Tugging on ${leashholder}'s leash! (${leashlength} ft.) 
+/if (${verbosity}>=1) /${channel} ** Autoassist is now OFF!
+/varset doAutoassist FALSE 
+/attack off
+/if (${useMU}) /squelch /stick off
+/squelch /face ${If[${Me.Underwater},,nolook]} id ${Spawn[${leashholder}].ID}
+/keypress forward hold 
+/delay 1s ${Spawn[${leashholder}].Distance}<${Math.Calc[${leashlength}*${leashflex}/100]}
+/keypress forward 
+|- Slow 180degree turns take time, and we may have turned off attack, so...
+/goto :ForeverLoop
+}
+|- Broken leash check
+/if (!${leashholder.Equal[Nobody]} && !${Spawn[${leashholder}].ID}) {
+/if (${verbosity}>=1) /${channel} ** Master DEAD or ZONED! Leash is BROKEN! 
+/varset doLeash FALSE
+/varset leashholder Nobody
+/ini "RHSettings.ini" "General" "Leashing" "${doLeash}" 
+/ini "RHSettings.ini" "General" "LeashHolder" "${leashholder}" 
+/goto :ForeverLoop
+}
+} 
+
+|- If Target is Box/Barrel/Etc
+/if (${Target.Class.Name.Equal[Destructible Object]} && ${Me.Combat} && ${Target.Distance}<10) {
+/open
+/delay 7
+/varset closeness ${closenessdesired}
+/call NinjaLoot
+}
+
+|- Are we standing, have a target, have backstab ready and can we stick it in the back? 
+
+/call Check_Behind
+/varset behindTarget ${Macro.Return} 
+/if (${Target.ID} && ${Me.Standing} && !${Me.Casting.ID} && ${behindTarget} && (${Target.Distance}<${Math.Calc[${Target.MaxRangeTo}*${closeness}/100]})) { 
+/if (${Me.AbilityReady["Backstab"]}) { 
+/doability "Backstab" 
+/if (${verbosity}>=2) /${channel} Backstabbing: ${Target.CleanName} 
+} 
+} 
+
+|- Are we tanking? If so, just stab it in the face if we can! 
+
+/if (${Target.ID} && ${Me.Standing} && !${Me.Casting.ID} && (${aggrotimer.Value} || ${Me.TargetOfTarget.Name.Equal[${Me}]})) { 
+/if (${Me.AbilityReady["Backstab"]} && ${InvSlot[mainhand].Item.Type.Equal[Piercing]}) { 
+/doability "Backstab" 
+/if (${verbosity}>=1) /${channel} Tanking -> Facestabbing: ${Target.CleanName} 
+} 
+} 
+
+|- Are we standing, have a target?
+
+/if (${doDisarm} && ${Target.ID} && ${Me.Standing} && !${Me.Casting.ID} && (${Target.Distance}<${Math.Calc[${Target.MaxRangeTo}*${closeness}/100]})) { 
+/if (${Me.AbilityReady["Disarm"]}) { 
+/doability "Disarm" 
+/if (${verbosity}>=2) /${channel} Disarming: ${Target.CleanName} 
+} 
+} 
+
+|- Are we standing, have a target, and want to Intimidate it?
+
+/if (${doIntimidation} && ${Target.ID} && ${Me.Standing} && !${Me.Casting.ID} && (${Target.Distance}<${Math.Calc[${Target.MaxRangeTo}*${closeness}/100]})) { 
+/if (${Me.AbilityReady["Intimidation"]}) { 
+/doability "Intimidation" 
+/if (${verbosity}>=2) /${channel} Intimidating: ${Target.CleanName} 
+} 
+} 
+
+|- Can we evade? Should we?
+
+/if (${doEvade} && ${Target.ID} && !${Me.Casting.ID} && ${Me.AbilityReady["Hide"]} && (!${Me.Moving} || ${Me.AltAbilityReady[Nimble Evasion]})) { 
+/if (${verbosity}>=2) /${channel} Evading ${Target.CleanName}
+/attack off 
+/delay 1 
+/doability "Hide" 
+/doability "Sneak"
+/attack on 
+/delay 1
+} 
+
+|- What's it got in it's pocketses?
+
+/if (${doPick} && ${Target.ID} && !${Me.Casting.ID} && (${Target.Distance}<15) && ${Me.AbilityReady["Pick Pockets"]}) {
+/if (${verbosity}>=2) /${channel} Pick-pocketing ${Target.CleanName}
+/attack off
+/delay 1
+/doability "Pick Pockets"
+/attack on
+/delay 1
+/if (${Cursor.ID}) /autoinv 
+}
+
+|- Are we so hurt we should stop fighting for a bit? 
+
+/if (${Me.PctHPs}<=${StopFightingHealth}) { 
+/attack off 
+/if (${verbosity}>=1) /${channel} Getting my ass kicked, ceasing combat! 
+} 
+
+|- Shall we do our optional discs?
+
+/if (${doDisc1} && !${disc1reusetimer} && !${discactive} && !${strikeTimer} && ${Target.ID} && ${Target.PctHPs}>=50 && ${Me.PctEndurance}>=${disc1end}) {
+/disc ${disc1}
+/if (${verbosity}>=1) /${channel} Disc #1: ${disc1} activated
+/delay 1s
+/varset discactive 1m
+/varset disc1reusetimer ${disc1reuse}m
+}
+
+/if (${doDisc2} && !${disc2reusetimer} && !${discactive} && !${strikeTimer} && ${Target.ID} && ${Target.PctHPs}>=50 && ${Me.PctEndurance}>=${disc2end}) {
+/disc ${disc2}
+/if (${verbosity}>=1) /${channel} Disc #2: ${disc2} activated
+/delay 1s
+/varset discactive 1m
+/varset disc2reusetimer ${disc2reuse}m
+}
+
+|- Are we supposed to look for traps?
+/if (${doTraps} && ${Me.Standing}) {
+/varset oldheading ${Me.Heading.DegreesCCW}
+/if (${Me.AbilityReady["Sense Traps"]}) {
+/doability "Sense Traps"
+/doability "Disarm Traps"
+/if (${verbosity}>=2) /${channel} Looking for traps... 
+}
+}
+
+} else { 
+|- ** We are not fighting
+
+|- If we're not hiding or moving, check clicky maintained spells
+/if (${Me.Invis} || ${Me.Moving} || ${clicktimer} || ${Me.State.Equal[BIND]}) /goto :DoneItemChecks
+/varset i 1
+:ItemCheckLoop
+/varset ialias ${Ini[RHItems.ini].Arg[${i},|]}
+/if (${ialias.NotEqual[NULL]}) {
+|- Obtained an itemalias from the RHItems.ini file
+|- We supposed to keep this spell up?
+/if (${Ini[RHItems.ini,${ialias},KeepUp].Equal[FALSE]}) /goto :NextItem
+|- Scan the item's bounce list for the active bouncers
+/varset bouncenum 1
+/varset doIclick TRUE
+:BounceCheckLoop
+/varset ibounce ${Ini[RHItems.ini,${ialias},BounceOff${bouncenum}]}
+/if (${ibounce.NotEqual[NULL]}) {
+/if (${ibounce.Equal[${Me.Buff[${ibounce}]}]}) /varset doIclick FALSE
+} else /goto :DoneBounceChecks
+/varcalc bouncenum ${bouncenum}+1
+/goto :BounceCheckLoop
+:DoneBounceChecks
+|- By now we won't click the item if a bouncer spell is on us
+|- Just have to check to see if the existing buff is on too
+/varset itemspellname ${FindItem[${Ini[RHItems.ini,${ialias},FullName]}].Spell}
+/if (${itemspellname.Equal[${Me.Buff[${itemspellname}]}]}) /varset doIclick FALSE
+|- Finally, do it if we should
+/if (${doIclick}) /docommand /iclick ${ialias}
+|- Did we fail to find that previous item? (i.e. Dead and naked at bind point!)
+/if (${clicktimer}) /goto :DoneItemChecks
+:NextItem
+/varcalc i ${i}+1
+} else /goto :DoneItemChecks
+/goto :ItemCheckLoop
+:DoneItemChecks
+
+|- Put the closeness value back to the user's desired setting...
+/varset closeness ${closenessdesired}
+
+|- Lets hide and sneak if not already and we're set to do so ** 
+
+/if (${doHideSneak} && ${Me.AbilityReady["Sneak"]} && !${Me.Casting.ID} && ${Me.State.NotEqual[BIND]} && !${Window[TradeWnd].Open} && !${Window[MerchantWnd].Open} && !${Window[BigBankWnd].Open}) /doability "Sneak" 
+/if (${doHideSneak} && ${Me.AbilityReady["Hide"]} && !${Me.Casting.ID} && ${Me.Sneaking} && (!${Me.Moving} || ${Me.AltAbilityReady[Nimble Evasion]}) && ${Me.State.NotEqual[BIND]} && !${Window[TradeWnd].Open} && !${Window[MerchantWnd].Open} && !${Window[BigBankWnd].Open}) /doability "Hide" 
+
+|- It's possible we're poised for a Strike, check and fight if so 
+
+/call Check_Behind
+/varset behindTarget ${Macro.Return} 
+/if (${Target.ID} && ${Target.Type.Equal[NPC]} && ${Me.Standing} && ${Me.State.NotEqual[BIND]} && !${Me.Casting.ID} && ${behindTarget}) { 
+/if (${strikeReady} && ${Me.AbilityReady["Backstab"]}) { 
+/doability "Backstab" 
+/if (${verbosity}>=1) /${channel} Executing a strike: ${Target.CleanName} 
+/varset strikeReady FALSE 
+/attack on 
+} 
+} 
+
+|- It's also possible we never got behind a target and strike expired! 
+
+/if (${strikeReady} && ${Target.ID} && !${strikeTimer.Value} && ${Target.Type.Equal[NPC]}) { 
+/if (${verbosity}>=2) /${channel} Didn't find the back of a target in 30 seconds! 
+/varset strikeReady FALSE 
+/attack on 
+} 
+
+|- If we're set to autoassist, lets find a target 
+/if (${doAutoassist} && !${isEnraged} && !${Me.Casting.ID} && ${Me.State.NotEqual[BIND]}) { 
+|- Is main assist alive/in-zone? 
+/if (!${assisttimer} && !${strikeReady}) { 
+|- Lets try all the assists in priority order until we get an NPC to whack on
+/if (!${Me.Casting.ID}) /assist ${firstassist}
+/delay 1
+/if (${Target.ID} && !${Target.Type.Equal[PC]} && !${Target.Type.Equal[Corpse]} && !${Target.Type.Equal[PET]}) /goto :EngageCheck
+/if (!${Me.Casting.ID}) /assist ${secondassist}
+/delay 1
+/if (${Target.ID} && !${Target.Type.Equal[PC]} && !${Target.Type.Equal[Corpse]} && !${Target.Type.Equal[PET]}) /goto :EngageCheck
+/if (!${Me.Casting.ID}) /assist ${thirdassist}
+/delay 1
+/if (${Target.ID} && !${Target.Type.Equal[PC]} && !${Target.Type.Equal[Corpse]} && !${Target.Type.Equal[PET]}) /goto :EngageCheck
+|- If we got here and don't have a target, tanks are invalid or no fighting is going on
+/goto :EndAutoassist 
+:EngageCheck
+/varset oldtargetID ${Target.ID}
+/varset assisttimer ${Math.Calc[10+${Math.Rand[5]}].Int}
+|- Who is the valid tank?
+/if (${firstassist.Equal[Main]} || (${Math.Distance[${Target.Y},${Target.X}:${Spawn[pc ${firstassist}].Y},${Spawn[pc ${firstassist}].X}]}<${Target.MaxRangeTo})) {
+/varset mainassist ${firstassist}
+/goto :LastAttackCheck
+}
+/if (${secondassist.Equal[Main]} || (${Math.Distance[${Target.Y},${Target.X}:${Spawn[pc ${secondassist}].Y},${Spawn[pc ${secondassist}].X}]}<${Target.MaxRangeTo})) {
+/varset mainassist ${secondassist}
+/goto :LastAttackCheck
+}
+/if (${thirdassist.Equal[Main]} || (${Math.Distance[${Target.Y},${Target.X}:${Spawn[pc ${thirdassist}].Y},${Spawn[pc ${thirdassist}].X}]}<${Target.MaxRangeTo})) {
+/varset mainassist ${thirdassist}
+/goto :LastAttackCheck
+}
+/goto :EndAutoassist
+:LastAttackCheck
+|- Do we have an NPC targeted and is it hurt enough to attack? 
+/if (${Target.PctHPs}<=${assistpct} && ${Target.Animation}!=32 && ${Target.Animation}!=110) { 
+/if (${verbosity}>=1) /${channel} --> Assisting ${mainassist} on ${Target.CleanName} @ (${Target.PctHPs}%) HPs 
+/echo Seeking a Victim... 
+/goto :Foreverloop 
+} 
+} 
+} 
+:EndAutoassist
+
+|- Are we supposed to look for traps?
+/if (${doTraps} && ${Me.Standing}) {
+/varset oldheading ${Me.Heading.DegreesCCW}
+/if (${Me.AbilityReady["Sense Traps"]}) {
+/doability "Sense Traps"
+/doability "Disarm Traps"
+/if (${verbosity}>=2) /${channel} Looking for traps... 
+}
+}
+
+|- We could be on a leash, if so move 1s closer to our stake point (or master)\\
+
+/if (${doLeash} && !${strikeReady}) { 
+/varset lastevent Event_Leashing
+:LeashStart
+|- Look for new events
+/doevents
+/if (!${lastevent.Equal[Event_Leashing]}) /goto :ForeverLoop
+/if (${Me.Combat}) /goto :ForeverLoop
+/if (${leashholder.Equal[Nobody]} && (${Math.Distance[${Me.Y},${Me.X}:${stakeY},${stakeX}]}>${Math.Calc[${leashlength}*${leashflex}/100]})) {
+/if (${verbosity}>=2) /${channel} Moving closer to the Stake... ${Math.Distance[${Me.Y},${Me.X}:${stakeY},${stakeX}]} ft. away 
+/face ${If[${Me.Underwater},,nolook]} loc ${stakeY},${stakeX} 
+/keypress forward hold 
+/delay 1s ${Math.Distance[${Me.Y},${Me.X}:${stakeY},${stakeX}]}<${Math.Calc[${leashlength}*${leashflex}/100]}
+/keypress forward 
+/if (${Math.Distance[${Me.Y},${Me.X}:${stakeY},${stakeX}]}<${Math.Calc[${leashlength}*${leashflex}/100]}) {
+/if (${verbosity}>=2) /${channel} Arrived near enough to the Stake. 
+/face fast ${If[${Me.Underwater},,nolook]} away loc ${stakeY},${stakeX}
+/goto :LeashEnd
+}
+/goto :LeashStart
+}
+/if (!${leashholder.Equal[Nobody]} && ${Spawn[${leashholder}].ID} && (${Spawn[${leashholder}].Distance}>${Math.Calc[${leashlength}*${leashflex}/100]})) {
+/if (${verbosity}>=2) /${channel} Moving closer to ${leashholder}... ${Spawn[${leashholder}].Distance} ft. away 
+/if (${Target.ID}!=${Spawn[${leashholder}].ID}) /target id ${Spawn[${leashholder}].ID}
+/if (${Me.Combat}) /attack off
+/face ${If[${Me.Underwater},,nolook]}
+/keypress forward hold 
+/delay 1s ${Spawn[${leashholder}].Distance}<${Math.Calc[${leashlength}*${leashflex}/100]} 
+/keypress forward 
+/if (${Spawn[${leashholder}].Distance}<${Math.Calc[${leashlength}*${leashflex}/100]}) {
+/if (${verbosity}>=2) /${channel} Arrived near enough to Master (${leashholder}). 
+/goto :LeashEnd
+}
+/goto :LeashStart
+}
+|- Broken leash check
+/if (!${leashholder.Equal[Nobody]} && !${Spawn[${leashholder}].ID}) {
+/if (${verbosity}>=1) /${channel} ** Master DEAD or ZONED! Leash is BROKEN! 
+/varset doLeash FALSE
+/varset leashholder Nobody
+/ini "RHSettings.ini" "General" "Leashing" "${doLeash}" 
+/ini "RHSettings.ini" "General" "LeashHolder" "${leashholder}" 
+/goto :LeashEnd
+}
+:LeashEnd
+} 
+} 
+/goto :ForeverLoop 
+/return 
+
+|---- SUBROUTINES
+
+Sub Check_Behind
+/declare behindIt FALSE 
+|- Are we behind our target? 
+/for i -1 to 1 
+/varcalc dir (${Target.Heading.Clock}+${i})%12 
+/if (${dir}<1) /varcalc dir ${dir}+12 
+/if (${dir}>12) /varcalc dir ${dir}-12 
+/if (${dir} == ${Me.Heading.Clock}) /varset behindIt TRUE 
+/next i 
+/return ${behindIt}
+
+Sub Weapon_Swap(string weapon, string wieldedweapon)
+|- Is it in a Bag?
+/declare camefrom ${FindItem[${weapon}].InvSlot}
+/declare goingto ${FindItem[${wieldedweapon}].InvSlot}
+/if (${verbosity}>=2) /${channel} ** Looking for weapon: ${weapon}
+/if (${FindItem[${weapon}].InvSlot.Pack}) {
+:OpenPack
+/if (!${Window[${FindItem[${weapon}].InvSlot.Pack.Name}].Open}) {
+/itemnotify ${FindItem[${weapon}].InvSlot.Pack.Name} rightmouseup
+/delay 2
+/goto :OpenPack
+} 
+:GrabItem
+/if (!${Cursor.ID}) {
+/itemnotify ${InvSlot[${camefrom}]} leftmouseup
+/delay 2
+/goto :GrabItem
+}
+/declare weaponID int local ${Cursor.ID}
+:SwapIt
+/if (${Cursor.ID}==${weaponID}) {
+/itemnotify ${InvSlot[${goingto}]} leftmouseup
+/delay 2
+/goto :SwapIt
+}
+/delay 2
+/if (${verbosity}>=2) /${channel} ** Swapping out: ${weapon}
+/itemnotify ${InvSlot[${camefrom}]} leftmouseup
+/delay 2
+/if (${Cursor.ID}) {
+/if (${verbosity}>=1) /${channel} ** Failed to use existing slot, dropping to inventory!
+/autoinv
+}
+:ClosePack
+/if (${Window[${InvSlot[${camefrom}].Pack.Name}].Open}) {
+/itemnotify ${InvSlot[${camefrom}].Pack.Name} rightmouseup
+/delay 2
+/goto :ClosePack
+}
+} else {
+|- It's in the main inventory
+/if (${FindItem[${weapon}].InvSlot}) {
+/itemnotify ${FindItem[${weapon}].InvSlot} leftmouseup
+/delay 2
+/itemnotify ${InvSlot[${goingto}]} leftmouseup
+/delay 2
+/if (${verbosity}>=2) /${channel} ** Swapping out: ${weapon}
+/itemnotify ${InvSlot[${camefrom}]} leftmouseup
+/delay 2
+/if (${Cursor.ID}) {
+/if (${verbosity}>=1) /${channel} ** Failed to use existing slot, dropping to inventory!
+/autoinv
+}
+} else {
+/if (${verbosity}>=1) /${channel} ** "${weapon}" not found!
+}
+}
+/return
+
+Sub NinjaLoot
+|- Ninja the corpse's loot, if applicable
+/if (${ninjamode.NotEqual[OFF]}) {
+/declare LootTotal int local -1
+/declare LootSlot int local
+|- Get NPC corpse on target and continue if possible
+/squelch /target npc corpse radius ${ninjadist} 
+/if (${Target.Type.NotEqual[Corpse]} || !${Target.ID}) { 
+/if (${verbosity}>=1) /${channel} ** NPC corpse out of range or already looted! 
+/return
+} 
+|- Get 5 seconds (max) closer; warning, no detecting being stuck!
+/face ${If[${Me.Underwater},,nolook]} fast
+/keypress forward hold 
+/delay 5s ${Target.Distance}<5 
+/keypress forward 
+|- Open up the loot window
+/loot 
+/delay 1s
+/if (${Me.State.NotEqual[BIND]}) {
+/if (${verbosity}>=1) /${channel} ** Massive lag or error getting to corpse. Aborting!
+/return
+}
+/varset acquiretimer 2s
+/if (${verbosity}>=1) /${channel} ** Looting ${Target.CleanName} 
+|- Get item count accurately 
+:LootLag 
+/if (${LootTotal}!=${Corpse.Items}) { 
+/varset LootTotal ${Corpse.Items} 
+/delay 5 
+/goto :LootLag 
+} 
+/if (!${LootTotal}) {
+/if (${verbosity}>=1) /${channel} ** Empty corpse!
+/goto :DoneLooting
+}
+|- Loot Loop
+/for LootSlot 1 to ${LootTotal} 
+|- Check for full inventory
+/if (!${Me.FreeInventory}) {
+/beep
+/if (${verbosity}>=1) /${channel} ** INVENTORY FULL !
+/varset ninjamode OFF
+/if (${verbosity}>=1) /${channel} ** AutoNinja is now OFF!
+/goto :DoneLooting
+}
+|- Loot item if we should, skip it if not
+/if (${Corpse.Item[${LootSlot}].ID}) {
+/if (!${Corpse.Item[${LootSlot}].NoDrop}) /goto :LootItem
+/if (${Corpse.Item[${LootSlot}].NoDrop} && ${ninjamode.Equal[ALL]}) {
+/if (${verbosity}>=1) /${channel} ** Looting NODROP Item: ${Corpse.Item[${LootSlot}].Name}
+/goto :LootItem
+}
+}
+/if (${verbosity}>=1) /${channel} ** Skipping Item: ${Corpse.Item[${LootSlot}].Name}
+/goto :SkipIt
+:LootItem 
+/itemnotify loot${LootSlot} rightmouseup 
+/delay 3
+/if (${Corpse.Item[${LootSlot}].ID}) { 
+/delay 2
+/goto :LootItem
+} 
+:SkipIt
+/next LootSlot
+/if (${verbosity}>=1) /${channel} ** Done looting ${Target.CleanName}
+:DoneLooting
+/delay 5
+/notify LootWnd DoneButton leftmouseup 
+/delay 5
+}
+/return
+
+|---- EVENTS
+
+Sub Event_StrikeVic 
+/varset lastevent Event_StrikeVic 
+|- Is strike disc available, are we hiding/sneaking and do we have enough endurance to use it? 
+/if ((${Me.Invis} && ${Me.PctEndurance}>=${MinEndurance}) && !${strikeTimer.Value}) { 
+/if (${verbosity}>=2) /${channel} Taking careful aim: ${Target.CleanName} 
+/varset strikeTimer 30s 
+/disc ${StrikeSkill} 
+/varset strikeReady TRUE 
+} else { 
+|- Guess not, just attack normally then 
+/attack on 
+/varset strikeReady FALSE 
+} 
+/return 
+
+Sub Event_AttackOn 
+/varset lastevent Event_AttackOn
+/if (${verbosity}>=1) /${channel} Autoattack activated! Target: ${Target.CleanName}
+/varset acquiretimer 2s
+/return 
+
+Sub Event_AttackOff 
+/varset lastevent Event_AttackOff
+/if (${verbosity}>=1) /${channel} Autoattack turned off! Target: ${Target.CleanName} 
+/return 
+
+Sub Event_Enraged 
+/varset lastevent Event_Enraged
+/if (${verbosity}>=1) /${channel} Enrage detected! Target: ${Target.CleanName} 
+/varset isEnraged TRUE 
+/return 
+
+Sub Event_NLEnraged 
+/varset lastevent Event_NLEnraged
+/if (${verbosity}>=1) /${channel} Enrage done! Target: ${Target.CleanName} 
+/varset isEnraged FALSE 
+/if (${Target.ID} && ${doAutoassist}) /attack on 
+/return 
+
+Sub Event_Exp(string Line)
+/varset lastevent Event_Exp
+|- Ignore leadership experience event triggers (redundant trigger)
+/if (${Line.Find[leadership]}) /return
+
+|- Manage aggro control here optionally
+/if (${doDynaggro} && ${doAutoassist}) {
+/if (${gotHit}) {
+|- Got hurt that fight, drop it 1%
+/if (${assistpct}>1) /varcalc assistpct ${assistpct}-1
+/varset gotHit FALSE
+/if (${verbosity}>=1) /${channel} ** Had Aggro! Reducing assist% to ${assistpct}%
+} else {
+|- Did not get hurt that fight, raise it 1%
+/if (${assistpct}<99) /varcalc assistpct ${assistpct}+1
+/if (${verbosity}>=1) /${channel} ** No Aggro! Raising assist% to ${assistpct}%
+}
+}
+
+|- Experience calculation and reporting
+/if (${verbosity}>=1) /${channel} ** XP-Delta: REG (${Math.Calc[${Me.PctExp}-${Exp}]}%), AA (${Math.Calc[${Me.PctAAExp}-${AAExp}]}%), LDR (${Math.Calc[${Me.PctGroupLeaderExp}-${LDExp}]}%) 
+/varset LDExp ${Me.PctGroupLeaderExp} 
+/varset AAExp ${Me.PctAAExp} 
+/varset Exp ${Me.PctExp} 
+/varset aggrotimer 0
+
+|- If target died while enraged, reset it so autoassist isn't broken...
+/varset isEnraged FALSE 
+
+|- Do weapon swapping (back to weapon1), if applicable
+/if (${doSwitch} && ${wstype.Equal[Detrimental]}) {
+/call Weapon_Swap "${weapon1}" "${weapon2}"
+} 
+/return 
+
+Sub Event_Slain
+/varset lastevent Event_Slain
+/call NinjaLoot
+/return
+
+Sub Event_Zoned
+/varset lastevent Event_Zoned
+/if (${verbosity}>=1) /${channel} ** Zoned... Setting Leash and Autoassist to OFF!
+/varset doLeash FALSE
+/varset doAutoassist FALSE
+/ini "RHSettings.ini" "General" "AutoAssist" "${doAutoassist}"
+/ini "RHSettings.ini" "General" "Leashing" "${doLeash}" 
+/return 
+
+Sub Event_TooFarAway
+/varset lastevent Event_TooFarAway
+/if (${doDynclose} && !${acquiretimer}) {
+/if (${verbosity}>=1) /${channel} ** Too far away - Getting 20% closer now!
+/varset closeness ${Math.Calc[${closeness}*0.8].Int}
+/if (${closeness}<20) /varset closeness 20
+/varset acquiretimer 2s
+/varset snuggleup TRUE
+}
+/return 
+
+Sub Event_FTrap
+/varset lastevent Event_FTrap
+/if (${verbosity}>=1) /${channel} ** Floor Trap discovered...
+/if (${Me.AbilityReady[Disarm Traps]}) { 
+/if (${verbosity}>=2) /${channel} ** Disarming...
+/doability "Disarm Traps" 
+} else {
+/if (${verbosity}>=2) /${channel} ** Can't disarm yet...
+} 
+|- Face our "old" heading, in case we were spun around
+/face nolook fast heading ${oldheading}
+/return 
+
+Sub Event_BTrap
+/varset lastevent Event_FTrap
+/if (${verbosity}>=1) /${channel} ** Box Trap (${Target.CleanName}) discovered...
+/if (${Me.AbilityReady[Disarm Traps]}) { 
+/if (${verbosity}>=2) /${channel} ** Disarming...
+/doability "Disarm Traps" 
+} else {
+/if (${verbosity}>=2) /${channel} ** Can't disarm yet...
+} 
+|- Face our "old" heading, in case we were spun around
+/face nolook fast heading ${oldheading}
+/return 
+
+Sub Event_TogEvade
+/varset lastevent Event_TogEvade
+/if (${doEvade}) { 
+/varset doEvade FALSE 
+/if (${verbosity}>=1) /${channel} ** Auto-Evading target is now OFF! 
+} else { 
+/varset doEvade TRUE 
+/if (${verbosity}>=1) /${channel} ** Auto-Evading target is now ON! 
+} 
+/ini "RHSettings.ini" "General" "AutoEvade" "${doEvade}"
+/return 
+
+Sub Event_TogAAttack
+/varset lastevent Event_TogAAttack
+/if (${doAAttack}) { 
+/varset doAAttack FALSE 
+/if (${verbosity}>=1) /${channel} ** Auto-Attacking target when hit is now OFF! 
+} else { 
+/varset doAAttack TRUE 
+/if (${verbosity}>=1) /${channel} ** Auto-Attacking target when hit is now ON! 
+} 
+/ini "RHSettings.ini" "General" "AAttack" "${doAAttack}"
+/return 
+
+Sub Event_TogDisarm
+/varset lastevent Event_TogDisarm
+/if (${doDisarm}) { 
+/varset doDisarm FALSE 
+/if (${verbosity}>=1) /${channel} ** Auto-Disarming target is now OFF! 
+} else { 
+/varset doDisarm TRUE 
+/if (${verbosity}>=1) /${channel} ** Auto-Disarming target is now ON! 
+} 
+/ini "RHSettings.ini" "General" "AutoDisarm" "${doDisarm}"
+/return 
+
+Sub Event_TogIntimidation
+/varset lastevent Event_TogIntimidation
+/if (${doIntimidation}) { 
+/varset doIntimidation FALSE 
+/if (${verbosity}>=1) /${channel} ** Auto-Intimidating target is now OFF! 
+} else { 
+/varset doIntimidation TRUE 
+/if (${verbosity}>=1) /${channel} ** Auto-Intimidating target is now ON! 
+} 
+/ini "RHSettings.ini" "General" "AutoIntimidation" "${doIntimidation}"
+/return 
+
+Sub Event_SetStopFighting(string Line)
+/varset lastevent Event_SetStopFighting
+/if (${Line.Arg[3].Length}) /varset StopFightingHealth ${Line.Arg[3]}
+/if ((${StopFightingHealth}<0) || (${StopFightingHealth}>100)) {
+/if (${verbosity}>=0) /${channel} Whacko stopfighting percentage input! Defaulting...
+}
+/if (${verbosity}>=0) /${channel} ** Cease Combat when at: ${StopFightingHealth}% HP 
+/ini "RHSettings.ini" "General" "StopFightingHealth" "${StopFightingHealth}"
+/return
+
+Sub Event_SetStrikeDisc(string Line)
+/varset lastevent Event_SetStrikeDisc
+/if (${Line.Arg[3].Length}) /varset StrikeSkill ${Line.Arg[3]}
+/if (${verbosity}>=0) /${channel} ** Strike Discipline set to: "${StrikeSkill}"
+/ini "RHSettings.ini" "General" "StrikeSkill" "${StrikeSkill}"
+/return
+
+Sub Event_SetEndFloor(string Line)
+/varset lastevent Event_SetEndFLoor
+/if (${Line.Arg[3].Length}) /varset MinEndurance ${Line.Arg[3]}
+/if ((${MinEndurance}<0) || (${MinEndurance}>101)) {
+/if (${verbosity}>=0) /${channel} Whacko endurance percentage input! Defaulting...
+}
+/if (${verbosity}>=0) /${channel} ** Endurance Floor: ${MinEndurance}% 
+/ini "RHSettings.ini" "General" "MinEndurance" "${MinEndurance}"
+/return
+
+Sub Event_TogStick 
+/varset lastevent Event_TogStick
+/if (${doStick}) { 
+/varset doStick FALSE 
+/if (${verbosity}>=0) /${channel} ** Auto-Sticking target is now OFF! 
+} else { 
+/varset doStick TRUE 
+/if (${verbosity}>=0) /${channel} ** Auto-Sticking target is now ON! 
+} 
+/ini "RHSettings.ini" "General" "AutoStick" "${doStick}"
+/return 
+
+Sub Event_TogHS 
+/varset lastevent Event_TogHS
+/if (${doHideSneak}) { 
+/varset doHideSneak FALSE 
+/if (${verbosity}>=0) /${channel} ** Auto-Hiding & Sneaking is now OFF! 
+} else { 
+/varset doHideSneak TRUE 
+/if (${verbosity}>=0) /${channel} ** Auto-Hiding & Sneaking is now ON! 
+} 
+/ini "RHSettings.ini" "General" "AutoHideSneak" "${doHideSneak}"
+/return 
+
+Sub Event_TogLeash(string Line) 
+/varset lastevent Event_TogLeash
+/if (${Line.Arg[3].Equal[ON]}) { 
+/varset doLeash TRUE
+/if (${verbosity}>=0) /${channel} ** Leashing is now ON!
+/ini "RHSettings.ini" "General" "Leashing" "${doLeash}" 
+} else /if (${Line.Arg[3].Equal[OFF]} || (${Int[${Line.Arg[3]}]}<=0)) { 
+/varset doLeash FALSE 
+/varset leashholder Nobody
+/if (${verbosity}>=0) /${channel} ** Leashing is now OFF!
+/ini "RHSettings.ini" "General" "Leashing" "${doLeash}" 
+} else { 
+/if (${Line.Arg[4].Length}) {
+/varset leashholder ${Line.Arg[4]}
+/if (${Spawn[${leashholder}].ID}) {
+/varset doLeash TRUE
+/varset leashlength ${Int[${Line.Arg[3]}]}
+/if (${verbosity}>=0) /${channel} ** Leashing is now ON! Leashlength: ${leashlength} ft. 
+/if (${verbosity}>=0) /${channel} ** Leash-holding master is: ${leashholder}
+/ini "RHSettings.ini" "General" "Leashing" "${doLeash}" 
+} else {
+|- This spawn/thing/target doesn't exist
+/if (${verbosity}>=0) /${channel} ** Can't find "${leashholder}" -- Who is that?!
+/if (${verbosity}>=0) /${channel} ** Leashing is now OFF! 
+/varset doLeash FALSE 
+/varset leashholder Nobody
+}
+} else {
+/varset doLeash TRUE 
+/varset leashholder Nobody
+/varset leashlength ${Int[${Line.Arg[3]}]} 
+/varset stakeX ${Me.X} 
+/varset stakeY ${Me.Y} 
+/if (${verbosity}>=0) /${channel} ** Leashing is now ON! Leashlength: ${leashlength} ft. 
+/if (${verbosity}>=0) /${channel} ** Stake planted at X:${stakeX}, Y:${stakeY} 
+}
+} 
+/ini "RHSettings.ini" "General" "LeashHolder" "${leashholder}" 
+/ini "RHSettings.ini" "General" "LeashLength" "${leashlength}" 
+/return 
+
+Sub Event_SetLeashFlex(string Line)
+/varset lastevent Event_SetLeashFlex
+/if (${Line.Arg[3].Length}) /varset leashflex ${Line.Arg[3]}
+/if ((${leashflex}<10) || (${leashflex}>101)) {
+/if (${verbosity}>=0) /${channel} Leash flexibility must be between 10 and 100! Defaulting to 10...
+/varset leashflex 10
+}
+/if (${verbosity}>=0) /${channel} ** Leash Flexibility: ${leashflex}% 
+/ini "RHSettings.ini" "General" "LeashFlex" "${leashflex}"
+/return
+
+Sub Event_TogAuto(string Line) 
+/varset lastevent Event_TogAuto
+/if (${Line.Arg[3].Equal[OFF]}) { 
+/varset doAutoassist FALSE 
+/if (${verbosity}>=0) /${channel} ** Autoassist is now OFF! 
+} else /if (${Line.Arg[3].Equal[ON]}) {
+/varset doAutoassist TRUE 
+/if (${verbosity}>=0) /${channel} ** Autoassist is now ON! 
+} else { 
+/varset doAutoassist TRUE 
+/if (${Line.Arg[3].Length}) /varset firstassist ${Line.Arg[3]} 
+/varset mainassist ${firstassist} 
+/if (${Line.Arg[4]} > 0) /varset assistpct ${Line.Arg[4]} 
+/if (${verbosity}>=0) /${channel} ** Autoassist is now ON! 
+/if (${verbosity}>=0) /${channel} ** Assisting: ${mainassist} @${assistpct}% target health 
+/if (${verbosity}>=0) /${channel} ** SA is ${secondassist} & TA is ${thirdassist}
+} 
+/ini "RHSettings.ini" "General" "AutoAssist" "${doAutoassist}"
+/ini "RHSettings.ini" "General" "MainAssist" "${firstassist}"
+/ini "RHSettings.ini" "General" "AssistPercentage" "${assistpct}"
+/return 
+
+Sub Event_TogPause 
+/varset lastevent Event_TogPause
+/beep
+/if (${isPaused}) { 
+/varset isPaused FALSE 
+/if (${verbosity}>=0) /${channel} ** Rogue Helper is now RESUMING! 
+} else { 
+/varset isPaused TRUE 
+/if (${verbosity}>=0) /${channel} ** Rogue Helper is now PAUSED!
+} 
+/return 
+
+Sub Event_TogDynaggro 
+/varset lastevent Event_TogDynaggro
+/if (${doDynaggro}) { 
+/varset doDynaggro FALSE 
+/if (${verbosity}>=0) /${channel} ** Dynamic Aggro Control is now OFF! 
+} else { 
+/varset doDynaggro TRUE 
+/if (${verbosity}>=0) /${channel} ** Dynamic Aggro Control is now ON! 
+} 
+/ini "RHSettings.ini" "General" "DynamicAggro" "${doDynaggro}"
+/return 
+
+Sub Event_TogDynclose
+/varset lastevent Event_TogDynclose
+/if (${doDynclose}) { 
+/varset doDynclose FALSE 
+/if (${verbosity}>=0) /${channel} ** Dynamic Closeness Control is now OFF! 
+} else { 
+/varset doDynclose TRUE 
+/if (${verbosity}>=0) /${channel} ** Dynamic Closeness Control is now ON! 
+} 
+/ini "RHSettings.ini" "General" "DynamicCloseness" "${doDynclose}"
+/return 
+
+Sub Event_TogPick
+/varset lastevent Event_TogPick
+/if (${doPick}) { 
+/varset doPick FALSE 
+/if (${verbosity}>=0) /${channel} ** Auto-Pickpocketing is now OFF! 
+} else { 
+/varset doPick TRUE 
+/if (${verbosity}>=0) /${channel} ** Auto-Pickpocketing is now ON! 
+} 
+/ini "RHSettings.ini" "General" "AutoPickPocket" "${doPick}"
+/return 
+
+Sub Event_TogTSwitch 
+/varset lastevent Event_TogTSwitch
+/if (${doTSwitch}) { 
+/varset doTSwitch FALSE 
+/if (${verbosity}>=0) /${channel} ** Auto-Target Switching is now OFF! 
+} else { 
+/varset doTSwitch TRUE 
+/if (${verbosity}>=0) /${channel} ** Auto-Target Switching is now ON! 
+} 
+/ini "RHSettings.ini" "General" "TargetSwitching" "${doTSwitch}"
+/return 
+
+Sub Event_TogTraps 
+/varset lastevent Event_TogTraps
+/if (${doTraps}) { 
+/varset doTraps FALSE 
+/if (${verbosity}>=0) /${channel} ** Auto-Trap Negotiation is now OFF! 
+} else { 
+/varset doTraps TRUE 
+/if (${verbosity}>=0) /${channel} ** Auto-Trap Negotiation is now ON! 
+} 
+/ini "RHSettings.ini" "General" "TrapNegotiation" "${doTraps}"
+/return 
+
+Sub Event_SetCloseness(string Line)
+/varset lastevent Event_SetCloseness
+/if (${Line.Arg[3].Length}) /varset closeness ${Line.Arg[3]}
+/if ((${closeness}<1) || (${closeness}>100)) {
+/if (${verbosity}>=0) /${channel} Whacko closeness percentage input! Defaulting...
+/varset closeness 70
+}
+/varset closenessdesired ${closeness}
+/if (${verbosity}>=0) /${channel} ** AutoStick: ${doStick}, Closeness: ${closeness}
+/ini "RHSettings.ini" "General" "Closeness" "${closeness}"
+/return
+
+Sub Event_SetFirstassist(string Line)
+/varset lastevent Event_SetFirstassist
+/if (${Line.Arg[3].Length}) /varset firstassist ${Line.Arg[3]}
+/varset mainassist ${firstassist}
+/if (${verbosity}>=0) /${channel} ** Assisting: ${mainassist} @${assistpct}% target health 
+/if (${verbosity}>=0) /${channel} ** SA is ${secondassist} & TA is ${thirdassist}
+/ini "RHSettings.ini" "General" "MainAssist" "${firstassist}"
+/return
+
+Sub Event_SetSecondassist(string Line)
+/varset lastevent Event_SetSecondassist
+/if (${Line.Arg[3].Length}) /varset secondassist ${Line.Arg[3]}
+/if (${verbosity}>=0) /${channel} ** Assisting: ${mainassist} @${assistpct}% target health 
+/if (${verbosity}>=0) /${channel} ** SA is ${secondassist} & TA is ${thirdassist}
+/ini "RHSettings.ini" "General" "SecondAssist" "${secondassist}"
+/return
+
+Sub Event_SetThirdassist(string Line)
+/varset lastevent Event_SetThirdassist
+/if (${Line.Arg[3].Length}) /varset thirdassist ${Line.Arg[3]}
+/if (${verbosity}>=0) /${channel} ** Assisting: ${mainassist} @${assistpct}% target health 
+/if (${verbosity}>=0) /${channel} ** SA is ${secondassist} & TA is ${thirdassist}
+/ini "RHSettings.ini" "General" "ThirdAssist" "${thirdassist}"
+/return
+
+Sub Event_SetAutoNinja(string Line) 
+/varset lastevent Event_SetAutoNinja
+|- Set the new ninja distance, if supplied
+/if (${Line.Arg[4].Length}) /varset ninjadist ${Line.Arg[4]}
+|- Set the mode, toggle off if unknown
+/if (${Line.Arg[3].Equal[ALL]}) { 
+/varset ninjamode ALL
+/if (${verbosity}>=0) /${channel} ** AutoNinja ON - Will loot ALL items 
+/docommand /lootnodrop never
+} else /if ((${Line.Arg[3].Equal[DROP]}) || (${Line.Arg[3].Equal[DROPABLE]})) { 
+/varset ninjamode DROPABLE
+/if (${verbosity}>=0) /${channel} ** AutoNinja ON - Will loot only DROPABLE items
+/docommand /lootnodrop never
+} else {
+/varset ninjamode OFF
+/if (${verbosity}>=0) /${channel} ** AutoNinja is now OFF!
+}
+/if (${verbosity}>=0) /${channel} ** AutoNinja distance is ${ninjadist} ft.
+/ini "RHSettings.ini" "General" "AutoNinjaMode" "${ninjamode}"
+/ini "RHSettings.ini" "General" "AutoNinjaDistance" "${ninjadist}"
+/return 
+
+Sub Event_SetWeaponSwitch(string Line) 
+/varset lastevent Event_SetWeaponSwitch
+|- Sanity Check
+/if (${Line.Arg[3].Equal[OFF]} || !${Line.Arg[5].Length} || ${Line.Arg[6].Length}) { 
+/varset doSwitch FALSE
+/if (${verbosity}>=0) /${channel} ** Auto Weapon Switching is OFF
+/goto :SaveSwitchSettings
+}
+|- Set the weaponswitching information
+/if (${Line.Arg[3].Length}) /varset weapon1 ${Line.Arg[3]}
+/if (${Line.Arg[4].Length}) /varset switchtext ${Line.Arg[4]}
+/if (${Line.Arg[5].Length}) /varset weapon2 ${Line.Arg[5]}
+/varset doSwitch TRUE 
+/if (${verbosity}>=0) /${channel} ** Auto Weapon Switching is ON
+/if (${verbosity}>=0) /${channel} ** ${weapon1} will be swapped out for ${weapon2}
+/if (${verbosity}>=0) /${channel} ** if the text "${switchtext}" is encountered.
+
+:SaveSwitchSettings
+/doevents flush
+/ini "RHSettings.ini" "General" "WeaponSwitching" "${doSwitch}"
+/ini "RHSettings.ini" "Weapons" "Weapon1" "${weapon1}"
+/ini "RHSettings.ini" "Weapons" "Weapon2" "${weapon2}"
+/ini "RHSettings.ini" "Weapons" "SwitchText" "${switchtext}"
+/varset wstype ${FindItem[${weapon1}].Spell.SpellType}
+/return 
+
+Sub Event_SetStickDist(string Line) 
+/varset lastevent Event_SetStickDist
+|- Sanity Check
+/if (!${Line.Arg[3].Length} || !${Line.Arg[4].Length}) { 
+/if (${verbosity}>=0) /${channel} ** What? Bad Syntax.
+/if (${verbosity}>=0) /${channel} Syntax:
+/if (${verbosity}>=0) /${channel} /stickdist <range_to_target> <range_to_tank>
+/return
+}
+|- Set the weaponswitching information
+/varset rngtarget ${Line.Arg[3]}
+/varset rngtank ${Line.Arg[4]}
+/if (${verbosity}>=0) /${channel} ** Auto Stick: ${doStick}, Closeness: ${closeness}% MaxRange
+/if (${verbosity}>=0) /${channel} ** -- Range to Target: ${rngtarget} -- Range to Tank: ${rngtank}
+/ini "RHSettings.ini" "General" "StickRangeToTarget" "${rngtarget}"
+/ini "RHSettings.ini" "General" "StickRangeToTank" "${rngtank}"
+/return 
+
+Sub Event_SetChicken(string Line) 
+/varset lastevent Event_SetChicken
+/if (${Line.Arg[3].Equal[OFF]}) { 
+/varset doChicken FALSE 
+/if (${verbosity}>=0) /${channel} ** Autochicken is now OFF! 
+} else /if (${Line.Arg[3].Equal[ON]}) {
+/varset doChicken TRUE 
+/if (${verbosity}>=0) /${channel} ** Autochicken is now ON! 
+} else { 
+/varset doChicken TRUE 
+/if (${Line.Arg[3].Length}) /varset nimblehealth ${Line.Arg[3]} 
+/if (${Line.Arg[4].Equal[ESCAPE]}) {
+/varset doEscape TRUE
+} else {
+/varset doEscape FALSE
+}
+/if (${verbosity}>=0) /${channel} ** Auto Chicken: ${doChicken} -- Nimble: ${nimblehealth}% Escape: ${doEscape}
+} 
+/ini "RHSettings.ini" "General" "AutoChicken" "${doChicken}"
+/ini "RHSettings.ini" "General" "NimbleHealth" "${nimblehealth}"
+/ini "RHSettings.ini" "General" "ContingencyEscape" "${doEscape}"
+/return 
+
+Sub Event_SetDisc1(string Line) 
+/varset lastevent Event_SetDisc1
+/if (${Line.Arg[3].Equal[OFF]}) { 
+/varset doDisc1 FALSE 
+/if (${verbosity}>=0) /${channel} ** Autodisc #1 is now OFF! 
+} else /if (${Line.Arg[3].Equal[ON]}) {
+/varset doDisc1 TRUE 
+/if (${verbosity}>=0) /${channel} ** Autodisc #1 is now ON! 
+} else { 
+/varset doDisc1 TRUE 
+/if (${Line.Arg[3].Length}) /varset disc1 ${Line.Arg[3]} 
+/if (${Line.Arg[4]} > 0) /varset disc1end ${Line.Arg[4]} 
+/if (${Line.Arg[5]} > 0) /varset disc1reuse ${Line.Arg[5]} 
+/if (${verbosity}>=0) /${channel} ** Auto Disc #1: ${doDisc1} -> ${disc1}/${disc1reuse} mins - End: ${disc1end}
+} 
+/ini "RHSettings.ini" "General" "AutoDisc1" "${doDisc1}"
+/ini "RHSettings.ini" "General" "Disc1" "${disc1}"
+/ini "RHSettings.ini" "General" "Disc1Endurance" "${disc1end}"
+/ini "RHSettings.ini" "General" "Disc1Reuse" "${disc1reuse}"
+/return
+
+Sub Event_SetDisc2(string Line) 
+/varset lastevent Event_SetDisc2
+/if (${Line.Arg[3].Equal[OFF]}) { 
+/varset doDisc2 FALSE 
+/if (${verbosity}>=0) /${channel} ** Autodisc #2 is now OFF! 
+} else /if (${Line.Arg[3].Equal[ON]}) {
+/varset doDisc2 TRUE 
+/if (${verbosity}>=0) /${channel} ** Autodisc #2 is now ON! 
+} else { 
+/varset doDisc2 TRUE 
+/if (${Line.Arg[3].Length}) /varset disc2 ${Line.Arg[3]} 
+/if (${Line.Arg[4]} > 0) /varset disc2end ${Line.Arg[4]} 
+/if (${Line.Arg[5]} > 0) /varset disc2reuse ${Line.Arg[5]} 
+/if (${verbosity}>=0) /${channel} ** Auto Disc #2: ${doDisc2} -> ${disc2}/${disc2reuse} mins - End: ${disc2end}
+} 
+/ini "RHSettings.ini" "General" "AutoDisc2" "${doDisc2}"
+/ini "RHSettings.ini" "General" "Disc2" "${disc2}"
+/ini "RHSettings.ini" "General" "Disc2Endurance" "${disc2end}"
+/ini "RHSettings.ini" "General" "Disc2Reuse" "${disc2reuse}"
+/return
+
+Sub Event_SetVerbosity(string Line)
+/varset lastevent Event_SetVerbosity
+/if (${Line.Arg[3].Length}) /varset verbosity ${Line.Arg[3]}
+/if ((${verbosity}<0) || (${verbosity}>2)) {
+/if (${verbosity}>=0) /${channel} Verbosity must be between 0 and 2! Defaulting to 2...
+/varset verbosity 2
+}
+/if (${verbosity}>=0) /${channel} ** Verbosity Level: ${verbosity}
+/ini "RHSettings.ini" "General" "Verbosity" "${verbosity}"
+/return
+
+Sub Event_SetChannel(string Line)
+/varset lastevent Event_SetChannel
+/if (${Line.Arg[3].Length}) /varset channel ${Line.Arg[3]}
+/if (${verbosity}>=0) /${channel} ** RH Output Channel: ${channel}
+/ini "RHSettings.ini" "General" "Channel" "${channel}"
+/return
+
+Sub Event_SwitchWeapon
+/varset lastevent Event_SwitchWeapon
+/if (${doSwitch}) {
+/call Weapon_Swap "${weapon2}" "${weapon1}"
+} 
+/return 
+
+Sub Event_GotHit
+/varset lastevent Event_GotHit
+/if (!${aggrotimer}) /if (${verbosity}>=1) /${channel} ** AGGRO Detected (struck) **
+/varset gotHit TRUE
+/varset aggrotimer 5s
+/if (${doAAttack} && !${Me.Combat}) {
+/if (${verbosity}>=1) /${channel} ** AutoAttacking ${Target.CleanName} **
+/attack on
+}
+/return 
+
+Sub Event_GotMissed
+/varset lastevent Event_GotMissed
+/if (!${aggrotimer}) /if (${verbosity}>=1) /${channel} ** AGGRO Detected (whiff) **
+/varset gotHit TRUE
+/varset aggrotimer 5s
+/if (${doAAttack} && !${Me.Combat}) {
+/if (${verbosity}>=1) /${channel} ** AutoAttacking ${Target.CleanName} **
+/attack on
+}
+/return 
+
+Sub Event_SpellBounced
+/varset lastevent Event_SpellBounced
+/varset clicktimer 60s
+/beep
+/beep
+/beep
+/if (${verbosity}>=1) /${channel} ** Just detected a BOUNCED spell!
+/if (${verbosity}>=1) /${channel} ** Use /ibounce to update click-item info!
+/return 
+
+Sub Event_DragBodies(string Line)
+/varset lastevent Event_DragBodies
+/declare ArgNum int local 3
+/declare bodycount int local
+
+:CountCorpses
+/if (${Line.Arg[${ArgNum}].Length}) {
+|- There's a body name for this argument
+/varcalc ArgNum ${ArgNum}+1
+/goto :CountCorpses
+} 
+/varcalc ArgNum ${ArgNum}-1
+
+/if (${ArgNum}==2) { 
+/if (${verbosity}>=0) /${channel} ** No corpse names supplied!
+/return
+} else {
+/if (${verbosity}>=0) /${channel} ** Target self (F1) to stop dragging!
+}
+:DragLoop 
+/for bodycount 3 to ${ArgNum} 
+/if (${Target.CleanName.Equal[${Me.Name}]}) {
+/if (${verbosity}>=0) /${channel} ** Body dragging ceased.
+/goto :CeaseDragging
+}
+/target ${Line.Arg[${bodycount}]}'s 
+/corpse
+|- Lower this delay at your own risk; too many /corpse commands too fast = cheater!
+/delay 4
+/next bodycount
+/goto :DragLoop
+:CeaseDragging
+/return
+
+Sub Event_LootMyCorpse
+/varset lastevent Event_LootMyCorpse
+|- Logic ripped off from Loot.mac and simplified somewhat
+/declare LootTotal int local 0
+/declare LootSlot int local
+|- Get corpse on target and continue looting if possible
+/squelch /target mycorpse 
+/if (${Target.Type.NotEqual[CORPSE]} || !${Target.ID}) { 
+/if (${verbosity}>=0) /${channel} ** Can't target my corpse. 
+/return
+} 
+/corpse 
+/delay 1s
+/loot 
+/delay 1s
+/if (${Me.State.NotEqual[BIND]}) {
+/if (${verbosity}>=0) /${channel} ** Massive lag right now... Aborting looting.
+/return
+}
+|- Get item count accurately
+:LootLag 
+/if (${LootTotal}!=${Corpse.Items}) { 
+/varset LootTotal ${Corpse.Items} 
+/delay 5 
+/goto :LootLag 
+} 
+|- Loot Loop
+/for LootSlot 1 to ${LootTotal} 
+:LootItem 
+/itemnotify loot${LootSlot} rightmouseup 
+/delay 3
+/if (${Corpse.Item[${LootSlot}].ID}) { 
+/delay 2
+/goto :LootItem
+} 
+/next LootSlot
+/delay 5
+/if (${verbosity}>=0) /${channel} ** Done looting my corpse.
+/notify LootWnd DoneButton leftmouseup 
+/return
+
+Sub Event_AutoFollow(string Line)
+/varset lastevent Event_AutoFollow
+/declare distance int local 30
+/if (${Ini[RHSettings.ini,General,FollowDistance].NotEqual[NULL]}) /varset distance ${Ini[RHSettings.ini,General,FollowDistance]} 
+/if (${Line.Arg[3].Length}) /target ${Line.Arg[3]}
+/if (${Line.Arg[4].Length}) /varset distance ${Line.Arg[4]}
+/if (${distance}<10) /varset distance 10
+/ini "RHSettings.ini" "General" "FollowDistance" "${distance}" 
+/if (${Target.ID}) {
+/if (${verbosity}>=0) /${channel} ** Autofollow on: ${Target.CleanName} (${distance} ft.)
+/if (${verbosity}>=0) /${channel} ** Change targets to stop autofollowing.
+} else {
+/if (${verbosity}>=0) /${channel} ** Can't activate Autofollow -- no valid target!
+/return
+}
+/declare followID int local ${Target.ID}
+:FollowingLoop
+|- Look for new events
+/doevents
+/if (!${lastevent.Equal[Event_AutoFollow]}) {
+/if (${verbosity}>=0) /${channel} ** Autofollow blocked by: ${lastevent}
+/goto :StopFollowing
+}
+/if (${Target.ID}==${followID}) {
+/if (${Target.ID}) /face fast
+/if (${Target.Distance}>${distance}) {
+/keypress forward hold 
+/delay 1s ${Target.Distance}<=${distance} 
+/keypress forward 
+}
+/goto :FollowingLoop
+}
+:StopFollowing
+/if (${verbosity}>=0) /${channel} ** Autofollow ended.
+/return
+
+Sub Event_ItemSet(string Line)
+/varset lastevent Event_ItemSet
+|- Sanity check parameters
+/if (!${Line.Arg[5].Length} || ${Line.Arg[6].Length}) {
+/if (${verbosity}>=0) /${channel} ** Improper use of /iset
+/if (${verbosity}>=0) /${channel} -- /iset <itemalias> keepup|nokeepup <"Item Name">
+/if (${verbosity}>=0) /${channel} -- For example:
+/if (${verbosity}>=0) /${channel} -- /iset gobby keepup "Shrunken Goblin Skull Earring"
+/return 
+}
+/ini "RHItems.ini" "${Line.Arg[3]}" "FullName" "${Line.Arg[5]}" 
+/ini "RHItems.ini" "${Line.Arg[3]}" "KeepUp" "${If[${Line.Arg[4].Equal[keepup]},TRUE,FALSE]}"
+/if (${verbosity}>=0) /${channel} ** ${Line.Arg[5]} (KeepUp=${If[${Line.Arg[4].Equal[keepup]},TRUE,FALSE]}) updated in INI!
+/return
+
+Sub Event_ItemBounce(string Line)
+/varset lastevent Event_ItemBounce
+|- Sanity check parameters
+/if (!${Line.Arg[4].Length}) {
+/if (${verbosity}>=0) /${channel} ** Improper use of /ibounce
+/if (${verbosity}>=0) /${channel} -- /ibounce <itemalias> "Some Spell Name"
+/if (${verbosity}>=0) /${channel} -- For example:
+/if (${verbosity}>=0) /${channel} -- /ibounce gobby "Strength of Tunare"
+/return 
+}
+|- Look for that item's section, return if non-existent
+/if (!${Ini[RHItems.ini,${Line.Arg[3]}].Length}) {
+/if (${verbosity}>=0) /${channel} ** [${Line.Arg[3]}] not in INI file!
+/return
+}
+|- Find the next available BounceOff key number and store the spell
+/declare bindex int local 1
+:CheckNextKey
+/if (${Ini[RHItems.ini,${Line.Arg[3]},BounceOff${bindex}].Length}) {
+|- This one is in use...
+/varcalc bindex ${bindex}+1
+/goto :CheckNextKey
+} else {
+|- This one not defined (yet). Good.
+/ini "RHItems.ini" "${Line.Arg[3]}" "BounceOff${bindex}" "${Line.Arg[4]}" 
+/if (${verbosity}>=0) /${channel} ** Added "${Line.Arg[4]}" to [${Line.Arg[3]}]'s bounce list
+}
+/return
+
+Sub Event_ItemCast(string Line)
+/varset lastevent Event_ItemCast
+|- Sanity check parameter
+/if (!${Line.Arg[3].Length}) {
+/if (${verbosity}>=0) /${channel} ** Improper use of /icast
+/if (${verbosity}>=0) /${channel} -- /icast <itemalias>
+/if (${verbosity}>=0) /${channel} -- For example:
+/if (${verbosity}>=0) /${channel} -- /icast gobby
+/return 
+}
+|- Look for that item's section, return if non-existent
+/if (!${Ini[RHItems.ini,${Line.Arg[3]}].Length}) {
+/if (${verbosity}>=0) /${channel} ** [${Line.Arg[3]}] not in INI file!
+/return
+}
+/declare fullname string local ${Ini[RHItems.ini,${Line.Arg[3]},FullName]}
+|- Is it in a Bag?
+/if (${verbosity}>=1) /${channel} ** Attempting to use: ${fullname}
+/if (${FindItem[${fullname}].InvSlot.Pack}) {
+:OpenPack
+/if (!${Window[${FindItem[${fullname}].InvSlot.Pack.Name}].Open}) {
+/itemnotify ${FindItem[${fullname}].InvSlot.Pack.Name} rightmouseup
+/delay 2
+/goto :OpenPack
+} 
+/declare camefrom ${FindItem[${fullname}].InvSlot}
+:GrabItem
+/if (!${Cursor.ID}) {
+/itemnotify ${InvSlot[${camefrom}]} leftmouseup
+/delay 2
+/goto :GrabItem
+}
+/declare clickyID int local ${Cursor.ID}
+/declare wornat int local ${Cursor.WornSlot[1]}
+:SwapFirst
+/if (${Cursor.ID}==${clickyID}) {
+/itemnotify ${InvSlot[${wornat}]} leftmouseup
+/delay 2
+/goto :SwapFirst
+}
+|- Click it
+/delay 2
+/if (${verbosity}>=1) /${channel} ** Clicking: ${fullname}
+/declare previousID ${Cursor.ID}
+/itemnotify ${InvSlot[${wornat}]} rightmouseup
+:SwapAgain
+/if (${Cursor.ID}==${previousID}) {
+/itemnotify ${InvSlot[${wornat}]} leftmouseup
+/delay 2
+/goto :SwapAgain
+}
+|- Put it back
+:PutItBack
+/if (${Cursor.ID}==${clickyID}) {
+/itemnotify ${InvSlot[${camefrom}]} leftmouseup
+/delay 2
+/goto :PutItBack
+} 
+:SummonedCheck
+/if (${Cursor.ID}) {
+|- Something was summoned
+/autoinv
+/delay 2
+/goto :SummonedCheck
+} 
+:ClosePack
+/if (${Window[${InvSlot[${camefrom}].Pack.Name}].Open}) {
+/itemnotify ${InvSlot[${camefrom}].Pack.Name} rightmouseup
+/delay 2
+/goto :ClosePack
+} 
+} else {
+|- Just click it
+/if (${FindItem[${fullname}].InvSlot}) {
+/if (${verbosity}>=1) /${channel} ** Clicking: ${fullname}
+/itemnotify ${FindItem[${fullname}].InvSlot} rightmouseup
+/delay 2
+} else {
+/if (${verbosity}>=0) /${channel} ** "${fullname}" not found!
+}
+} 
+:CastLoop 
+/delay 1 
+/if (${Me.Casting.ID}) /goto :CastLoop
+/return
+
+Sub Event_LinkParse(string Line)
+/varset lastevent Event_LinkParse
+/if (${Line.Arg[3].Length}) {
+/declare comtext string ${Line.Right[-16]}
+/declare linksub ${comtext.Token[1,*]}0013895-00001-00001-00001-00001-00001A04D01F5${comtext.Token[2,*]}${comtext.Token[3,*]}
+/docommand ${linksub}
+}
+/return
+
+Sub Event_AddMaster(string Line)
+/varset lastevent Event_AddMaster
+/declare index int local
+/if (${Line.Arg[3].Length}) {
+/for index 1 to 20
+/if (${Ini[RHSettings.ini,Masters,Controller${index}].Equal[Nobody]}) {
+/ini "RHSettings.ini" "Masters" "Controller${index}" "${Line.Arg[3]}"
+/if (${verbosity}>=0) /${channel} ** ${Line.Arg[3]} added as a controller...
+/goto :FallOut
+}
+/next index
+/if (${verbosity}>=0) /${channel} ** Master controller slots all filled! Get rid of some!
+} else {
+/if (${verbosity}>=0) /${channel} ** Huh?
+}
+:FallOut
+/return
+
+Sub Event_RemMaster(string Line)
+/varset lastevent Event_RemMaster
+/declare index int local
+/if (${Line.Arg[3].Length}) {
+/for index 1 to 20
+/if (${Ini[RHSettings.ini,Masters,Controller${index}].Equal[${Line.Arg[3]}]}) {
+/ini "RHSettings.ini" "Masters" "Controller${index}" "Nobody"
+/if (${verbosity}>=0) /${channel} ** ${Line.Arg[3]} removed from controller list...
+/goto :FallOut
+}
+/next index
+/if (${verbosity}>=0) /${channel} ** Can't find ${Line.Arg[3]} in access list!
+} else {
+/if (${verbosity}>=0) /${channel} ** Huh?
+}
+:FallOut
+/return
+
+Sub Event_Chat(ChatType, Sender, ChatText)
+/varset lastevent Event_Chat
+|- Authenticate if valid controller
+/declare authorized bool local FALSE
+/for i 1 to 20
+/if (${Ini[RHSettings.ini,Masters,Controller${i}].Equal[${Sender}]}) /varset authorized TRUE
+/next i
+/if (${authorized} && ${ChatText.Left[1].Equal[/]}) {
+/if (${verbosity}>=1) /${channel} ** User ${Sender} Authenticated!
+/if (${verbosity}>=0) /${channel} Action --> "${ChatText}"
+/if (${Me.AFK}) /delay 2s
+/tell ${Sender} Command received, performing: ${ChatText}
+/docommand ${ChatText}
+}
+/return 
+
+Sub Event_HelpInfo 
+/varset lastevent Event_HelpInfo
+/if (${verbosity}>=0) /${channel} --------=========(RH Help)=========---------- 
+/if (${verbosity}>=0) /${channel} /rhhelp - Display this information!
+/if (${verbosity}>=0) /${channel} /status - Display status of all RH modes
+/if (${verbosity}>=0) /${channel} /pause - Suspends the operations of RH
+/if (${verbosity}>=0) /${channel} /autoevade - Toggle autoevading on or off
+/if (${verbosity}>=0) /${channel} /autodisarm - Toggle autodisarm on or off
+/if (${verbosity}>=0) /${channel} /autointimidation - Toggle autointimidation on or off
+/if (${verbosity}>=0) /${channel} /aattack - Toggle AutoAttack on Hit on or off
+/if (${verbosity}>=0) /${channel} /stopfight <%> - Set % of your health to stop attacking
+/if (${verbosity}>=0) /${channel} /strikedisc <StrikeSkill> - Set to your best strike skill
+/if (${verbosity}>=0) /${channel} /endfloor <%> - Set % of your endurance needed to strike
+/if (${verbosity}>=0) /${channel} /autostick - Toggle autosticking to NPCs while attacking
+/if (${verbosity}>=0) /${channel} /stickdist <range_target> <range_tank> - Set stick thresholds
+/if (${verbosity}>=0) /${channel} /autohs - Toggle automatic hiding/sneaking while not fighting
+/if (${verbosity}>=0) /${channel} /closeness <%> - Set % of max hit range while autosticking
+/if (${verbosity}>=0) /${channel} /dynclose - Toggle automatic real time closeness adjustments
+/if (${verbosity}>=0) /${channel} /autoassist <main_assist> <%health> - Activate autoassist
+/if (${verbosity}>=0) /${channel} /autoassist off - Disable autoassisting
+/if (${verbosity}>=0) /${channel} /autoassist on - Turn on autoassist w/existing tank info
+/if (${verbosity}>=0) /${channel} /mainassist <player> - Sets main assist to <player>
+/if (${verbosity}>=0) /${channel} /secondassist <player> - Sets secondary assist to <player>
+/if (${verbosity}>=0) /${channel} /thirdassist <player> - Sets third assist to <player>
+/if (${verbosity}>=0) /${channel} /dynaggro - Toggle dynamic management of assist health %
+/if (${verbosity}>=0) /${channel} /leash <distance> - Activate leash with <distance> ft.
+/if (${verbosity}>=0) /${channel} /leash <distance> <master> - Activate leash w/a master
+/if (${verbosity}>=0) /${channel} /leash off - Disable leashing
+/if (${verbosity}>=0) /${channel} /leashflex <%length> - Set leash flexibility
+/if (${verbosity}>=0) /${channel} /drag <body1> <body2> ... <bodyN> - Drag corpses
+/if (${verbosity}>=0) /${channel} /lootmycorpse - Loot your own corpse completely
+/if (${verbosity}>=0) /${channel} /iset <itemalias> keepup|nokeepup <"Item Name"> - Item settings
+/if (${verbosity}>=0) /${channel} /ibounce <itemalias> <"Spell Name"> - Add bounce-off spell
+/if (${verbosity}>=0) /${channel} /iclick <itemalias> - Click cast item defined in <itemalias>
+/if (${verbosity}>=0) /${channel} /autoninja <mode> [<range>] - Automatic NPC corpse looting
+/if (${verbosity}>=0) /${channel} /autofollow [<name>] [<distance>] - Follow <name> at <distance>
+/if (${verbosity}>=0) /${channel} /autopick - Toggle pick-pocketing during combat on or off
+/if (${verbosity}>=0) /${channel} /weaponswitch <weapon1> <"switch text"> <weapon2> - weapon swap
+/if (${verbosity}>=0) /${channel} /targetswitch - Toggle autoswitching of targets in autoassist
+/if (${verbosity}>=0) /${channel} /autotraps - Toggle autonegotiation of traps
+/if (${verbosity}>=0) /${channel} /autochicken [ON|OFF|<nimble%>] [ESCAPE] - Preseves your life
+/if (${verbosity}>=0) /${channel} /autodisc1 "Discipline Name"|ON|OFF <end%> <reuse> - Auto disc 1
+/if (${verbosity}>=0) /${channel} /autodisc2 "Discipline Name"|ON|OFF <end%> <reuse> - Auto disc 2
+/if (${verbosity}>=0) /${channel} /addmaster <name> - Add a master to remote control users
+/if (${verbosity}>=0) /${channel} /remmaster <name> - Remove a master from remote control users
+/return
+
+Sub Event_StatInfo 
+/varset lastevent Event_StatInfo
+/if (${verbosity}>=0) /${channel} -------=======(Current Status)=======--------
+|- Check for the presense of MQ2MoveUtils plugin
+/if (${Stick.Status.Length}) {
+/varset useMU TRUE
+/if (${verbosity}>=0) /${channel} ** MQ2MoveUtils ENABLED (Enhanced Movement ON)
+} else {
+/varset useMU FALSE
+/if (${verbosity}>=0) /${channel} ** MQ2MoveUtils NOT FOUND (Enhanced Movement OFF)
+}
+/if (${verbosity}>=0) /${channel} ** Auto Evade: ${doEvade}, Cease Combat: ${StopFightingHealth}% HP 
+/if (${verbosity}>=0) /${channel} ** Auto Stick: ${doStick}, Closeness${If[${doDynclose},[DYN],]}: ${closeness}% MaxRange
+/if (${verbosity}>=0) /${channel} ** -- Range to Target: ${rngtarget} -- Range to Tank: ${rngtank}
+/if (${verbosity}>=0) /${channel} ** Auto Hide&Sneak: ${doHideSneak}, Auto Pickpocket: ${doPick}
+/if (${verbosity}>=0) /${channel} ** Auto Chicken: ${doChicken} -- Nimble: ${nimblehealth}% Escape: ${doEscape}
+/if (${verbosity}>=0) /${channel} ** Auto Ninja: ${ninjamode}, Distance: ${ninjadist} ft.
+/if (${verbosity}>=0) /${channel} ** Auto TargetSwitching: ${doTSwitch}, Auto Traps: ${doTraps}
+/if (${verbosity}>=0) /${channel} ** Auto Assist: ${doAutoassist}, Assist at ${assistpct}% HP 
+/if (${verbosity}>=0) /${channel} ** MA: ${firstassist}, SA: ${secondassist}, TA: ${thirdassist}
+/if (${verbosity}>=0) /${channel} ** Leashing: ${doLeash} (${leashlength} ft.), Master: ${leashholder}, Flex: ${leashflex}
+/if (${verbosity}>=0) /${channel} ** Strike Skill: "${StrikeSkill}", End. Floor: ${MinEndurance}%
+/if (${verbosity}>=0) /${channel} ** Auto Disc #1: ${doDisc1} -> ${disc1} / ${disc1reuse} mins - End: ${disc1end}%
+/if (${verbosity}>=0) /${channel} ** Auto Disc #2: ${doDisc2} -> ${disc2} / ${disc2reuse} mins - End: ${disc2end}%
+/if (${verbosity}>=0) /${channel} ** Dynamic Aggro Control: ${doDynaggro}
+/if (${verbosity}>=0) /${channel} ** WeaponSwitching: ${doSwitch}, ${weapon1}->${weapon2} (${switchtext})
+/if (${verbosity}>=0) /${channel} ** Auto Disarm : ${doDisarm}, Auto Intimidation : ${doIntimidation}
+/if (${verbosity}>=0) /${channel} ** AutoAttacking on Hit : ${doAAttack}
+/if (${verbosity}>=0) /${channel} ** Authorized remote controllers:
+/for i 1 to 20
+/if (${Ini[RHSettings.ini,Masters,Controller${i}].NotEqual[Nobody]}) /if (${verbosity}>=0) /${channel} ---- ${Ini[RHSettings.ini,Masters,Controller${i}]} allowed...
+/next i
+/doevents flush
+/return

@@ -1,0 +1,210 @@
+| Koboldcharm.Mac by Osirous
+| This macro will do the Kobold Charm quest in the tutorial
+| MQ2Moveutils Required
+|
+|
+|
+|
+|
+
+#turbo 40
+
+Sub Main
+/popup Starting Koboldcharm.Mac v0.5
+/popup Kobold charm here we come!
+
+|-- HERE WE GO! --|
+
+/call Arias
+/delay 1s
+/call Vahlara
+/delay 1s
+/call Basher
+/delay 1s
+/call Prathun
+/delay 1s
+/call Absor
+/delay 1s
+/call Xenaida
+/delay 1s
+/call Rytan
+/delay 1s
+/call Arias2
+/delay 1s
+
+/popup WOOT WOOT! Kobold Charm!
+
+/mac GetMerc
+
+/return
+
+Sub Arias
+
+/tar Arias
+/delay 1s
+/stick 10
+/delay 3s
+/stick off
+/delay 1s
+/hail
+
+/return
+
+Sub Vahlara
+
+/tar Vahlara
+/delay 1s
+/stick 10
+/delay 3s
+/stick off
+/delay 1s
+/hail
+/delay 1s
+/autoinventory
+/delay 2s
+/say others
+/delay 1s
+/nomodkey /notify LargeDialogWindow LDW_OkButton leftmouseup
+
+/return
+
+Sub Basher
+
+/tar Basher
+/delay 1s
+/stick 10
+/delay 3s
+/stick off
+/delay 1s
+/hail
+/delay 2s
+/nomodkey /notify TaskSelectWnd TSEL_AcceptButton leftmouseup
+/delay 2s
+/hail
+/delay 1s
+/nomodkey /notify LargeDialogWindow LDW_OkButton leftmouseup
+/delay 1s
+/nomodkey /notify LargeDialogWindow LDW_OkButton leftmouseup
+/delay 1s
+/nomodkey /notify LargeDialogWindow LDW_OkButton leftmouseup
+/delay 1s
+/nomodkey /notify LargeDialogWindow LDW_OkButton leftmouseup
+/delay 2s
+/nomodkey /notify RewardSelectionBottomPane rewardSelectionChooseButton leftmouseup
+
+/return
+
+Sub Prathun
+
+/tar Prathun
+/delay 1s
+/stick 10
+/delay 4s
+/stick off
+/hail
+/delay 1s
+/nomodkey /notify LargeDialogWindow LDW_OkButton leftmouseup
+/delay 1s
+/nomodkey /notify LargeDialogWindow LDW_OkButton leftmouseup
+/delay 1s
+/nomodkey /notify LargeDialogWindow LDW_OkButton leftmouseup
+/delay 1s
+/nomodkey /notify LargeDialogWindow LDW_OkButton leftmouseup
+/delay 1s
+/nomodkey /notify LargeDialogWindow LDW_OkButton leftmouseup
+
+/return
+
+Sub Absor
+
+/tar absor
+/delay 1s
+/stick 10
+/delay 6s
+/stick off
+/hail
+/delay 2s
+/itemnotify ${FindItem[=Dagger*].InvSlot} leftmouseup
+/itemnotify ${FindItem[=Short Sword*].InvSlot} leftmouseup
+/itemnotify ${FindItem[=Club*].InvSlot} leftmouseup
+/itemnotify ${FindItem[=Dull Axe*].InvSlot} leftmouseup
+/delay 2s
+/click left target
+/delay 2s
+/notify GiveWnd GVW_Give_Button leftmouseup
+/delay 2s
+/itemnotify ${FindItem[=Sharpened Dagger].InvSlot} leftmouseup
+/itemnotify ${FindItem[=Sharpened Short Sword].InvSlot} leftmouseup
+/itemnotify ${FindItem[=Polished Club].InvSlot} leftmouseup
+/itemnotify ${FindItem[=Sharpened Axe].InvSlot} leftmouseup
+/delay 2s
+/autoinventory
+/delay 2s
+/nomodkey /notify LargeDialogWindow LDW_OkButton leftmouseup
+
+/return
+
+Sub Xenaida
+
+/tar Xenaida
+/delay 1s
+/stick 10
+/delay 3s
+/stick off
+/hail
+/delay 1s
+/nomodkey /notify LargeDialogWindow LDW_OkButton leftmouseup
+/delay 2s
+/nomodkey /notify LargeDialogWindow LDW_OkButton leftmouseup
+
+/return
+
+Sub Rytan
+
+/tar Rytan
+/delay 1s
+/stick 10
+/delay 9s
+/stick off
+/delay 1s
+/hail
+/delay 1s
+/say blessed
+/delay 2s
+/nomodkey /notify LargeDialogWindow LDW_OkButton leftmouseup
+/delay 1s
+/nomodkey /notify LargeDialogWindow LDW_OkButton leftmouseup
+/delay 1s
+/nomodkey /notify LargeDialogWindow LDW_OkButton leftmouseup
+/delay 1s
+/nomodkey /notify LargeDialogWindow LDW_OkButton leftmouseup
+/delay 1s
+/keypress ctrl+b
+/delay 1s
+/notify SpellBookWnd SBW_Spell3 leftmouseup
+/delay 1s
+/keypress ctrl+b
+/delay 1s
+/autoinventory
+/delay 1s
+/itemnotify ${FindItem[=Tome of Throw Stone].InvSlot} rightmouseup
+/delay 1s
+/itemnotify ${FindItem[=Tome of Corroded Axe].InvSlot} rightmouseup
+
+/return
+
+Sub Arias2
+
+/tar Arias
+/delay 1s
+/moveto loc -130, -24
+/delay 7s
+/face fast
+/hail
+/delay 1s
+/autoinventory
+/delay 1s
+/nomodkey /notify LargeDialogWindow LDW_OkButton leftmouseup
+/delay 1s
+
+/return

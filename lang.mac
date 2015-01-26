@@ -1,0 +1,79 @@
+|** languages.mac
+This macro checks what languages you have but are not 100 and spams until you are 100 skill. If you are missing a language, this macro will report which language you need a point in and skip that language.
+
+USAGE: This macro isn't perfect and requires a slight set up before it will work. First, find your Main Chat window, right click on its titlebar and choose "Always chat here". Next, ensure that
+you are grouped, even having a merc out and on passive is sufficient.  If you're a dumbass, you should run this macro while AFK in a busy zone.
+
+History:
+Version 1.10 -- 25 Mar 2013 gSe7eN: added check to see if we've learned a new language so we can update our math and consider this new language.
+Version 1.00 -- 25 Mar 2013 gSe7eN: initial code
+
+Thanks:
+Sorvani who directly helped
+TFM
+Anyone who has added to the wiki
+
+Enjoy, ye VIP's. **|
+
+#turbo 20
+#Event SkillUp "You have become better at #1#! (#2#)"
+
+
+Sub Main
+/declare SorvanisVar int outer 0
+
+/call LangCheck
+/echo Grats, you're 100x25 and this macro is done.
+/return
+
+Sub LangCheck
+/declare i int local 1
+/declare n int local 0
+/declare lang int local 1
+:NewStop
+/for i 1 to 25
+   :CheckLoop
+   /if (${Me.LanguageSkill[${i}]}==0) {
+      /echo We don't have at least one point ${Me.Language[${i}]} yet so we must skip it.
+      /varcalc n (${n}+1)
+   } else /if (${Me.LanguageSkill[${i}]}==100) {
+      /echo ${Me.Language[${i}]} is at 100, moving on.
+   } else {
+      /doevents
+      /if (${SorvanisVar}==1) {
+         /varset SorvanisVar 0
+         /varset i 1
+         /varset n 0
+         /varset lang 1
+         /goto :NewStop
+      }
+      /echo Changing Language to ${Me.Language[${i}]}
+      /varcalc lang (${i}-${n})
+      /language ${lang}
+      /goto :SpamTime
+   }
+/next i
+/if (${i}==26) /return
+/goto :CheckLoop
+:SpamTime
+{
+   /gsay "Welcome to the Theatre of Dreams"
+   /gsay "Glory Glory Man United!"
+   /gsay "Ryan Giggs: Tearing you apart since 1991"
+   /gsay "We're Man United and we'll do what we want"
+   /gsay "Wayne Rooney, he's the white Pele"
+}
+/delay 1s
+/if (${Me.LanguageSkill[${i}]}==100) {
+   /echo ${Me.Language[${i}]} is at 100, moving on.
+   /goto :CheckLoop
+}
+/goto :SpamTime
+/return
+
+Sub Event_SkillUp(SkillUpText,Skill,int Amount)
+   /if (${Amount}==1) {
+      /echo New language learning detected (${Skill}), restarting macro so we consider this new language.
+      /varset SorvanisVar 1
+   }
+/return

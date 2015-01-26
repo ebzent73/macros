@@ -1,0 +1,911 @@
+#event DebuffSpell			"[MQ2] SetDebuffSpell #1#"
+#event Hit					"#*# YOU for #*#"
+#event Hit					"#*# YOU, but #*#"
+#event ChangeTank			"[MQ2] tank #1#"
+#event Invite				"#1# invites you to join a group."
+#event DamageShield			"#1# was burned#*#"
+#event DamageShield			"#1# was pierced by#*#"
+#event DamageShield			"#1# was tormented#*#"
+#event help 				"[MQ2] chelp"
+#event DI					"Your Divine Interposition spell has worn off of #1" 
+
+#include spell_routines.inc
+#include AAPurchase.inc
+#include general.inc
+#include ninjadvloot.inc
+#include events.inc
+#chat tell
+#turbo 60
+
+Sub main
+/declare dummy int local
+/call SetupAdvLootVars
+/call GeneralDeclares
+/call GeneralDeclares2
+/call Event_Zone
+
+/squelch /alias /cure /echo SetDebuffSpell
+/squelch /alias /tank /echo tank
+/call AAInit
+|------------------------END EDITING------------------------|
+ 
+   /if (!${Defined[MoKed]}) /declare MoKed bool outer FALSE
+   /if (!${Target.ID}) {
+      /echo Using the default tank of ${DefaultTank}
+       /target ${DefaultTank}
+	   /delay 4 ${Target.ID}
+        /varset tankname ${Target.CleanName}
+         /varset tanknameid ${Target.ID}
+          /varset tankclass ${Target.Class.Name}
+        } else {
+         /varset tanknameid ${Target.ID}
+          /varset tankclass ${Target.Class.Name}
+        }
+   /echo AFCleric Active Version 1.40
+   /echo Using ${HealSpell} on ${tankname} at ${startHeal}% HP
+   /echo Heals will be interrupted above ${stophealpoint} HP
+   /if (${LockTank}) /echo Will lock target on tank.
+   /if (!${LockTank}) /echo Will not lock target on tank.
+   /if (${UseIRC}) /call Irc
+   
+:tankwatchloop
+/varset MacroState tankwatchloop
+/doevents 
+/if (${following} || ${Me.Invis}) /goto :tankwatchloop
+/if (${Died} || ${Me.Dead}) /call Wait4Rez
+/call SpecialSubs
+/call CheckTank
+/call CheckName
+/if (${SpawnCount[npc radius 150]} && ${DoNuke}) /call GetTarget
+/if (${Group}) /call Heal
+/call HealTank
+/if (${XHeal}) /call CheckTanks
+/if (!${Me.Pet.ID} && ${Me.CombatState.Equal[Combat]}) /call HammerPet
+/call Mana
+/call Cure
+/if (${DoNuke}) /call nuke
+/if (${DoLeash}) /call Leash
+/if (${Me.AltAbilityReady[blessing of resurrection]} && ${BattleRez} && ${SpawnCount[corpse Guild zradius 50 radius 110]}) /call battlerez
+/if (!${BuffTimer} && ${usebuffs}) /call CheckIniBuffs
+/if ((!${RaidBuffTimer} && ${DoRaidBuff} && ${Raid.Members}) || (${Raid.Members} && ${DoRaidBuff} && !${Me.CombatState.Equal[Combat]})) /call RaidBuff
+/if (${QueueCount} && !${Me.Moving} && !${Me.CombatState.Equal[Combat]}) /call DoBuffEvents
+/if (${DoLoot} && !${Me.Moving} && !${Me.CombatState.Equal[Combat]}) /call LootMobs
+/if ((${Me.PctMana}<=95 && !${Me.CombatState.Equal[Combat]})) /call MedTime
+/if (${AutoExpAdjust} && !${CheckExpTimer} && !${Me.CombatState.Equal[Combat]}) /call AutoAdjustExp
+/goto :tankwatchloop
+/endmacro   
+
+
+Sub WhoNeedsHeal
+/varset MacroState WhoNeedsHeal
+
+/return
+
+
+Sub CheckTank
+/varset MacroState CheckTank
+/declare x int local
+/if (${Spawn[${tanknameid}].Name.NotEqual[${tankname}]}) /varset tanknameid 0
+/if (!${Target.Type.NotEqual[Corpse]}) /squelch target clear
+/if (${Target.ID}!=${tanknameid} && ${LockTank}) {
+      /if (${Spawn[${tanknameid}].ID} && ${Spawn[${tanknameid}].Type.NotEqual[Corpse]}) {
+         /target id ${tanknameid}
+         /delay 6 ${Target.ID}==${tanknameid}
+		 /return
+      }
+   }
+/if (${Spawn[${DefaultTank}].ID} && (!${tanknameid} || !${Spawn[${tanknameid}].ID})) /varset tanknameid ${Spawn[${DefaultTank}].ID}
+/if (${NumBackUpTanks} && (!${Spawn[${tanknameid}].ID} || ${Spawn[${tanknameid}].Type.Equal[Corpse]})) {
+ /for x 1 to ${NumBackUpTanks}
+ /if (${Spawn[pc ${BackupTank${x}}].ID} && ${Spawn[pc ${BackupTank${x}}].Distance} <= 200 && ${Spawn[pc ${BackupTank${x}}].Type.NotEqual[corpse]}) {
+  /varset tanknameid ${Spawn[pc ${BackupTank${x}}].ID}
+  /varset tankname ${BackupTank${x}}
+  /Bc Switching tank to  ${tankname}
+  /return
+  }
+/next x
+}
+/return
+
+Sub HealTank
+/doevents
+/varset MacroState HealTank 
+/declare i int local
+/if (${GameState.Equal[CHARSELECT]}) /end
+/if (${Target.ID}==${tanknameid} && ${Target.ID} && ${Target.Type.NotEqual[corpse]} && ${LockTank}) {
+	/varset stophealpoint ${Math.Calc[${defaultstophealpoint}*1.1]}    
+	/if (${Target.Distance}<=200 && ${Target.ID} && ${Target.PctHPs}<=34) /call CastSpell "Burst Of life" alt ${tanknameid}
+	/if (!${Me.SpellReady[${HealSpell}]}) /return 
+	/if (${Target.Distance}<=200 && ${Target.PctHPs}<=44) /call CastSpell "${EleventhHourSpell}" EleventhHourSpellGem ${tanknameid}   
+	/if ((${Target.Distance}<=${Spell[${HealSpell}].MyRange}) && ${Target.PctHPs}<=${startHeal} && (${Me.SpellReady[${HealSpell}]} || ${Me.SpellReady[${patchheal}]} || ${Me.SpellReady[${InterventionSpell1}]} || ${Me.SpellReady[${RenewalSpell1}]})) {
+		/if (${Me.SpellReady[${InterventionSpell1}]}) /call CastSpell "${InterventionSpell1}" ${InterventionSpell1Gem} ${tanknameid} CheckAll
+		/if (${Me.SpellReady[${InterventionSpell2}]}) /call CastSpell "${InterventionSpell2}" ${InterventionSpell1Gem} ${tanknameid} CheckAll
+		/if (${Me.SpellReady[${InterventionSpell3}]}) /call CastSpell "${InterventionSpell3}" ${InterventionSpell1Gem} ${tanknameid} CheckAll
+		/call CastSpell "${RenewalSpell1}" ${RenewalSpell1Gem} ${tanknameid} CheckAll
+		/if (${Me.SpellReady[${RenewalSpell2}]}) /call CastSpell "${RenewalSpell2}" ${RenewalSpell1Gem} ${tanknameid} CheckAll
+		/if (${Me.SpellReady[${RenewalSpell3}]}) /call CastSpell "${RenewalSpell3}" ${RenewalSpell1Gem} ${tanknameid} CheckAll
+		/if (${Target.PctHPs}<=${defaultstophealpoint}*.6) /call CastSpell "${patchheal}" ${patchhealgem} ${tanknameid} CheckAll
+		/call CastSpell "${HealSpell}" ${healspellgem} ${tanknameid} CheckAll
+		}     
+    
+/varset stophealpoint ${defaultstophealpoint}
+}
+/if (${Spawn[${tanknameid}].Distance}<=${Spell[${PromiseSpell}].MyRange} && ${Spawn[${tanknameid}].PctHPs}<=${PromiseHP} && ${UsePromise} && ${Spawn[${tanknameid}].PctHPs}>=${defaultstophealpoint}*.5 && !${RenewalTimer}) {
+		/call CastSpell "${PromiseSpell}" ${PromiseSpellGem} ${tanknameid}
+		/call CreateTimer RenewalTimer
+		/if (${castReturn.Equal[CAST_SUCCESS]}) /varset RenewalTimer 24s
+		/if (${castReturn.Equal[CAST_NOTHOLD]}) /varset RenewalTimer 12s
+		}
+/if (${Me.SpellReady[${RetortSpell}]} && !${RetortTimer} && ${Spawn[${tanknameid}].Distance} <= 200 && ${Spawn[${tanknameid}].ID}) {
+		/call CastSpell "${RetortSpell}" ${RetortSpellGem} ${tanknameid} CheckHP
+		/call CreateTimer RetortTimer
+		/if (${castReturn.Equal[CAST_SUCCESS]}) /varset RetortTimer 90s
+		/if (${castReturn.Equal[CAST_NOTHOLD]}) /varset RetortTimer 30s	
+		}
+/if (!${HotTimer} && ${Spawn[${tanknameid}].Distance}<=${Spell[${HotSpell}].MyRange} && ${Spawn[${tanknameid}].PctHPs} >=80 && ${Spawn[${tanknameid}].PctHPs}>=${defaultstophealpoint}*.5 && ${usetankhot} && ${SpawnCount[npc los Range 5 110 radius 50 zradius 50 targetable]} ) {
+		/call CastSpell "${HotSpell}" ${HotSpellGem} ${tanknameid} 
+		/call CreateTimer HotTimer
+		/if (${castReturn.Equal[CAST_SUCCESS]}) /varset HotTimer 60s
+		} 
+/return
+
+Sub Heal(int MyHealth,int MyTarget,MyClass)
+/declare AnybodyHurt int local 0
+/varset MacroState Heal
+/varset WorstHurt NULL
+/varset WorstHP 100
+/varset MajorHurt 0
+/varset WorstClass NULL
+/declare X int local
+/doevents
+/if (${Me.Song[Touch of the Divine].ID}) /return
+/if (${Me.PctHPs}<=${${Me.Class.ShortName}Point}) {
+	/varset WorstHP ${Me.PctHPs}
+	/varset WorstHurtID ${Me.ID}
+	/varset WorstHurt ${Me.CleanName}
+	/varset WorstClass ${Me.Class.ShortName}
+	/goto :outsideheal
+}
+/if (${MyHealth}) {
+	/varset WorstHP ${MyHealth}
+	/varset WorstHurtID ${MyTarget}
+	/if (${MyClass.NotEqual[NULL]}) /varset WorstClass ${MyClass} 
+	/varset WorstHurt ${Spawn[${WorstHurtID}].CleanName}
+	/goto :OutSideHeal
+}
+/for X 0 to ${Group.Members}
+/if ((${Group.Member[${X}].Type.Equal[pc]} || ${Group.Member[${X}].Type.Equal[Mercenary]}) && !${Group.Member[${X}].Dead} && ${Group.Member[${X}].ID} && ${Group.Member[${X}].PctHPs}<=${WorstHP} && ${Group.Member[${X}].Distance}<=${Spell[${HealSpell}].MyRange} && ${Group.Member[${X}].PctHPs}<=${${Group.Member[${X}].Class.ShortName}Point}) {
+	/multiline ; /varset WorstHurtID ${Group.Member[${X}].ID}; /varset WorstHurt ${Group.Member[${X}].Name}; /varset WorstHP ${Group.Member[${X}].PctHPs}; /varset WorstClass ${Group.Member[${X}].Class.ShortName}; /varset AnybodyHurt 1
+}
+/if (!${Group.Member[${X}].Dead} && ${Group.Member[${X}].PctHPs}<=${${Group.Member[${X}].Class.ShortName}Point} && ${Group.Member[${X}].Type.NotEqual[Corpse]} && ${Group.Member[${X}].Distance}<=${Spell[${GroupHeal}].AERange}) /varcalc MajorHurt ${MajorHurt}+1
+/doevents
+/next X
+  
+/if (${Name} && ${Me.SpellReady[${groupdurationhealspell}]} && ${Spell[${groupdurationhealspell}].Stacks[0]} && !${Me.Song[${groupdurationhealspell}].ID}) /call CastSpell "${groupdurationhealspell}" ${grouphealgem} ${Me.ID}
+/if (!${AnybodyHurt}) {
+	/if (${HealList.Find[${Me.Casting}]} || ${Me.Casting.Name.Equal[${GroupHeal}]}) /call interrupt
+	/return
+}
+/if ((!${HealList.Find[${Me.Casting}]} || !${Me.Casting.Name.Equal[${GroupHeal}]}) && ${Me.Casting.ID} && ${Spawn[${WorstHurt}].PctHPs} <= ${Math.Calc[${${WorstClass}Point}*.7]} || ${Me.Casting.Name.Equal[${GroupHeal}]} && ${Spawn[${WorstHurt}].PctHPs} <= 45 ) {
+	/if (${Target.Type.Equal[npc]}) /echo Cancelling ${Me.Casting} to Heal ${WorstHurt}
+	/if (${BuffWasCast}) /varset BuffWasCanceled TRUE
+	/call Interrupt
+}
+/if (${Me.Casting.ID}) /return
+/if ( ${MajorHurt}>=3 && ${Me.AltAbilityReady[Beacon of Life]}) /call castSpell "beacon of life" alt 0
+/if (${WorstHP}<=${divarbpoint} && ${Spawn[ID ${WorstHurtID}].Distance}<=150 && ${Group.Member[${Spawn[ID ${WorstHurtID}].CleanName}].ID}) /call DivineArb
+|/if ( ${MajorHurt}>=2 && ${useSplash} && ${Me.CombatState.Equal[Combat]}) /call SplashCast "${SplashHeal}" ${SplashGem} 0
+/if ( ${MajorHurt}>=2 && ${usegroupheal} && ${Spawn[${WorstHurt}].PctHPs} > 45) /call CastSpell "${GroupHeal}" ${grouphealgem} 0 Heal
+:OutsideHeal   
+/if (${Spawn[${WorstHurt}].PctHPs} <= ${${WorstClass}Point}) {
+	/if (${WorstHP} <=34 && ${Target.Distance}<=200 && ${Me.AltAbilityReady[burst of life]}) /call CastSpell "Burst Of life" alt ${WorstHurtID}
+	/if (${WorstHP} <45) /call CastSpell "${EleventhHourSpell}" EleventhHourSpellGem ${WorstHurtID})
+	/call CastSpell "${RenewalSpell1}" ${RenewalSpell1Gem} ${WorstHurtID} CheckAll	
+	/if (${Me.SpellReady[${InterventionSpell1}]}) /call CastSpell "${InterventionSpell1}" ${InterventionSpell1Gem} ${WorstHurtID} CheckAll
+	/if (${Me.SpellReady[${InterventionSpell2}]}) /call CastSpell "${InterventionSpell2}" ${InterventionSpell1Gem} ${WorstHurtID} CheckAll
+	/if (${Me.SpellReady[${InterventionSpell3}]}) /call CastSpell "${InterventionSpell3}" ${InterventionSpell1Gem} ${WorstHurtID} CheckAll
+	/if (${Me.SpellReady[${RenewalSpell2}]}) /call CastSpell "${RenewalSpell2}" ${RenewalSpell1Gem} ${WorstHurtID} CheckAll
+	/if (${Me.SpellReady[${RenewalSpell3}]}) /call CastSpell "${RenewalSpell3}" ${RenewalSpell1Gem} ${WorstHurtID} CheckAll
+	/if (${Spawn[${WorstHurt}].PctHPs} <= ${${WorstClass}Point}*.6) /call CastSpell "${patchheal}" ${patchhealgem} ${WorstHurtID}) Checkall
+	/call CastSpell "${HealSpell}" ${healspellgem} ${WorstHurtID} CheckAll
+}
+/varset stophealpoint ${defaultstophealpoint}
+/return
+
+Sub CheckName
+/varset MacroState CheckName
+/declare X int local 
+/declare Tank int local
+/varset Name 0
+/for X 1 to ${Me.XTarget}
+/if (${Spawn[${Me.XTarget[${X}].ID}].ID} && ${Spawn[${Me.XTarget[${X}].ID}].Type.Equal[NPC]}) {
+	/if (${NameList.Find[${Me.XTarget[${X}]}]}) {
+		/varset NameID ${Spawn[${Me.XTarget[${X}].ID}].ID}
+		/varset Name 1
+		}
+}
+/next X	
+/if (${Name} && ${Spawn[ID ${NameID}].PctHPs} <=95) {
+	/call CastSpell "Celestial Rapidity" alt 0
+	/call CastSpell "Flurry Of Life" alt 0
+	/call CastSpell "Healing Frenzy" alt 0
+	/if (!${CelestialTimer}) {
+		/call CastSpell "Focused Celestial Regeneration" alt ${tanknameid}
+		/call CreateTimer CelestialTimer
+		/if (${castReturn.Equal[CAST_SUCCESS]} || ${castReturn.Equal[CAST_NOHOLD]}) /varset CelestialTimer 60s
+		}
+	/call CastSpell "Fundament: Second Spire of Divinity" alt 0
+	}
+/if (${Me.AltAbilityReady[Divine Guardian]} && ${Name}) {
+	/target id ${NameID}
+	/delay 1s ${Target.ID}==${NameID}
+	/varset Tank ${Spawn[PC ${Me.TargetOfTarget}].ID}
+	/echo ${Tank}
+	/if (${Select[${Spawn[${Me.TargetOfTarget}].Class.ShortName},SHD,WAR,PAL]}) /call CastSpell "Divine Guardian" alt ${Tank}
+}
+/return
+
+Sub CheckHP
+/varset MacroState Checkhp
+/doevents
+/if (!${Me.Casting.ID} || ${Me.Dead} ||${Died}) /return
+|  ${castEndTime} is variable to express time remaining, in deciseconds, from spell_routines.inc
+ /if (${HealList.Find[${Me.Casting}]}) {
+	/if (${Target.PctHPs}>=${defaultstophealpoint} && ${castEndTime} < 5 || (${Target.PctHPs} == 100 && !${startHeal} == 100)) {
+		/call Interrupt
+		/return
+		}
+	}
+/call ReturnCurrentGroup
+/if (${castEndTime} > 10 && ${Target.PctHPs} < ${divarbpoint} && ${Macro.Return.Find[${Target.Name}]}) /call DivineArb
+/if (!${HealList.Find[${Me.Casting}]} && ${Group}) /call Heal
+/if ((${interrupt2healself}==1)&&(${Target.Name.NotEqual[${Me}]})&&(${Me.PctHPs}<${interrupt2healselfhp})) {
+      /if ((${Me.PctHPs}<=${divarbpoint})&&(${Me.AltAbilityReady[Divine Arbitration]} && ${Group})) {
+         /call Interrupt
+         /if (${announce}) /${mychannel} using Arbitration on myself!
+         /call DivineArb
+         /return
+      }
+      /call Interrupt 
+      /return
+   }
+/return
+
+Sub Nuke
+/if (${Me.Dead} || ${Me.State.Equal[Hover]}) /return
+/varset MacroState Nuke
+/declare x int local
+/for x 1 to ${NumOfNukes}
+/if (${Spawn[${CurrentTarget}].PctHPs} <= ${NukeAt${x}} && ${Spawn[${CurrentTarget}].Type.NotEqual[corpse]}) /call CastSpell "${Nuke${x}}" ${NukeGem${x}} ${CurrentTarget} Checkall
+/next x
+/if (${Spawn[${CurrentTarget}].Distance} < 70 && ${Spawn[${CurrentTarget}].Type.NotEqual[corpse]}) /call CastSpell "banestrike" alt ${CurrentTarget}
+/return
+
+Sub Event_Chat(string ChatType,string Sender,string ChatText)
+   /if ((!${ChatType.Equal[${mychannel}]})&&(!${ChatType.Equal[TELL]})&&(!${ChatType.Equal[group]})) /return
+   /call Event_IRC ${ChatType} ${Sender.Right[-2].Left[-1]} "${ChatText}"
+/return
+       
+Sub CheckCure
+/varset MacroState CheckCure
+  /if (${Me.Casting.Name.Equal[${CurseSpell}]} && ${Debuff[${NetBots[${Target.Name}].Buff}].Cursed} <=0) 	/call Interrupt
+  /if (${Me.Casting.Name.Equal[${CorruptSpell}]} && ${Debuff[${NetBots[${Target.Name}].Buff}].Corrupted} <=0) 	/call Interrupt
+  /if (${Me.Casting.Name.Equal[${PoisonSpell}]} && ${Debuff[${NetBots[${Target.Name}].Buff}].Poisoned} <=0) 	/call Interrupt
+  /if (${Me.Casting.Name.Equal[${DiseaseSpell}]} && ${Debuff[${NetBots[${Target.Name}].Buff}].Diseased} <=0) 	/call Interrupt
+/return
+
+Sub StunSpell
+   /varset MacroState StunSpell
+  /if (!${MATarget} || ${Spawn[${MATarget}].Type.Equal[Corpse]} || !${Spawn[${MATarget}].ID}) /call AssistMA
+   /if ( ${Spawn[${MATarget}].Type.NotEqual[NPC]} || ${Spawn[${MATarget}].Dead} || !${Spawn[${MATarget}].ID} || ${Spawn[${MATarget}].Type.Equal[Corpse]}   ) {
+      /varset MATarget 0
+   }
+      /if ( ${Spawn[${MATarget}].ID} && ${Spawn[${MATarget}].Type.Equal[NPC]} && ${Spawn[${MATarget}].PctHPs}<=99 ) {
+         /if ( ${Me.SpellReady["${StunSpell}"]} ) {
+            /if ( ${Target.ID}!=${MATarget} ) {
+               /target id ${MATarget}
+               /delay 1s ${Target.ID}==${MATarget}
+            }
+            /assist ${MA}
+            /echo casting ${StunSpell}
+            /call CastSpell "${StunSpell}" ${MATarget} Checkall
+         }
+      }
+   }
+   /return
+
+Sub GetTarget
+/varset MacroState GetTarget
+/delay 1
+/if (${Spawn[${CurrentTarget}].Distance} > 150 || !${Spawn[${CurrentTarget}].ID}) /varset CurrentTarget 0
+/if (${CurrentTarget} && ${Spawn[${CurrentTarget}].ID} && !${Spawn[${CurrentTarget}].Type.Equal[corpse]}) /return
+/if (${Spawn[${MA}].ID}) /assist ${MA}
+/if (${ExcludeList.Find[${Target.DisplayName}]}) /goto :notgood
+/declare tempID int local ${Target.ID}
+/if (${Spawn[${tempID}].Type.Equal[npc]} && ${Spawn[${tempID}].LineOfSight} && ${Spawn[${tempID}].PctHPs} < 98) {
+	/varset CurrentTarget ${Target.ID}
+	/echo Got my Target! ${Target.CleanName} 
+   } else {
+   	:notgood
+/varset CurrentTarget 0
+}
+/return   
+   
+Sub Event_DebuffSpell(string line,string spellName)
+/declare CurrentRcList string local
+/varset CurrentRcList ${Ini[${iniName},"RadiantCures","RCList"]} 
+/if (${CurrentRcList.Find[NULL]}) {
+	/ini "${iniName}" "RadiantCures" "RCList" "${spellName}"
+	/varset CurrentRcList ${spellName}
+   } else /if (!${CurrentRcList.Find[${spellName}]}) {
+      /ini "${iniName}" "RadiantCures" "RCList" "${RCList}${spellName}|"
+      /varset CurrentRcList ${Ini[${iniName},"RadiantCures","RCList"]}
+   }
+/varset RCList ${CurrentRcList}
+/echo RCList: ${RCList}
+/return
+
+Sub DivineArb
+/varset MacroState DivineArb
+/if (${announce}) /${mychannel} Inc Divine Arbitration / Epic
+/if (${FindItem[Aegis of Superior Divinity].ID} && !${FindItem[Aegis of Superior Divinity].Timer} && ${UseEpic}) {
+	/if (${Me.Casting.ID}) /call Interrupt
+	/call CastItemClicky "Aegis of Superior Divinity"
+  } else  /if (${Me.AltAbilityReady[Divine Arbitration]}) {
+	/if (${Me.Casting.ID}) /call Interrupt
+    /call CastSpell "Divine Arbitration" alt 0
+  }
+/delay 3
+/return
+
+Sub Mana
+/doevents  
+/if (${DoYaulp}) {
+	/if (!${Me.Buff[${yaulpspell}].ID} && ${Spell[${yaulpspell}].Stacks} && !${Me.Sitting}) /call CastSpell "${yaulpspell}" ${YaulpGem} 0
+	} else /if (${Me.AltAbilityReady[Yaulp]} && ${Spell[Yaulp].Stacks} && !${Me.Buff[Yaulp].ID} && !${Me.Sitting}) {
+	/call CastSpell "Yaulp" alt 0
+	}
+/if (${Me.PctMana}< 60 && ${Me.AltAbilityReady[Veturika's perseverance]}) /call cast "Veturika's perseverance" alt 0
+/call Rod
+/call QuietMiracle
+/return
+
+Sub QuietMiracle
+/declare i int local
+/if (${Group} && ${Me.AltAbilityReady[Quiet Miracle]}) {
+	 /for i 1 to ${Group}
+	 	/if (${Group.Member[${i}].Type.NotEqual[corpse]} && ${Group.Member[${i}].ID} && ${Group.Member[${i}].Distance} < 100 && ${Group.Member[${i}].CurrentMana} <40 && ${CanCast.Find[${Group.Member[${i}].Class}]}) {
+	 		/target id ${Group.Member[${i}].ID}
+	 		/delay 3 ${Target.ID}==${Group.Member[${i}].ID}
+	 		/call cast "Quiet Miracle" alt 0
+	 		/return
+	 	}
+	/next i
+}
+/return
+   
+Sub HammerPet
+/varset MacroState HammerPet
+/if (${Me.Pet.ID} ) {
+      /return
+	}     
+/if (${Name} && ${Spawn[ID ${NameID}].Distance} < 100 && ${Spawn[${NameID}].PctHPs} < 95) {
+	/call CastSpell "Celestial Hammer" alt ${NameID}    
+	/call CastSpell "${HammerPet}" gem12 ${NameID} CheckAll 
+	}
+/return
+
+Sub Event_Hit
+/if (${Me.PctHPs}<=80 && ${Me.AltAbilityReady[Divine Retribution]}) /call CastSpell "Divine Retribution" alt 0
+/doevents flush hit
+/return
+
+Sub CheckiniBuffs
+/varset MacroState CheckIniBuffs
+/if (${Zone.ID}!=${currentZone}) /call Event_Zone
+/if (${Me.Invis}) /return
+     /if (!${Me.Aura[1].Equal[${AuraWindow}]} && !${Me.Aura[2].Equal[${AuraWindow}]}) {
+      /if (!${Me.Gem[${AuraToCast}]})  /call MemSpell "${AuraToCast}" ${BuffGem}
+      /if (${Me.SpellReady[${AuraToCast}]}) /call cast "${AuraToCast}" ${BuffGem} 0 CheckAll
+  }
+   /if (!${Me.Aura[1].Equal[${AuraWindow2}]} && !${Me.Aura[2].Equal[${AuraWindow2}]}) {
+   /if (!${Me.Gem[${AuraToCast2}]})  /call MemSpell "${AuraToCast2}" ${BuffGem}
+  /if (${Me.SpellReady[${AuraToCast2}]})    /call cast "${AuraToCast2}" ${BuffGem} 0 CheckAll
+}
+/call CheckBuffies CheckAll    
+/if (${Me.Height}>2.03 && ${FindItem[${ItemShrink}].ID}) /call CastSpell "${ItemShrink}" item ${Me.ID}
+/if (!${usebuffs} || ${Me.CombatState.Equal[Combat]}) /goto :end
+/if (!${Me.CombatState.Equal[Combat]}) /call BCBuff
+:end
+/varset BuffTimer 10s
+/return
+
+Sub Event_Invite(string line,string sender)
+/if (${announce}) /${mychannel} i've been invited by ${sender}
+/declare Master string local
+/varset Master ${Ini[${iniName},Settings,MasterList,NOTFOUND]}
+/if (${Master.Find[${sender}]}) /squelch /invite
+/return
+
+Sub CheckDTGargoyle
+/varset MacroState CheckDTGargoyle
+  /declare GargRace string local Gargoyle
+  /declare WolfRace string local Werewolf
+  /declare Golem	string local Golem
+  /declare b int local
+   
+
+  /if (${SpawnCount[pc race ${GargRace} radius 100]}) {
+    /target id ${Spawn[pc race ${GargRace}].ID}
+    /delay 1s ${Target.Race.Name.Equal[${GargRace}]}
+    /if (${Target.Race.Name.Equal[${GargRace}]}) {
+      /bc INC RGC on ==[ ${Target.CleanName} ]==
+      /call Cast "${CurseSpell}" gem12 5s CheckCured
+    }
+  }
+  /if (${SpawnCount[pc race ${Golem} radius 100]} && !${FindItem[Igneous crystalline ember].Timer}) {
+    /target id ${Spawn[pc race ${Golem}].ID}
+    /delay 1s ${Target.Race.Name.Equal[${Golem}]}
+    /if (${Target.Race.Name.Equal[${Golem}]}) {
+      /bc INC Unfreeze on ${Target.CleanName}
+      /call Cast "Igneous crystalline ember" gem6 5s 
+    }
+  }
+  /doevents
+/return
+
+Sub CheckCured
+  /declare GargRace string local Gargoyle
+  /if (${Target.Race.Name.NotEqual[${GargRace}]}) /call Interrupt
+/return 
+   
+Sub BattleRez
+/varset MacroState BattleRez
+/declare i int local
+/if (!${SpawnCount[corpse Guild zradius 75 radius 110]}) /return
+/if (${SpawnCount[corpse Guild zradius 75 radius 110]}) {
+	/for i 1 to ${SpawnCount[Corpse Guild zradius 75 radius 110]}
+	/if (!${corpsetimer${NearestSpawn[${i},Corpse Guild zradius 75 radius 110].ID}}) {
+		/varset RezID ${NearestSpawn[${i},Corpse Guild zradius 75 radius 110].ID}
+		/target id ${RezID}
+		/delay 1s ${Target.ID}==${RezID}	
+		/cor
+		/call Cast "blessing of resurrection" alt 0
+		/call CreateTimer corpsetimer${RezID}
+		/doevents Rez
+		/if ( !${Me.AltAbilityReady[blessing of resurrection]}) { 
+			/if (${Spawn[${RezID}].ID}) /varset corpsetimer${RezID} 640s
+			/return
+			} else {
+			/if (${Spawn[${RezID}].ID}) /varset corpsetimer${RezID} 30s
+			}
+	}
+	/next i
+}
+/return
+
+Sub Event_DamageShield(string Line,string Tormentee)
+  /if (${MoKed} || ${tankname.NotEqual[${Tormentee}]}) /return
+  /if (!${MoKed} && ${UseAutoMok}) {
+    /assist ${tankname}
+    /delay 3 ${Target.Type.Equal[NPC]}
+    /if (${Target.Type.Equal[NPC]} && ${Target.PctHPs}>40) {
+       /if (${Stick.Status.Equal[ON]}) /squelch /stick pause
+      /call Cast "${MokSpell}" ${MokSpellGem} 1s CheckAll
+      /if (${Announce}) /${MyChannel} ${Target.CleanName} has been MoKed!
+      /varset MoKed TRUE
+      /if (${Stick.Status.Equal[PAUSED]}) /squelch /stick unpause
+    }
+  }
+/return
+
+Sub CheckAll
+/doevents
+/if (!${Me.Casting.ID} || ${Died} || ${Me.Dead}) /return
+/varset MacroState CheckAll
+/if (${Me.Casting.ID}) /call CheckHP
+/if (${NetBots[${Target.CleanName}].Buff.Find[${Spell[${Me.Casting}].ID}]}) /call Interrupt
+/if (${Me.Casting.ID} && ${CureSpellList.Find[${Me.Casting}]}) /call CheckCure
+/if (${Me.Casting.ID} && ${Target.Type.Equal[Corpse]}) /call Interrupt
+/return
+    
+Sub CheckDA
+   /varset MacroState CheckDA
+     /for X 0 to ${Group}   
+    /if (${Group.Member[${X}].ID} && ${Group.Member[${X}].Distance}<=200&&${Group.Member[${X}].PctHPs}<=${WorstHP} && ${Group.Member[${X}].Type.NotEqual[corpse]}) {
+      /varset WorstHurt ${Group.Member[${X}].Name}
+      /varset WorstHurtID ${Group.Member[${X}].ID}
+      /varset WorstHP ${Group.Member[${X}].PctHPs}
+    }
+  /next X
+   /if (${usedivarb}&&${WorstHP}<=${divarbpoint} && ${UseEpic} &&((${FindItem[Aegis of Superior Divinity].InvSlot}&&!${FindItem[Aegis of Superior Divinity].Timer})||(${FindItem[Harmony of the Soul].InvSlot} && ${UseEpic} && !${FindItem[Harmony of the Soul].Timer})||${Me.AltAbilityReady[Divine Arbitration]})) /call DivineArb
+/return
+         
+Sub AddToBuffQueue(int MyTarget, int Buff)
+/declare i int local
+/declare InQueue bool local false
+/if (${Spawn[${MyTarget}].ID} && ${Spawn[${MyTarget}].Type.NotEqual[corpse]}) {
+	/for i 1 to 10
+		/if (${MyTarget}==${BuffQueue[${i}, 1]}) /varset InQueue TRUE
+	/next i
+	/if (!${InQueue}) {
+		/for i 1 to 10 
+		/if (!${BuffQueue[${i},1]}) {
+			/varset BuffQueue[${i},1] ${MyTarget}
+			/varset BuffQueue[${i},2] ${Buff}
+			/varcalc QueueCount ${QueueCount}+1
+			/return
+		}
+		/next i
+	}
+}
+/return
+
+
+Sub RemoveFromBuffQueue(int MyTarget, int Buff)
+/declare i int local
+/for i 1 to 10
+	/if (!${Spawn[${BuffQueue[${i},1]}].ID} || ${MyTarget}==${BuffQueue[${i},1]} || !${MyTarget}) {
+		/varset BuffQueue[${i},1] 0
+		/varset BuffQueue[${i},2] 0
+		/varcalc QueueCount ${QueueCount}-1
+		/return
+	}
+/next i
+/return
+		  
+Sub Cure
+/varset OldState ${MacroState}
+/varset MacroState Cure
+/varset BcClients ${NetBots.Client}
+/varset BcClients2 ${Math.Calc[${BcClients.Count[ ]}+1]}
+/declare X int local
+/if ( (${Debuff.Diseased} >= 1 || ${Debuff.Poisoned} >= 1 || ${Debuff.Cursed} >= 1) && ${Me.AltAbilityReady[radiant cure]} && ${UseRC}) /call cast "radiant cure" alt CheckAll
+/declare i int local 1
+/if (${Me.AltAbilityReady[Radiant Cure]} && ${UseRC}) {
+	/for i 1 to ${Me.CountBuffs}
+	/if (${RCList.Find[${Me.Buff[${i}]}]}) {
+		/Echo Casting Radiant Cure to cure ${Me.Buff[${i}]}
+		/call CastSpell "Radiant Cure" alt 0  
+		/return
+	}
+	/next i
+}
+/if (!${UseCure}) /return
+   /if (${SpawnCount[pc race Gargoyle]} && (${Zone.Name.Find[Demi-Plane]} || ${Zone.Name.Find[Deathknell]} || ${Zone.Name.Find[Solteris, the Throne of Ro]})) /call CheckDTGargoyle
+      /varset Curing 1
+      /if (${UseReverseBcOrder}) /goto :Reverse
+      /for X 1 to ${BcClients2}
+      /if (${Debuff[${NetBots[${NetBots[${BcClients.Arg[${X}]}].Name}].Buff}].Counters} <= 0) /next X
+         /if (${Debuff[${NetBots[${BcClients.Arg[${X}]}].Buff}].Cursed} && ${Me.SpellReady[${CurseSpell}]} && ${Spawn[${NetBots[${BcClients.Arg[${X}]}].ID}].ID} && !${Spawn[${NetBots[${BcClients.Arg[${X}]}].ID}].Dead} && ${Spawn[${BcClients.Arg[${X}]}].Distance}<=${Spell[${CurseSpell}].MyRange}) {
+           :CureCurse
+            /bc Curing Curse on ${BcClients.Arg[${X}]}
+            /call CastSpell "${CurseSpell}" ${buffgem} ${NetBots[${BcClients.Arg[${X}]}].ID} CheckCure
+         } else /if (${Debuff[${NetBots[${BcClients.Arg[${X}]}].Buff}].Corrupted} && ${Me.SpellReady[${CorruptSpell}]} && ${Spawn[${NetBots[${BcClients.Arg[${X}]}].ID}].ID} && !${Spawn[${NetBots[${BcClients.Arg[${X}]}].ID}].Dead} && ${Spawn[${BcClients.Arg[${X}]}].Distance}<=${Spell[${CorruptSpell}].MyRange} && !${NetBots[${BcClients.Arg[${X}]}].Buff.Find[${Spell[Sunset's Shadow].ID}]}) {
+           :CureCorrupt
+            /bc Curing Corruption on ${BcClients.Arg[${X}]}
+            /call CastSpell "${CorruptSpell}" ${buffgem} ${NetBots[${BcClients.Arg[${X}]}].ID} CheckCure
+         } else /if (${Debuff[${NetBots[${BcClients.Arg[${X}]}].Buff}].Poisoned} && ${Me.SpellReady[${PoisonSpell}]} && ${Spawn[${NetBots[${BcClients.Arg[${X}]}].ID}].ID} && !${Spawn[${NetBots[${BcClients.Arg[${X}]}].ID}].Dead} && ${Spawn[${BcClients.Arg[${X}]}].Distance}<=${Spell[${PoisonSpell}].MyRange}) {
+           :CurePoison
+            /bc Curing Poison on ${BcClients.Arg[${X}]}
+            /call CastSpell "${PoisonSpell}" ${buffgem} ${NetBots[${BcClients.Arg[${X}]}].ID} CheckCure
+         } else /if (${Debuff[${NetBots[${BcClients.Arg[${X}]}].Buff}].Diseased} && ${Me.SpellReady[${DiseaseSpell}]} && ${Spawn[${NetBots[${BcClients.Arg[${X}]}].ID}].ID} && !${Spawn[${NetBots[${BcClients.Arg[${X}]}].ID}].Dead} && ${Spawn[${BcClients.Arg[${X}]}].Distance}<=${Spell[${DiseaseSpell}].MyRange}) {
+           :CureDisease
+            /bc Curing Disease on ${BcClients.Arg[${X}]}
+            /call CastSpell "${DiseaseSpell}" ${buffgem} ${NetBots[${BcClients.Arg[${X}]}].ID} CheckCure
+         }
+      /next X
+/goto :end
+:Reverse
+ /for X ${BcClients2} downto 1
+      /if (${Debuff[${NetBots[${NetBots[${BcClients.Arg[${X}]}].Name}].Buff}].Counters} <= 0) /next X
+         /if (${Debuff[${NetBots[${BcClients.Arg[${X}]}].Buff}].Cursed} && ${Spawn[${NetBots[${BcClients.Arg[${X}]}].ID}].ID} && !${Spawn[${NetBots[${BcClients.Arg[${X}]}].ID}].Dead} && ${Spawn[${BcClients.Arg[${X}]}].Distance}<=${Spell[${CurseSpell}].MyRange}) {
+           :CureCurse
+            /bc Curing Curse on ${BcClients.Arg[${X}]}
+            /call CastSpell "${CurseSpell}" ${buffgem} ${NetBots[${BcClients.Arg[${X}]}].ID} CheckCure
+         } else /if (${Debuff[${NetBots[${BcClients.Arg[${X}]}].Buff}].Corrupted} && ${Spawn[${NetBots[${BcClients.Arg[${X}]}].ID}].ID} && !${Spawn[${NetBots[${BcClients.Arg[${X}]}].ID}].Dead} && ${Spawn[${BcClients.Arg[${X}]}].Distance}<=${Spell[${CorruptSpell}].MyRange} && !${NetBots[${BcClients.Arg[${X}]}].Buff.Find[${Spell[Sunset's Shadow].ID}]}) {
+           :CureCorrupt
+            /bc Curing Corruption on ${BcClients.Arg[${X}]}
+            /call CastSpell "${CorruptSpell}" ${buffgem} ${NetBots[${BcClients.Arg[${X}]}].ID} CheckCure
+         } else /if (${Debuff[${NetBots[${BcClients.Arg[${X}]}].Buff}].Poisoned} && ${Spawn[${NetBots[${BcClients.Arg[${X}]}].ID}].ID} && !${Spawn[${NetBots[${BcClients.Arg[${X}]}].ID}].Dead} && ${Spawn[${BcClients.Arg[${X}]}].Distance}<=${Spell[${PoisonSpell}].MyRange}) {
+           :CurePoison
+            /bc Curing Poison on ${BcClients.Arg[${X}]}
+            /call CastSpell "${PoisonSpell}" ${buffgem} ${NetBots[${BcClients.Arg[${X}]}].ID} CheckCure
+         } else /if (${Debuff[${NetBots[${BcClients.Arg[${X}]}].Buff}].Diseased} && ${Spawn[${NetBots[${BcClients.Arg[${X}]}].ID}].ID} && !${Spawn[${NetBots[${BcClients.Arg[${X}]}].ID}].Dead} && ${Spawn[${BcClients.Arg[${X}]}].Distance}<=${Spell[${DiseaseSpell}].MyRange}) {
+           :CureDisease
+            /bc Curing Disease on ${BcClients.Arg[${X}]}
+            /call CastSpell "${DiseaseSpell}" ${buffgem} ${NetBots[${BcClients.Arg[${X}]}].ID} CheckCure
+         }
+      /next X
+:end
+    /varset Curing 0
+    /varset MacroState ${OldState}
+    /varset OldState Curing
+/return
+
+Sub DoBuffEvents
+/varset MacroState DoBuffEvents
+/varset BuffWasCast FALSE
+/varset BuffWasCanceled FALSE
+/declare a       int local
+/declare TempVar int local ${Math.Calc[${DoBuffTotal}+1]}
+/declare TempGuy int local 0
+/for a 1 to 10
+/if (${BuffQueue[${a},2]}<${TempVar} && ${Spawn[${BuffQueue[${a},1]}].ID} && ${Spawn[${BuffQueue[${a},1]}].Type.NotEqual[corpse]} && ${BuffQueue[${a},1]}) {
+	/varset TempGuy ${BuffQueue[${a},1]}
+	/varset TempVar ${BuffQueue[${a},2]}
+	/if (${Spawn[${TempGuy}].Distance}>=100) /return
+	/varset BuffWasCast TRUE
+	/call CastSpell "${DoBuff${TempVar}}" ${DoBuffGem${TempVar}} ${TempGuy} CheckAll
+	/if ((${castReturn.Equal[CAST_SUCCESS]} || ${castReturn.Equal[CAST_NOHOLD]}) && !${BuffWasCanceled}) /call RemoveFromBuffQueue ${TempGuy} ${TempVar}
+	/return
+ }
+/next a
+/return
+
+Sub CheckDoBuffs(Sender,ChatText)
+    /declare a        int local
+    /declare i        int local
+    /for i 1 to ${DoBuffTotal}
+       /for a 1 to ${DoBuffAliases${i}.Count[|]}
+          /if (${ChatText.Find["${DoBuffAliases${i}.Arg[${a},|]}"]}) {
+             /if (${ChatText.Find["pet"]} || ${ChatText.Find[${Spawn[pc ${Sender}].Pet.CleanName}]}) {
+                /call AddToBuffQueue ${Spawn[pc ${Sender}].Pet.ID} ${i}
+             } else {
+                /call AddToBuffQueue ${Spawn[pc ${Sender}].ID} ${i}
+             }
+          }
+       /next a
+    /next i
+    /return
+   
+Sub BuffQueue
+    /declare i int local
+       /if (${DoBuffTotal}) {
+       /if (!${Defined[DoBuffID]})       /declare DoBuffID[${DoBuffTotal}] int   outer
+       /if (!${Defined[QueueCount]})     /declare QueueCount               int   outer
+       /for i 1 to ${DoBuffTotal}
+          /call DeclareIniVar DoBuff${i} string Buff "Hand of Certitude"
+          /call DeclareIniVar DoBuffGem${i} string Buff Gem12
+          /call DeclareIniVar DoBuffAliases${i} string Buff |gv|gtemp
+          /call DeclareIniVar DoBuffMana${i} int Buff 75
+          /if (${Me.AltAbility[${DoBuff${i}}]}) /varset DoBuffID[${i}] ${Me.AltAbility[${DoBuff${i}}].Spell.ID}
+          /if (${FindItem[${DoBuff${i}}].ID}) /varset DoBuffID[${i}] ${FindItem[${DoBuff${i}}].Spell.ID}
+          /if (${Me.Book[${DoBuff${i}}]}) /varset DoBuffID[${i}] ${Me.Book[${Me.Book[${DoBuff${i}}]}].ID}
+          /if (${Ini[Cleric_${Me.CleanName}.ini,Buff,DoBuffIcon${i},NOTFOUND].NotEqual[NOTFOUND]}) /varset DoBuffID[${i}] ${Spell[${Ini[Cleric_${Me.CleanName}.ini,Buff,DoBuffIcon${i},NOTFOUND]}].ID}
+       /next i
+    }
+    /return
+   
+Sub BCBuffs
+/declare i int local
+/if (${DoBcBuffTotal}) {
+   /for i 1 to ${DoBcBuffTotal}
+   /call DeclareIniVar DoBCBuff${i} string BCBuffs Certitude
+   /call DeclareIniVar DoBCBuffMana${i} int BCBuffs 0
+   /call DeclareIniVar DoBCBuffCast${i} string BCBuffs "Unified Certitude"
+   /call DeclareIniVar DoBCBuffIgnoreClass${i} string BCBuffs "Druid"
+/next i
+}
+ /return
+   
+Sub Event_Help
+    /echo /battlerez on|off - Toggles Battle rezzing
+    /echo /advpath on|off - Toggles using Advpath for following
+    /echo /GroupHeal on|off - Toggles using GroupHeal
+    /echo /tankhot on|off - Toggles using HOT on the MT
+    /echo /usecure on|off - Toggles using cures
+    /echo /useannounce on|off - Toggles whether it announces everything it does in the Channel you wnated
+    /echo /autosit on|off - Toggles Auto Sitting
+    /echo /mok on|off - Toggles Marking the mob to get rid of the DS on the mob
+    /echo /curegarg on|off - Toggles curing of the gargoyle DT For demiplane
+    /echo /rodbeg on|off - Toggles begging for A Rod
+    /echo /cure debuffspell - Add the debuff to the Ini to cast Radiant Cure
+    /return
+   
+    |=================================================================
+   
+Sub Event_ChangeTank
+      /echo Changing Tank to ${Param1}
+      /varset tankname ${Param1}
+      /target ${Param1}
+      /varset tanknameid ${Target.ID}
+      /varset tankclass ${Target.Class.Name}
+/return
+
+Sub SpecialSubs
+/if (${Me.Pet.ID} && ${Me.Pet.Body.ID}!=28) /pet get lost
+/if (${DoLeashToon}) /call DoLeashPerson
+/return
+
+
+Sub ResetVariables
+/varset CurrentTarget 0
+/varset BuffTimer 10s
+/return
+Sub GeneralDeclares
+/declare p int local
+/declare iniName string outer Cleric_${Me.Name}.ini
+/declare oldtarget int outer
+/declare BuffTimer timer outer 0s
+/declare Curing int outer
+/declare fightStartTime float outer
+/declare fightTotalTime float outer
+/declare RezID int outer
+/declare irctimer timer outer 0s
+/declare NameID int outer
+/declare Name int outer 0
+/declare healpct int outer 75
+/declare tankname string outer ${Target.CleanName}
+/declare tanknameid int outer
+/declare tankclass string outer
+/declare MajorHurt int outer 0
+/declare WorstHurt string outer NULL
+/declare WorstHurtID int outer
+/declare WorstHP int outer 100
+/declare WorstClass string outer NULL
+/declare rodwait timer outer
+/declare following int outer 0
+/declare duckselfspam int outer 1
+/declare OldState string outer
+/declare CurrentTarget int outer
+/declare HealParam string outer
+/declare BuffQueue[10,2] int outer
+/declare BuffWasCast bool outer
+/declare BuffWasCanceled bool outer
+/ini "${iniName}" "Settings" "- Mychannel is where you want the bot to talk in if you have announce turned on. Example /i say if you use irc"
+/call DeclareIniVar  DoAlias  string	GeneralSettings 1 /doalias
+/Call DeclareIniVar mychannel string Settings "" /mychannel
+/Call DeclareIniVar DefaultTank string Settings "bobby"
+/call DeclareIniVar LockTank int Settings 1 /locktank
+/Call DeclareIniVar NumBackUpTanks int Settings 1
+/if (${NumBackUpTanks}) {
+/for p 1 to ${NumBackUpTanks}
+ /call DeclareIniVar BackupTank${p} string Settings "Changeme"
+ /next p
+ }
+/call DeclareIniVar BuffGem string Spells gem12
+/Call DeclareIniVar MA string Settings "Bobby" 
+/call DeclareIniVar BattleRez int Settings 1 /battlerez
+/call DeclareIniVar UseReverseBcOrder int Settings 0 /reverse
+/call DeclareIniVar UseAdvPath string Settings 0 /advpath
+/Call DeclareIniVar DoLoot int Settings 0 /doloot
+/call DeclareIniVar usebuffs int Settings 1 /dobuffs
+/call DeclareIniVar UseHammer int Settings 0 /hammer
+/call DeclareIniVar HealPet int Settings 0 /healpet
+/call DeclareIniVar DoNuke int Settings 0 /Nuke
+/call DeclareIniVar EleventhHourSpell string Spells "Fifteenth Emblem"
+/call DeclareIniVar EleventhHourSpellGem string Spells "3"
+/Call DeclareIniVar HealSpell string Spells "Reverent Light"
+/call DeclareIniVar healspellgem string Spells "1"
+/Call DeclareIniVar patchheal string Spells "Graceful Remedy"
+/call DeclareIniVar patchhealgem string Spells "2"
+/Call DeclareIniVar HotSpell string Spells "Reverent Elixir"
+/call DeclareIniVar HotSpellGem string Spells "9"
+/Call DeclareIniVar daspell string Spells "Divine Haven"
+/call DeclareIniVar daspell2 string Spells "Divine Haven"
+/Call DeclareIniVar yaulpspell string Spells "Yaulp XIII"
+/Call DeclareIniVar YaulpGem string Spells "11"
+/call DeclareIniVar DoYaulp int Settings 0 /doyaulp
+/call DeclareIniVar AuraWindow string Spells "Circle of Divinity"
+/call DeclareIniVar AuraToCast string Spells "Circle of Divinity Rk. III"
+/call DeclareIniVar AuraWindow2 string Spells "Aura of the Pious"
+/call DeclareIniVar AuraToCast2 string Spells "Aura of the Pious"
+/Call DeclareIniVar usegroupheal int Settings 1 /GroupHeal
+/call DeclareIniVar usetankhot int Settings 1 /tankhot
+/call DeclareIniVar usehot int Settings 1 /usehot
+/call DeclareIniVar UseCure int Settings 1 /UseCure
+/call DeclareIniVar UseRC   int Settings 1 /rc
+/call DeclareiniVar DoRaidBuff int Settings 0 /raidbuff
+/call DeclareIniVar GroupHeal string Spells "word of reformation"
+/call DeclareIniVar grouphealgem string Spells "7"
+/call DeclareIniVar groupdurationhealspell string Spells "elixir of the Acquittal"
+/call DeclareIniVar groupdurationhealspellgem string Spells "8"
+/ini "${iniName}" "Settings" "- If you turn on announce it will announce everything it does in the channel you wanted"
+/call DeclareIniVar interrupt2healself int Settings 1
+/Call DeclareIniVar interrupt2healselfhp int Settings 50
+/call DeclareIniVar defaultstophealpoint int Settings 99 /stopheal
+/call DeclareIniVar startHeal int Settings 90 /startheal
+/call DeclareIniVar DoBuffTotal int Buff 1
+/call DeclareIniVar DoBcBuffTotal int BCBuffs 1
+/Call DeclareIniVar pethealpoint int Settings 65
+/Call DeclareIniVar Manatohealpet int Settings 25
+/Call DeclareIniVar pethealspell string Spells ""
+/Call DeclareIniVar XHeal int Settings 1 /xheal
+/call DeclareIniVar RetortSpell string Spells "Olsif's Retort"
+/call DeclareIniVar RetortSpellGem string Spells "Gem8"
+/call DeclareIniVar MokSpell string Spells "Mark of the martyr rk. ii"
+/call DeclareIniVar MokSpellGem string Spells "gem10"
+/Call DeclareIniVar RenewalSpell1 string Spells "Fraught Renewal"
+/Call DeclareIniVar RenewalSpell1Gem string Spells "11"
+/Call DeclareIniVar RenewalSpell2 string Spells "Fervent Renewal"
+/Call DeclareIniVar RenewalSpell3 string Spells "Frenzied Renewal"
+/Call DeclareIniVar InterventionSpell1 string Spells "Virtuous Intervention"
+/Call DeclareIniVar InterventionSpell1Gem string Spells "4"
+/Call DeclareIniVar InterventionSpell2 string Spells "Elysian Intervention"
+/Call DeclareIniVar InterventionSpell3 string Spells "Celestial Intervention"
+/Call DeclareIniVar UsePromise string Settings 0 /usepromise
+/Call DeclareIniVar PromiseSpell string Spells "Promised reformation"
+/call DeclareIniVar PromiseSpellGem string Spells "Gem5"
+/call DeclareIniVar StunSpell string OffenceSpells "Sound of Reverberance rk. ii"
+/call DeclareIniVar HammerPet string OffenceSpells "Unwavering Hammer of Zeal rk. ii"
+/call DeclareIniVar UseAutoMok int Settings 1 /mok
+/call DeclareIniVar CureGarg int Settings 0 /curegarg
+/call DeclareIniVar SelfHealPoint int HealingTweaks 70
+/call DeclareIniVar dacastpoint int HealingTweaks 50
+/call DeclareIniVar CLRPoint int HealingTweaks 80
+/call DeclareIniVar DRUPoint int HealingTweaks 70
+/call DeclareIniVar SHMPoint int HealingTweaks 60
+/call DeclareIniVar WIZPoint int HealingTweaks 75
+/call DeclareIniVar MAGPoint int HealingTweaks 75
+/call DeclareIniVar ENCPoint int HealingTweaks 80
+/call DeclareIniVar NECPoint int HealingTweaks 75
+/call DeclareIniVar WARPoint int HealingTweaks 70
+/call DeclareIniVar MNKPoint int HealingTweaks 60
+/call DeclareIniVar ROGPoint int HealingTweaks 60
+/call DeclareIniVar RNGPoint int HealingTweaks 60
+/call DeclareIniVar BSTPoint int HealingTweaks 60
+/call DeclareIniVar SHDPoint int HealingTweaks 75
+/call DeclareIniVar BRDPoint int HealingTweaks 65
+/call DeclareIniVar BERPoint int HealingTweaks 60
+/call DeclareIniVar PALPoint int HealingTweaks 75
+/call DeclareIniVar MercWarPoint int HealingTweaks 70
+/call DeclareIniVar MercCLRPoint int HealingTweaks 80
+/call DeclareIniVar MercDPSpoint int HealingTweaks 80
+/call DeclareIniVar defaultpatchpoint int HealingTweaks 70
+/call DeclareIniVar PromiseHP int HealingTweaks 85 /promise
+/call DeclareIniVar SplashHeal string Spells "Healing Splash"
+/call DeclareIniVar SplashGem string Spells "gem10"
+/call DeclareIniVar useSplash int Settings 1 /dosplash
+/call DeclareIniVar TwinhealNuke string Spells "Glorious Censure"
+/call DeclareIniVar TwinhealNuke2 string Spells "Glorious Denunciation"
+/call DeclareIniVar TwinhealGem string Spells "gem6"
+/call DeclareIniVar TwinhealGem2 string Spells "gem8"
+/call DeclareIniVar UseTwincast int Settings 0 /twincast
+/call DeclareIniVar usedivarb int "Settings"  1 
+/call DeclareIniVar UseEpic   int "Settings"  1 /useepic
+/call DeclareIniVar divarbpoint int "Divine Arbitration"  39
+/call DeclareIniVar interrupt2divarb int "Divine Arbitration" 16
+/call DeclareIniVar NumSelfBuff string SelfBuffs 1
+/call DeclareIniVar ignorerez string Battlerez "Biggie,2pac"
+/call DeclareIniVar RaidBuffTotal int RaidBuffs 1
+/Call DeclareIniVar ItemShrink string Settings ""
+/declare healspellrange int outer ${Spell[${HealSpell}].MyRange}
+/declare patchhealrange int outer ${Spell[${patchheal}].MyRange}
+/declare pethealspellrange int outer ${Spell[${pethealspell}].MyRange}}
+/call BuffQueue
+/call BCBuffs
+/call DeclareIniVar NumOfNukes string Nukes 1
+/for p 1 to ${NumOfNukes}
+ 	/call DeclareIniVar Nuke${p} string Nukes Changeme
+	/call DeclareIniVar NukeGem${p} string Nukes ""
+	/call DeclareIniVar NukeAt${p} int Nukes 95
+/next p
+/if (${NumSelfBuff}) {
+	/for p 1 to ${NumSelfBuff}
+  /call DeclareIniVar selfBuff${p} string SelfBuffs ChangeMe
+  /if (${Me.Class.Name.Equal[cleric]} || ${Me.Class.Name.Equal[Shaman]}) {
+  /call DeclareIniVar selfBuffToCheck${p} string SelfBuffs "${selfBuff${p}}"
+  } else  {
+		/declare selfBuffToCheck${p}  string outer "${selfBuff${p}}"
+	}
+    /call DeclareIniVar SelfType${p} string SelfBuffs ChangeMe
+  /next p
+ }
+ /if (${RaidBuffTotal}) {
+	/for p 1 to ${RaidBuffTotal}
+	/call DeclareIniVar RaidBuff${p} string RaidBuffs Changeme
+	/call DeclareIniVar RaidBuffCast${p} string RaidBuffs Changeme
+	/call DeclareIniVar RaidBuffClass${p} string RaidBuffs "Cleric|Shadow Knight|Shaman|"
+	/next p
+	}
+ /declare stophealpoint int outer ${defaultstophealpoint}
+ /declare HealList string outer ${HealSpell},${patchheal},Burst Of life,Beacon Of Life,${InterventionSpell1},${InterventionSpell2},${InterventionSpell3},${RenewalSpell1},${RenewalSpell2},${RenewalSpell3}
+ /declare CureSpellList string outer ${CurseSpell},${PoisonSpell},${DiseaseSpell},${CorruptSpell}
+ /call DeclareIniVar CurseSpell string Cures "Remove Greater Curse"
+ /call DeclareIniVar PoisonSpell string Cures "Cleansed Blood"
+ /call DeclareIniVar DiseaseSpell string Cures "Cleansed Blood"
+ /call DeclareIniVar CorruptSpell string Cures "Dissolve Corruption"
+ /call DeclareIniVar RCList string Cures "|"
+/return
+

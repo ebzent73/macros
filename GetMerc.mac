@@ -1,0 +1,102 @@
+| GetMerc.Mac by Osirous
+| This macro will get you a merc in the tutorial
+| MQ2Moveutils Required
+|
+|
+| Thanks to PeteSampras for the UI help
+|
+|
+
+#turbo 40
+
+Sub Main
+/delay 2s
+/popup Starting GetMerc.Mac v0.8
+/popup Let's get a Merc!
+
+|-- HERE WE GO! --|
+
+/call Elegist
+/delay 1s
+/call Fight
+/delay 1s
+/call TurnIn
+/delay 1s
+/keypress esc
+
+/popup Yay! We completed a Quest and got a Mercenary!
+/keypress esc
+/mac VerminNests
+
+/return
+
+Sub Elegist
+
+/tar Elegist
+/delay 1s
+/stick 10
+/delay 10s
+/stick off
+/delay 1s
+/hail
+/delay 2s
+/nomodkey /notify TaskSelectWnd TSEL_AcceptButton leftmouseup
+/delay 2s
+/click right target
+/delay 2s
+/nomodkey /notify MMTW_MerchantWnd MMTW_SubtypeListBox listselect 4
+/delay 2s
+/nomodkey /notify MMTW_MerchantWnd MMTW_HireButton leftmouseup
+/delay 1s
+/popup Merc choosen. Lets finish this up.
+/delay 1s
+/hail
+/delay 1s
+/nomodkey /notify LargeDialogWindow LDW_OkButton leftmouseup
+/delay 1s
+/nomodkey /notify LargeDialogWindow LDW_OkButton leftmouseup
+/delay 1s
+/nomodkey /notify LargeDialogWindow LDW_OkButton leftmouseup
+/delay 1s
+/nomodkey /notify LargeDialogWindow LDW_OkButton leftmouseup
+/delay 1s
+/nomodkey /notify LargeDialogWindow LDW_OkButton leftmouseup
+
+/return
+
+Sub Fight
+
+/tar inf
+/delay 1s
+/stick 15
+/delay 15s
+|-- If you are running mq2melee this will make sure your merc takes the hits --|
+/popup turning taunt off
+/melee taunt=0
+/delay 1s
+/keypress q
+:fight
+/if (${Me.Combat}) {
+/goto :fight
+/delay 5S
+}
+/delay 1s
+/nomodkey /notify LargeDialogWindow LDW_OkButton leftmouseup
+
+/return
+
+Sub TurnIn
+
+/tar elegist
+/delay 1s
+/stick 10
+/delay 18s
+/stick off
+/delay 1s
+/hail
+/delay 1s
+/nomodkey /notify LargeDialogWindow LDW_OkButton leftmouseup
+/delay 1s
+/nomodkey /notify LargeDialogWindow LDW_OkButton leftmouseup
+
+/return

@@ -1,0 +1,95 @@
+#turbo 40
+#chat tell
+#event lang "tells you"
+
+#include SpellCast.inc
+
+Sub Main
+    :mainloop
+		/doevents
+		/if (${Me.PctMana}<20||${Me.PctMana}<20) {
+			/sit on
+			/call MedBreak
+		}
+		/call CheckGM
+		/call Skills
+        /goto :mainloop
+/return
+
+Sub CheckGM
+    :GMCheck
+    /if (${Bool[${Spawn[gm].ID}]}) {
+       /echo 'Cast Macro' A GM or Guide has been detected in the zone,  the macro will resume  when the zone is clear of GM/Guides
+       /delay 600s
+       /goto :GMCheck
+    }
+/return
+
+Sub Event_Chat
+  /echo Got a tell, pausing for 10 minutes
+  /delay 600s
+/return
+
+Sub Event_Lang
+  /echo Got a tell, pausing for 10 minutes
+  /delay 600s
+/return
+
+Sub MedBreak
+    /stand
+    /sit
+    :MedMore
+        /delay 2s
+        /if (${Me.PctMana}<100) /goto :MedMore
+        /if (${Me.PctHPs}<100) /goto :MedMore
+/return
+
+Sub Raise(skilltype)
+	/declare i int local
+	/declare j int local
+	:checkcursor
+	/if (${Cursor.ID} && !${Cursor.NoRent}) /autoinv
+	/if (${Cursor.ID} && ${Cursor.NoRent}) /destroy
+	/if (${Cursor.ID}) /goto :checkcursor
+	/for i 1 to 12
+		/if (${Me.CurrentMana}>${Me.Gem[${i}].Mana} && ${Me.Gem[${i}].Skill.Equal[${skilltype}]} && !${Me.GemTimer[${i}]} && ${Me.SpellReady[${Me.Gem[${i}]}]} && !${Select[${Me.Gem[${i}].Category},Transport,Traps,Aura]} && !${Select[${Me.Gem[${i}].Subcategory},Misc,Invulnerability]} && (!${Me.Gem[${i}].Subcategory.Find[Sum: ]}||!${Me.Pet.ID})) {
+			/if (${Me.Gem[${i}].TargetType.Equal[Single]} && !${Target.ID}) {
+				/if (!${Target.ID}) /squelch /tar myself
+				/delay 1
+			}
+			/if (${Me.Gem[${i}].TargetType.Equal[pet]} && !${Me.Pet.ID}) /goto :skip
+			/casting "${Me.Gem[${i}]}" gem${i}
+			/delay 1s
+			/delay 10s ${Me.SpellReady[${Me.Gem[${i}]}]}
+		}
+		:skip   
+		/squelch /target clear 
+	/next i
+/return
+		
+Sub Skills
+	/if (${Me.Skill[Abjuration]} < ${Skill[Abjuration].SkillCap}) {
+		/echo My skill in Abjuration is ${Me.Skill[Abjuration]} of ${Skill[Abjuration].SkillCap}
+		/call Raise Abjuration
+	}
+	/if (${Me.Skill[Alteration]} < ${Skill[Alteration].SkillCap}) {
+		/echo My skill in Alteration is ${Me.Skill[Alteration]} of ${Skill[Alteration].SkillCap}
+		/call Raise Alteration
+	}
+	/if (${Me.Skill[Conjuration]} < ${Skill[Conjuration].SkillCap}) {
+		/echo My skill in Conjuration is ${Me.Skill[Conjuration]} of ${Skill[Conjuration].SkillCap}
+		/call Raise Conjuration
+	}
+	/if (${Me.Skill[Divination]} < ${Skill[Divination].SkillCap}) {
+		/echo My skill in Divination is ${Me.Skill[Divination]} of ${Skill[Divination].SkillCap}
+		/call Raise Divination
+	}
+	/if (${Me.Skill[Evocation]} < ${Skill[Evocation].SkillCap}) {
+		/echo My skill in Evocation is ${Me.Skill[Evocation]} of ${Skill[Evocation].SkillCap}
+		/call Raise Evocation
+	}
+	/if (${Me.Skill[Divination]} >= ${Skill[Divination].SkillCap} && ${Me.Skill[Evocation]} >= ${Skill[Evocation].SkillCap} && ${Me.Skill[Abjuration]} >= ${Skill[Abjuration].SkillCap} && ${Me.Skill[Alteration]} >= ${Skill[Alteration].SkillCap} && ${Me.Skill[Divination]} >= ${Skill[Divination].SkillCap} && ${Me.Skill[Conjuration]} >= ${Skill[Conjuration].SkillCap}) {
+		/echo Skills maxed.
+		/end
+	}
+/return

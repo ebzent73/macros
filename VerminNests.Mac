@@ -1,0 +1,283 @@
+| VerminNests.Mac by Osirous
+| This macro will do the quest "Clearing the Vermin Nests" in the tutorial
+| MQ2Moveutils Required
+|
+| Parts of Sub Hunt taken from hunter.mac and shroudhunter.inc
+
+
+#turbo 40
+#include Ninjadvloot.inc
+/call SetupAdvLootVars
+
+#event Exp    "You have slain #*#" 
+#Event Dead   "#*#Returning to Bind Location#*#" 
+#Event Level  "You have gained a level! Welcome to level 4!"
+
+Sub Main
+/declare MinLevel   int   outer
+/declare MaxLevel   int   outer 
+/delay 2s
+/popup Starting VerminNests.Mac v1.1
+/popup Clearing the Vermin Nests!
+
+|-- HERE WE GO! --|
+
+/call Rahtiz
+/delay 1s
+/call KillRoom
+/delay 1s
+/call Hunt
+
+/return
+
+Sub Rahtiz 
+
+/tar Rahtiz
+/delay 1s
+/stick 10
+/delay 8s
+/stick off
+/delay 1s
+/hail
+/delay 2s
+/nomodkey /notify TaskSelectWnd TSEL_AcceptButton leftmouseup
+/delay 1s
+/hail
+/delay 2s
+/nomodkey /notify TaskSelectWnd TSEL_AcceptButton leftmouseup
+/delay 1s
+/hail
+/delay 2s
+/nomodkey /notify TaskSelectWnd TSEL_AcceptButton leftmouseup
+
+/return
+
+Sub KillRoom
+
+/popup Moving to Kill Room
+
+/keypress esc
+
+/moveto loc -271, -119
+/delay 2s
+/moveto loc -327, -121
+/delay 2s
+/moveto loc -372, -158
+/delay 2s
+/moveto loc -387, -322
+/delay 8s
+/tar nest
+/delay 1s
+/open
+/popup Hopefully we got that one!
+/delay 1s
+/moveto loc -414, -362
+/delay 2s
+/moveto loc -449, -371
+/delay 3s
+/moveto loc -537, -387
+/delay 3s
+/popup We have arrived at the Kill Room!
+
+/return
+
+Sub Hunt
+
+/popup Lets kill stuff... that isnt taken already!
+/makecamp on leash 100
+
+:Huntloop
+/delay 1s
+      /call LootMobs
+      /if (${Me.AbilityReady[Tracking]}) {
+             /doability Tracking
+             }
+      /if (${Me.AbilityReady[Forage]}) {
+         /stand
+          /doability Forage
+         /delay 1s
+         /autoinventory
+             }
+
+	/if (${Target.ID} && ${Target.Type.Equal[NPC]}) {
+         /call Fight
+      }
+
+      /if (${Target.ID} && (${Target.Type.Equal[NPC]} || ${Target.Type.Equal[PC]} || ${Target.Level}>=${Me.Level} || ${Target.Type.Equal[Corpse]})) {
+         /target clear
+      }
+
+	  /if (${Me.PctHPs}>90 && !${Target.ID}) {
+		 /call Getatarget
+      }
+	  
+	  /if (${Me.Standing} && !${Me.Mount.ID} && ${Me.PctHPs}<30) {
+		 /popup Calling HealTime
+		 /sit
+      }
+
+/goto :Huntloop
+
+/return
+
+Sub Getatarget
+|let's get a target?
+
+   :TargetLoop
+   /varcalc MinLevel 1
+   /varcalc MaxLevel 6
+
+   /squelch /target npc los radius 1000 range ${MinLevel} ${MaxLevel}
+
+   /if (${Target.ID} && ${Target.PctHPs}<100) {
+      /target clear
+      /delay 1s
+      /goto :TargetLoop
+   }
+   /squelch /stick off
+
+   /if (${Target.ID}) /popup Selected = ${Target.Name} - ${Target.Level}  Dist = ${Target.Distance}
+
+   /squelch /stick 8
+
+/return
+
+Sub Fight
+
+:fighting 
+      /if (${Target.Distance}>120) { 
+		/keypress esc
+	  }
+	  /if (${Target.Distance}<=90 && !${Me.Combat}) { 
+      /stick 10 
+      /delay 2s
+	  /attack on
+      }
+	  /if (!${Me.Combat}) {
+	  /attack on
+	  }
+      /delay 1s 
+      /if (${Me.AbilityReady[Taunt]} && ${Me.Combat}==TRUE && ${Target.Type.Equal[NPC]} && ${Target.Distance}<=13) {
+             /doability Taunt
+             }
+      /if (${Me.AbilityReady[Kick]} && ${Me.Combat}==TRUE && ${Target.Type.Equal[NPC]} && ${Target.Distance}<=13) {
+             /doability "Kick"
+             }
+      /if (${Me.AbilityReady[Mend]} && ${Me.Combat}==TRUE && ${Target.Type.Equal[NPC]} && ${Target.Distance}<=13 && ${Me.PctHPs}<75) {
+             /doability Mend
+             }
+      /if (${Target.ID}) {
+         /goto :fighting
+      }
+      /doevents
+   }
+
+/return
+
+Sub Event_Level
+
+/makecamp off
+/delay 1s
+/call Nests
+
+/return
+
+Sub Nests
+
+/moveto loc -456, -392
+/delay 4s
+/tar nest
+/delay 1s
+/open
+/popup Hopefully we got that one!
+/delay 1s
+
+/moveto loc -586, -417
+/delay 4s
+/tar nest
+/delay 1s
+/open
+/popup Hopefully we got that one!
+/delay 1s
+
+/moveto loc -526, -343
+/delay 4s
+/tar nest
+/delay 1s
+/open
+/popup Hopefully we got that one!
+/delay 1s
+
+/moveto loc -528, -606
+/delay 9s
+/tar nest
+/delay 1s
+/stick 1
+/delay 2s
+/stick off
+/delay 1s
+/open
+/popup Hopefully we got that one!
+/delay 1s
+
+/moveto loc -528, -606
+/delay 3s
+/moveto loc -529, -546
+/delay 2s
+/moveto loc -527, -381
+/delay 5s
+
+/popup We have checked 5 nests so far.
+/popup On the way back we will check one more nest.
+/popup Hopefully we got a total of four.
+
+/call Vahlara
+
+/return
+
+Sub Event_Dead
+
+/mac VerminNests
+
+/return
+
+Sub Vahlara
+
+/makecamp off
+/moveto loc -447, -371
+/delay 4s
+/moveto loc -407, -352
+/delay 2s
+/moveto loc -391, -328
+/delay 2s
+/tar nest
+/delay 1s
+/open
+/popup Hopefully we got that one!
+/delay 1s
+/moveto loc -377, -281
+/delay 3s
+/moveto loc -377, -167
+/delay 4s
+/moveto loc -324, -122
+/delay 3s
+/moveto loc -245, -120
+/delay 3s
+/moveto loc -156, -120
+/tar Vahlara
+/delay 1s
+/stick 10
+/delay 5s
+/stick off
+/delay 1s
+/hail
+/delay 2s
+/nomodkey /notify RewardSelectionBottomPane rewardSelectionChooseButton leftmouseup
+
+/delay 1s
+/popup Yay! We are level 4 now and we have pantaloons of the duck head!
+/delay 1s
+/mac Rebellion
+
+
+/return

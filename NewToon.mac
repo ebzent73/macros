@@ -1,0 +1,114 @@
+| NewToon.Mac by Osirous
+| This macro will do the beginning of the tutorial
+| MQ2Moveutils Required
+|
+|
+|
+|
+|
+
+#turbo 40
+
+Sub Main
+/popup Starting NewToon.Mac v1.0
+/popup Let's do this!
+/keypress esc
+/delay 1s
+/popup Goodbye pesky Window Selector
+/keypress alt+w
+/delay 1s
+/popup Goodbye pesky VoiceBar
+/notify VoiceActionBar VAB_VoiceOptionsButton leftmouseup
+/delay 1s
+/notify OptionsWindow OGP_VoiceOnOffCheckbox leftmouseup
+/delay 1s
+/keypress alt+o
+/delay 1s
+/popup Goodbye Lantern
+/itemnotify ${FindItem[=Gloomingdeep Lantern].InvSlot} leftmouseup
+/delay 1s
+/destroy
+
+|-- HERE WE GO! --|
+
+/call Letsdoit
+/delay 1s
+/call Moveme
+/delay 1s
+/call Killem
+/delay 1s
+/call Loot
+/delay 1s
+/call HanditOver
+/delay 1s
+/nomodkey /notify LargeDialogWindow LDW_OkButton leftmouseup
+/delay 17s
+
+/popup We are done here. You're Welcome!
+/mac Koboldcharm
+
+/return
+
+Sub Letsdoit
+
+/tar Arias
+/delay 1s
+/say escape
+/delay 2s
+/nomodkey /notify TaskSelectWnd TSEL_AcceptButton leftmouseup
+/delay 2s
+/nomodkey /notify LargeDialogWindow LDW_OkButton leftmouseup
+
+/return
+
+Sub Moveme
+/moveto loc 10, 100
+/delay 2s
+/moveto loc 13, 72
+/delay 2s
+/moveto loc 62, 14
+/delay 2s
+/moveto loc 195, 17
+/delay 6s
+
+/return
+
+Sub Killem
+
+/tar Gloom
+/stick 5
+/attack on
+/attack on
+:fight
+/if (${Me.Combat} && ${Target.PctHPs}>0) {
+/goto :fight
+/delay 5S
+}
+
+/return
+
+Sub Loot
+
+/tar Gloom
+/delay 1s
+/loot
+/delay 2s
+/nomodkey /notify "LootWnd" LW_LootSlot0 rightmouseup
+/delay 2s
+/nomodkey /notify "LootWnd" LW_DoneButton leftmouseup
+
+/return
+
+Sub HanditOver
+
+/tar Arias
+/face fast
+/delay 1s
+/itemnotify ${FindItem[=The Gloomingdeep Jailor's Key].InvSlot} leftmouseup
+/delay 2s
+/click left target
+/delay 2s
+/notify GiveWnd GVW_Give_Button leftmouseup
+
+/return
+

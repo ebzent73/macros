@@ -1,0 +1,144 @@
+#event Exp    "You have slain #*#"
+#Event Dead     "#*#Returning to Bind Location#*#"
+
+#include spell_routines.inc
+#include ninjadvloot.inc
+
+Sub Main
+/declare ALDontLoot      int    outer
+/declare CorpseRotTimer  timer  outer
+/declare MaxBindHP    int   outer
+/declare MinLevel    int   outer
+/declare MaxLevel    int   outer
+/declare BindWound    int   outer
+/varset MaxBindHP 70
+/varset BindWound 0
+
+
+:mainloop
+/delay 1s
+      /if (${Me.AbilityReady[Tracking]}) {
+             /doability Tracking
+             }
+      /if (${Me.AbilityReady[Forage]}) {
+         /stand
+          /doability Forage
+         /delay 1s
+         /autoinventory
+             }
+      /if (${Target.ID} && ${Target.Type.Equal[NPC]}) {
+         /call Fight
+      }
+      /if (${Target.ID} && (${Target.Type.Equal[NPC]} || ${Target.Type.Equal[PC]} || ${Target.Level}>=${Me.Level} || ${Target.Type.Equal[Corpse]})) {
+      /keypress ESC
+      }
+      
+
+   
+   /if (${Me.PctHPs}>80 && !${Target.ID}) {
+           /call Getatarget
+   }
+
+   /if (!${Target.ID} && ${Me.PctHPs}<${MaxBindHP}) {
+   /echo Calling Bind Wound
+   /call Bindwound
+   }
+   /if (${Me.Standing} && !${Me.Mount.ID} && ${Me.PctHPs}<90) {
+   /Echo Resting up
+   /delay 2s
+   /sit
+   }
+
+
+/goto :mainloop
+/return
+
+
+Sub Getatarget
+|let us get a target?
+   :TargetLoop
+   /if (${Me.Level}<6) {
+   /varcalc MinLevel (${Me.Level}-2)
+   /varcalc MaxLevel (${Me.Level}-1)
+      /if (${MinLevel}<1) {
+         /varset MinLevel 1
+      }
+   }
+   /if (${Me.Level}>=6 && ${Me.Level}<10) {
+   /varcalc MinLevel (${Me.Level}-3)
+   /varcalc MaxLevel (${Me.Level}-2)
+   }
+   /if (${Me.Level}>=10 && ${Me.Level}<16) {
+   /varcalc MinLevel (${Me.Level}-4)
+   /varcalc MaxLevel (${Me.Level}-2)
+   }
+   /if (${Me.Level}>=16) {
+   /varcalc MinLevel (${Me.Level}-6)
+   /varcalc MaxLevel (${Me.Level}-3)
+   }
+
+   /squelch /target npc range ${MinLevel} ${MaxLevel} radius 500
+   /if (${Target.ID} && ${Target.PctHPs}<100) {
+      /keypress ESC
+      /delay 1s
+      /goto :TargetLoop
+   }
+   
+/return
+
+Sub Fight
+   /if (${Target.Distance}<=500) {
+      /stick
+      /stick 10
+      /attack on
+      :fighting
+      /delay 1s
+
+      /if (${Me.AbilityReady[Taunt]} && ${Me.Combat}==TRUE && ${Target.Type.Equal[NPC]} && ${Target.Distance}<=13) {
+             /doability Taunt
+             }
+      /if (${Me.AbilityReady[Kick]} && ${Me.Combat}==TRUE && ${Target.Type.Equal[NPC]} && ${Target.Distance}<=13) {
+             /doability "Kick"
+             }
+      /if (${Me.AbilityReady[Mend]} && ${Me.Combat}==TRUE && ${Target.Type.Equal[NPC]} && ${Target.Distance}<=13 && ${Me.PctHPs}<75) {
+             /doability Mend
+             }
+
+      
+
+      /if (${Target.ID}) {
+         /goto :fighting
+      }
+      /doevents
+   }
+
+/return
+
+Sub Bindwound
+      /if (${Me.AbilityReady[Bind Wound]} && ${Me.PctHPs}<${MaxBindHP} && ${FindItemCount[=Summoned: Bandages]}>0 || ${FindItemCount[=Bandages*]}>0) {
+   /echo Binding Wounds
+   /if (${Me.Standing}) {
+      /sit
+   }
+   /target myself
+   :BindLoop   
+   /doability "Bind Wound"
+   /delay 11s
+      /if (${BindWound}==1 && ${Me.PctHPs}>${MaxBindHP} ) {
+   /Varset BindWound 0
+   /keypress ESC
+   /goto :mainloop
+   }
+   /goto :BindLoop
+   }
+/return
+
+Sub Event_exp
+   /target corpse
+   /call Lootcorpse
+/return
+
+Sub Event_Dead
+/camp desktop
+/keypress instant_camp
+/return

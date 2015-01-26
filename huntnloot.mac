@@ -1,0 +1,206 @@
+| ## huntnloot.mac
+| ## Farm Experience or Items
+| jonesalot@gmail.com
+|
+| ## Plugins Required: MQ2Melee, MQ2MoveUtils, MQ2Cast
+| ## Other Files Required: Ninjadvloot.inc, Loot.ini (if Looting is Enabled)
+
+| # UNCOMMENT FOLLOWING LINE WOULD LIKE TO LOOT. COMMENT IT OUT IF NOT LOOTING OR IF YOU DON'T HAVE Ninjadvloot.inc
+#include ninjadvloot.inc
+#include SpellCast.inc
+
+/declare loc string outer ${Me.Loc}
+/declare myHP int outer 70
+/declare mercHP int outer 50
+/declare medMana int outer 30
+/declare medTo int outer 98
+/declare sittimer timer outer 10s
+/declare nukeDelay timer outer ${If[${Select[${Me.Class.ShortName},PAL,SHD,BST,BRD,RNG]},10s,1s]}
+
+#event mydeath "You have been slain by #*#!"
+#event zoned "You have entered#*#"
+
+sub Main
+   /call Initialize
+   :Main_Loop
+      /delay 1
+      /doevents
+      /if (!${AdvPath.Recording} && !${AdvPath.Playing}  && ${Math.Distance[${Me.Loc}:${loc}]}>20) /record pl
+      /call GetTarget
+      /call TimeOut
+   /goto :Main_Loop
+/return
+
+Sub Configuration
+
+| ## BEGIN CONFIGURATION SECTION
+|   - ALERT HUNTING PRIORITY IS FROM LOWEST TO HIGHEST NUMBER. 1 IS SET TO CORPSE IF LOOTING IS PRIORITY.
+|   - ALERT SYNTAX IS: /alert add # [pc|npc|corpse|any] [radius #] [range lowerlevel upperlevel] "spawnname" [clear|list #]
+
+/alert clear 1
+   /alert add 1 corpse radius 50
+
+/alert clear 2
+   /alert add 2 npc radius 100 "cub"
+   /alert add 2 npc radius 100 "drake"
+
+/alert clear 3
+   /alert add 3 npc radius 300 "cub"
+   /alert add 3 npc radius 300 "drake"
+
+/alert clear 4
+   /alert add 4 npc radius 600 "cub"
+   /alert add 4 npc radius 600 "drake"
+
+| ## END HUNTING TARGETS
+
+|| SHOULD WE LOOT? TRUE OR FALSE
+/varset DoLoot TRUE
+
+|| # DO WE WANT TO RETURN TO HOME POINT IF TIME TO KILL TIMER IS REACHED? TRUE OR FALSE
+/varset ReturnHome FALSE
+
+
+| # TIME TO KILL LIMIT IN SECONDS, WHEN REACHED WE MOVE TO HOME POINT. VALUE IS INTEGER ONLY.
+/varset TimeLimit 15
+
+| # RETURN HOME COORDINATES, REMEMBER X,Y IN EQ IS REVERSED
+/varset y 1000
+/varset x -100
+
+| ## END CONFIGURATION SETTINGS ## |
+
+/return
+
+Sub GetTarget
+   /declare s   int local 0
+   /declare i   int local 1
+   /declare n   int local 1
+   /if (!${Me.XTarget[1].ID}) {
+	   /for n 1 to 4 {
+	      /squelch /target clear
+	      /if (${NearestSpawn[alert ${n}].ID}) {
+	         /for i 1 to 30 {
+	            /varset s ${NearestSpawn[${i}, alert ${n}].ID}
+	            /squelch /target id ${s}
+	            /delay 1s (${Target.ID})
+	            /if (${DoLoot} && ${Target.Type.Equal[corpse]}) {
+	               /moveto ID ${Target.ID}
+	               /call LootCorpse
+	               /delay 5s
+	               /return
+	               }
+	            /if ((!${NearestSpawn[${i},npc].Named}||${FindNamed}) && (${NearestSpawn[${i},npc].LineOfSight})) {
+	               /call Attack
+	               /return
+	               }   
+	            }
+	         /next i
+	         }
+	      }
+	   /next n
+   } else {
+   		/squelch /tar id ${Me.XTarget[1].ID}
+   		/call Attack
+   }
+/return
+
+sub Attack
+   /if ((${Target.Type.Equal[npc]}) && ${Bool[${Target.Distance}<1200]} && ${Bool[${Target.Distance}>200]}) {
+      /squelch /moveto ID ${Target.ID}
+      /echo Attacking ${Target.CleanName}
+      /if (${Target.Type.Equal[npc]} && ${Target.Distance}<200) {
+         |/call cast "disease cloud"
+         }
+      :AttackLoop
+         /call spellcheck
+         /delay 1s
+         /if   (!${Target.ID}) {
+            /varset Time2Kill ${TimeLimit}s
+            /return
+            }
+         /if (${Target.Type.Equal[npc]} && ${Target.Distance}<100) {
+            /squelch /attack on
+            /squelch /stick uw 5
+            }
+         /if (${Time2Kill}==0) {
+            /squelch target clear
+            /call TimeOut
+            /return
+            }
+      /goto :AttackLoop
+      }
+/return
+
+sub TimeOut
+   /if (${ReturnHome} && !${Me.CombatState.Equal[COMBAT]} && ${Time2Kill}==0) {
+      /squelch stick off
+      /squelch /target clear
+      /varset Time2Kill ${TimeLimit}s
+      }
+/return
+
+Sub Initialize
+   /call DeclareOuterVariables
+   /call Configuration
+   /if (${DoLoot}) {
+      /call SetupAdvLootVars
+      /hidecorpse looted
+   }    
+   /moveto 5
+   /echo Macro Initialized.
+   /varset Time2Kill ${TimeLimit}s
+/return
+
+sub DeclareOuterVariables
+   /declare DoLoot bool outer FALSE
+   /declare ReturnHome bool outer FALSE
+   /declare TimeLimit int outer 0
+   /declare Time2Kill timer outer 0
+   /declare y int outer 0
+   /declare x int outer 0
+/return
+
+Sub event_mydeath
+   /echo Oh no, you died. Macro ending.
+   /endmacro
+/return
+
+Sub event_zoned
+   /echo Unexpected zoning encounterd. Macro ending.
+   /endmacro
+/return 
+
+Sub spellcheck
+/if (${Me.Casting.ID} && !${Me.Class.ShortName.Equal[BRD]}||${Me.Hovering}||${Window[tradewnd].Open}||${Window[lootwnd].Open}) /return
+/if (!${Target.ID}||(${Target.Type.Equal[pc]}||${Target.Master.Type.Equal[pc]}||${Target.Type.Equal[corpse]})||${nukeDelay}) /return
+/declare i int local
+/for i 1 to 8
+	/if (!${Target.ID}||(${Target.Type.Equal[pc]}||${Target.Master.Type.Equal[pc]}||${Target.Type.Equal[corpse]})||${nukeDelay}) /return
+	/if (${Me.CurrentMana}>${Me.Gem[${i}].Mana} && ${Me.Gem[${i}].Category.Length} && !${Me.GemTimer[${i}]}) {
+		/if (${Me.Gem[${i}].Category.Find[Direct Damage]}  && (${Me.Gem[${i}].TargetType.Equal[${Target.Body}]}||!${Select[${Me.Gem[${i}].TargetType},Animal,Humanoid,Undead,Plant,Summoned,Uber Giants,Uber Dragons]})) {
+				/call Cast "${Me.Gem[${i}]}" gem${i} -maxtries|3
+				/delay 5
+				/delay 10s !${Me.Casting.ID}
+		}
+		/if (${Me.CurrentMana}>${Me.Gem[${i}].Mana} && ${Me.Gem[${i}].TargetType.Equal[LifeTap]} && ${Me.CurrentHPs}<85  && (${Me.Gem[${i}].TargetType.Equal[${Target.Body}]}||!${Select[${Me.Gem[${i}].TargetType},Animal,Humanoid,Undead,Plant,Summoned,Uber Giants,Uber Dragons]})) {
+				/call Cast "${Me.Gem[${i}]}" gem${i} -maxtries|3
+				/delay 5
+				/delay 10s !${Me.Casting.ID}
+		}
+		/if (${Me.CurrentMana}>${Me.Gem[${i}].Mana} && ${Select[${Me.Gem[${i}].Subcategory},Slow,Resist Debuffs,Disempowering,Mana Drain]} && (!${timer${i}}||${lastID_${i}}!=${Target.ID})  && (${Me.Gem[${i}].TargetType.Equal[${Target.Body}]}||!${Select[${Me.Gem[${i}].TargetType},Animal,Humanoid,Undead,Plant,Summoned,Uber Giants,Uber Dragons]})) {
+				/call Cast "${Me.Gem[${i}]}" gem${i} -maxtries|3
+				/delay 5
+				/delay 10s !${Me.Casting.ID}
+				/varset timer${i} ${Me.Gem[${i}].Duration.TotalSeconds}s
+		}
+		/if (${Me.CurrentMana}>${Me.Gem[${i}].Mana} && ${Me.Gem[${i}].TargetType.Equal[self]} && ${Me.Gem[${i}].SpellType.Equal[beneficial]}  && ${Me.Gem[${i}].Stacks} && !${Me.Buff[${Me.Gem[${i}]}].ID} && !${Me.GemTimer[${i}]}) {
+			/delay 10s !${Me.Casting.ID}
+			/call Cast "${Me.Gem[${i}]}" gem${i}
+			/delay 1s
+			/delay 10s !${Me.Casting.ID}
+		}
+	}
+	/doevents
+/next i
+/return

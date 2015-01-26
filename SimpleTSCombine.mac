@@ -1,0 +1,30 @@
+#event OOS "Sorry, but you #*#"
+
+sub main
+   /echo TS Clicker
+   /call click
+   /return
+
+sub click
+:Click
+   /if (${Window[TradeskillWnd].Child[CombineButton].Enabled}) {
+      /notify TradeskillWnd CombineButton leftmouseup
+   }
+   /call drop
+   /doevents
+   /goto :Click
+
+
+Sub drop
+:drop
+   /if (${Cursor.ID}) {
+      /autoinv
+      /goto :drop
+   }
+   /doevents
+   /return
+   
+
+sub Event_oos
+   /Echo Ran out of stuff. Ending.
+   /endmacro

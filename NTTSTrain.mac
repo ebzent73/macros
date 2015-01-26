@@ -1,0 +1,63 @@
+| NTTSTrain.Mac by Ebzent
+| This macro will do all the tradeskill training in Crescent Reach.
+| MQ2Moveutils Required
+
+#include buy.inc
+
+Sub Main
+	/popup Starting free tradeskill skillups
+	/call baking
+	/call brewing
+	/call fletching
+	/call jewelcraft
+	/call pottery
+	/call smithing
+	/call tailoring
+	/popup Done with tradeskill training!
+/return
+
+Sub baking
+	/popup Baking is at ${Me.Skill[Baking]}
+	if (${Me.Skill[Baking]}>=54){
+		/popup Your skill in baking is already above 54
+		/delay 1s
+		/popup Skipping to next tradeskill to train
+		/return
+	}
+	
+	| go to the questgiver and do dialog
+	**movement**
+	/tar sanura
+	/say Hail, Baker Sanura
+	/delay 1s
+	/say learn
+	/delay 1s
+	/say ready to start
+	
+	| go to the tradeskill container and do combines
+	/tar Kosey
+	/delay 1s
+    /click right target
+    /delay 1s
+    /call Buy "Mixing Bowl" 1
+    
+    : dofirstoatmeal
+	/itemnotify ${FindItem[=Mixing Bowl].InvSlot} rightmouseup
+	/notify TradeskillWnd ExperimentButton leftmousehold
+    /notify TradeskillWnd ExperimentButton leftmouseup
+    
+	: dooatmeal
+	/itemnotify ${FindItem[=Mixing Bowl].InvSlot} rightmouseup
+	| check to see if we got the turnin items and max skill for that item
+	| not enough?  get more supplies
+Sub brewing
+
+Sub fletching
+
+Sub jewelcraft
+
+Sub pottery
+
+Sub smithing
+
+Sub tailoring

@@ -1,0 +1,641 @@
+|SK.mac  by nytemyst
+| Summary:
+|This macro will monitor a radius and then aggro that mob and bring it to camp.
+|Will cast ae aggro if more then one mob is close and switch over to Name and mezzed immune targets
+|
+|
+|
+#turbo 45
+#include spell_routines.inc
+#include AAPurchase.inc
+#include ninjadvloot.inc
+#include General.inc
+|#include events.inc
+
+#event Summon 		  "#*#You have been summoned!#*#"
+#event faraway        "Your Target is too far away, get closer!"
+#event IRC            "<#1#> #2#"
+#event nosee          "You cannot see your target."
+#event CantHit        "You can't hit them from here."
+#event NotHold        "Your spell did not take hold."
+#event NoTaunt			"#*#You are too far away from your target to taunt.#*#"
+#event Help           "[MQ2] Help"
+#chat tell
+#chat chat
+
+Sub main
+ /declare dummy int local
+ /Call Initialization
+ /call MainLoop
+ /endmacro
+ 
+Sub MainLoop
+:loop
+ /if (${Me.Dead}) /call wait4rez
+ /varset MacroState MainLoop
+ /delay 1
+ /doevents
+ /if (${Me.Invis} ) /call MainLoop
+ /if (${Me.Combat}) /attack off
+ /if (!${bufftimer} && !${SpawnCount[npc los range 5 110 radius 50 zradius 50 targetable]} || !${Aggro}) /call checkselfbuff
+ /if ((${Aggro} || ${MaMode}) && !${DpsMode}) /call TankMode
+ /if (${DpsMode}) /call DpsMode
+ /if (${DoLeash}) /call Leash
+ /if (${Me.PctMana}<=90) /call MedTime
+ /if (${DoLoot} && !${Me.Moving} && !${Me.Invis}) /call LootMobs
+ /if (!${CheckExpTimer} && ${AutoExpAdjust}) /call AutoAdjustExp
+ /call checkammo
+ /if (!${Me.Fellowship.Campfire} && ${PlantCampFire}) /call MakeCampfire
+ /goto :loop
+/return
+
+Sub TankMode
+/call GetMob
+/if ((${Target.Type.Equal[NPC]} || ${Target.Type.Equal[Pet]}) && ${Target.ID} && !${ExcludeList.Find[${Target.CleanName}]}) /call GetAggro
+/return
+
+Sub DpsMode
+/doevents
+/if (${Melee.AggroMode}) /squelch /melee aggro=off
+/call GetTarget
+/varset TempStickSetting ${StickSetting}
+/if (${validTarget} && ${Target.PctHPs}<=${AssistAt} && ${Target.Type.Equal[NPC]} && ${Target.Distance} < ${AssistDistance} && ${Target.ID}) /call KillTarget
+/return
+
+Sub KillTarget
+:loop
+/varset MacroState KillTarget
+/doevents
+/call Attack
+/call CheckHealth
+/if (!${Me.Buff[${SteelyStance}].ID} && ${Spell[${SteelyStance}].Stacks[30]} && ${Me.SpellReady[${SteelyStance}]}) /call cast "${SteelyStance}" gem1 1s
+/if (!${Me.Buff[${SkinBuff}].ID} && ${Spell[${SkinBuff}].Stacks[30]} && ${Me.SpellReady[${SkinBuff}]}) /call cast "${SkinBuff}" gem1 1s
+/if (${NameList.Find[${Target.CleanName}]} && ${Stick.Active} && ${Me.Combat}) /call KillName
+/call CastDot
+/call Nuke
+/call Pet
+/if (!${validTarget} || ${ExcludeList.Find[${Target.DisplayName}]}) /multiline ; /squelch /target clear; /attack off; /return
+/if (${Target.Type.Equal["Corpse"]} || !${Target.ID}) /multiline ; /squelch /target clear; /varset validTarget 0; /attack off; /return
+/if (${validTarget}) /goto :loop
+/return
+
+Sub GetMob
+/varset MacroState GetMob
+/declare MobID int local
+/declare i int local
+/declare MobLvl int local 5
+/declare MobToKill int local 0
+/declare MobHP int local 100
+/declare MobDistance int local ${MobRadius}
+/declare MobLocation int local ${MobRadius}
+/declare Mobs int local
+/declare PriorityMob bool local false
+/if (${Me.Dead} || (${Me.PctMana} < ${MedPercent} && ${MedOnLowMana} && !${SpawnCount[npc los Range 5 110 radius 50 zradius 50 targetable]}) ) /Return
+/if (${Target.ID} && ${Target.Type.Equal[npc]} && !${ExcludeList.Find[${Spawn[ID ${Target.ID}].CleanName}]} && !${MaMode}) {
+	/varset MobToKill ${Target.ID}
+} else /if (${SpawnCount[npc los Range 5 110 radius 50 zradius 50 targetable]} && !${MaMode} ) {
+	/varset Mobs ${SpawnCount[npc los Range 5 110 radius 50 zradius 50 targetable]}
+	/for i  1 to ${Mobs}
+	/varset MobID ${NearestSpawn[${i}, npc los Range 5 110 radius 50 zradius 50 targetable].ID}
+	/if (!${PriorityMob} && ${Spawn[id ${MobID}].PctHPs} <= ${MobHP} && ${Spawn[id ${MobID}].Type.Equal[NPC]} && !${ExcludeList.Find[${Spawn[id ${MobID}].CleanName}]} && ${Spawn[id ${MobID}].CleanName.Length}>1 || ${MezzImmuneList.Find[${Spawn[ID ${MobID}].CleanName}]}) {
+		/varset MobToKill ${MobID}
+		/varset MobLvl ${Spawn[id ${MobID}].Level}
+		/varset MobHP ${Spawn[id ${MobID}].PctHPs}
+		/if (${MezzImmuneList.Find[${Spawn[ID ${MobID}].CleanName}]} || ${NameList.Find[${Spawn[ID ${MobID}].CleanName}]}) {
+			/if (${MezzImmuneList.Find[${Spawn[ID ${MobID}].CleanName}]}) /echo A Mezzimmune Mob Found! ${Spawn[ID ${MobID}].CleanName} 
+			/if (${NameList.Find[${Spawn[ID ${MobID}].CleanName}]}) /echo A Named Mob Found! ${Spawn[ID ${MobID}].CleanName} 
+			/varset PriorityMob TRUE
+		}
+	}
+	/next i
+} else /if (${SpawnCount[npc los Range 5 110 radius ${MobDistance} zradius 50 targetable]} && !${Me.Buff[Resurrection Sickness].ID} && !${MaMode}) {
+	/varset Mobs ${SpawnCount[npc los Range 5 110 radius ${MobDistance} zradius 50 targetable]}
+	/for i  1 to ${Mobs}
+	/varset MobID ${NearestSpawn[${i}, npc los Range 5 110 radius ${MobDistance} zradius 50 targetable].ID}
+	/if (${Spawn[id ${MobID}].Distance} < ${MobLocation} && ${Spawn[id ${MobID}].Type.Equal[NPC]} && ${Spawn[id ${MobID}].LineOfSight} && !${ExcludeList.Find[${Spawn[id ${MobID}].CleanName}]} && ${Spawn[id ${MobID}].CleanName.Length}>1 && !${TempIgnoreTimer${MobID}}) {
+       /varset MobToKill ${MobID}
+       /varset MobLvl ${Spawn[id ${MobID}].Level}
+	   /varset MobLocation ${Spawn[id ${MobID}].Distance}
+    }
+	/next i
+} else /if (${SpawnCount[npc los Range 5 110 radius 75 zradius 50 targetable]} && ${MaMode} ) {
+	/varset Mobs ${SpawnCount[npc los Range 5 110 radius 75 zradius 50 targetable]}
+	/for i 1 to ${Mobs}
+	/varset MobID ${NearestSpawn[${i}, npc los Range 5 110 radius 75 zradius 50 targetable].ID}
+	/if (!${PriorityMob} && ${Spawn[id ${MobID}].PctHPs} <= ${MobHP} && ${Spawn[id ${MobID}].Type.Equal[NPC]} && !${NameList.Find[${Spawn[id ${MobID}].CleanName}]} && !${ExcludeList.Find[${Spawn[id ${MobID}].CleanName}]} && ${Spawn[id ${MobID}].CleanName.Length}>1 || ${MezzImmuneList.Find[${Spawn[ID ${MobID}].CleanName}]}) {
+		/varset MobToKill ${MobID}
+		/varset MobLvl ${Spawn[id ${MobID}].Level}
+		/varset MobHP ${Spawn[id ${MobID}].PctHPs}
+		/if (${MezzImmuneList.Find[${Spawn[ID ${MobID}].CleanName}]}) {
+			/if (${MezzImmuneList.Find[${Spawn[ID ${MobID}].CleanName}]}) /echo A Mezzimmune Mob Found! ${Spawn[ID ${MobID}].CleanName} 
+			/varset PriorityMob TRUE
+		}
+	}
+	/next i
+} else /if (${SpawnCount[pet los Range 5 110 radius 50 zradius 50 targetable]} ) {
+	/varset Mobs ${SpawnCount[pet los Range 5 110 radius 50 zradius 50 targetable]}
+	/for i 1 to ${Mobs}
+	/varset MobID ${NearestSpawn[${i}, pet los Range 5 110 radius 50 zradius 50 targetable].ID}
+	/if (${Spawn[${Spawn[PC ${MobID}].Master}].Type.NotEqual[PC]}) /varset MobToKill ${MobID}
+	/next i	
+}
+	
+/if (${Spawn[${MobToKill}].Type.NotEqual[Aura]} && ${MobToKill}) {
+	/target id  ${MobToKill}
+    /varset TempAggroTimer 20s
+    /varset CantHit 0
+    /varset CurrentTarget ${Target.ID}
+    /if (${Target.ID}) /squelch /face fast
+	/if (!${Defined[TempIgnoreTimer${MobToKill}]}) /declare TempIgnoreTimer${MobToKill} timer outer
+} 
+/delay 1s ${Target.Type.Equal[NPC]} || ${Target.Type.Equal[pet]}
+/return
+
+Sub GetAggro
+:loop
+/varset MacroState GetAggro
+/doevents
+/if (${Me.Dead}) /return
+/if (${Me.Casting.ID}) /call Interrupt
+/if (${Target.Distance}>41 && ${Stick.Active}) /stick off
+ /if (!${AggroTimer1} && ${Target.Distance}>=50) /call castSpell "${HateSpell1}" ${HateSpell1Gem} ${CurrentTarget} Checkall
+ /if (!${Me.Combat} && ${Target.Distance} > 50 && !${TempAggroTimer}) /multiline ; /echo Ignoring ${Target.CleanName} for 60 Seconds;/varset TempIgnoreTimer${Target.ID} 60s;/squelch /target clear
+ /if ((!${Me.Combat} || !${Me.Combat}) && ${Target.Distance} <= 25) /squelch /attack on
+ /if (${Me.Sitting}) /squelch /stand
+ /if (${Target.Distance}>=42 && ${FindItemCount[${RangeItemSummon}]}) /range
+ /if (${Target.Distance}>=51) /call checkammo
+ /if (${Target.Distance}<=20 && !${Stick.Active}) /squelch /stick 15 moveback
+ /if (${Target.Distance}>80 && ${SpawnCount[npc radius 50 zradius 50 targetable los Range 5 100]}) /multiline ; /echo Grabing the Mob that's Closer.;/squelch /target clear
+ /if (${Me.SpellReady[${ChallengeSpell}]} && ${Target.ID} && !${Me.Song[${ChallengeSpellRecourse}].ID} && !${Target.Type.Equal["corpse"]}) /call cast "${ChallengeSpell}" gem1 0 Checkall
+ /if (${Target.Distance}>=100 && ${Target.Distance}<200 && ${Me.AltAbilityReady[Hate's Attraction]}) /call cast "Hate's Attraction" alt 0
+ /if (${Target.Distance}>=51) /goto :loop
+ /if (${Target.Distance}<50 && ${Me.CombatAbilityReady[${WithStand}]} && ${Me.CurrentEndurance}> 8000 && !${WithStandTimer}) {
+ 	 /disc ${WithStand}
+	 /call CreateTimer WithStandTimer
+ 	 /varset WithStandTimer 15s
+ }
+ /if (${NameList.Find[${Target.CleanName}]} && ${Stick.Active} && ${Me.Combat}) /call KillName
+ /if (${Target.Type.Equal["Corpse"]} || !${Target.ID} || ${Target.Type.Equal[PC]} || !${Target.Type.Equal[NPC]}) /multiline ; /squelch /target clear;/varset MainMobID 0;/return
+ /if (${Me.Dead}) /Return
+ /call Aggro
+ /if (${CheckNames}) /call CheckName
+ /if (!${Me.Combat}) /goto :loop
+ /call CastDot
+ /call Nuke
+ /call Pet
+ /if (!${Me.Combat} && ${Target.Distance} <= 50) /attack on
+ /call CheckHealth
+ /if (${Me.PctHPs}<50 && ${Me.CombatAbilityReady[Deflection discipline]} && ${SpawnCount[npc radius 40 Range 30 100 targetable los]} >=4) /disc Deflection discipline
+ /if (!${Me.Buff[${SteelyStance}].ID} && ${Spell[${SteelyStance}].Stacks[30]} && ${Me.SpellReady[${SteelyStance}]}) /call cast "${SteelyStance}" gem1 1s
+ /if (!${Me.Buff[${SkinBuff}].ID} && ${Spell[${SkinBuff}].Stacks[30]} && ${Me.SpellReady[${SkinBuff}]}) /call cast "${SkinBuff}" gem1 1s
+ /if (${Me.PctMana}<50) /call castSpell "Thought Leech" alt 0
+ /if (${Target.ID}) /goto :loop
+ /return
+ 
+ 
+Sub KillName
+/varset MacroState KillName
+/if (${Me.CombatAbilityReady[${DefensiveDisc}]} && ${Me.CurrentEndurance}>8000 && !${DpsMode}) {
+	/disc ${DefensiveDisc}
+	} else /if (!${Me.CombatAbilityReady[${DefensiveDisc}]} && ${Me.CurrentEndurance}>8000 && !${DpsMode} && ${Window[CombatAbilityWnd].Child[CAW_CombatEffectLabel].Text.Equal["No Effect"]}) {
+	/disc ${DefensiveDisc2}
+	} else /if (!${Me.CombatAbilityReady[${DefensiveDisc2}]} && ${Me.CurrentEndurance}>8000 && !${DpsMode} && ${Window[CombatAbilityWnd].Child[CAW_CombatEffectLabel].Text.Equal["No Effect"]}) {
+	/disc ${DefensiveDisc3}
+	}
+/if (${Me.CombatAbilityReady[${CrimesonBlade}]} && ${Me.CurrentEndurance}>8000) /disc ${CrimesonBlade}
+/if (${FindItem[Innoruuk's Dark Blessing].ID} && !${FindItem[Innoruuk's Dark Blessing].Timer}) /call CastItemClicky "Innoruuk's Dark Blessing"
+/if (${Me.AltAbilityReady[Chattering Bones]}) /call cast "Chattering Bones" alt 0
+/if (${Me.AltAbilityReady[Fundament: Third Spire of the Reavers]} && !${DpsMode}) /call cast "Fundament: third spire of the Reavers" alt 0
+/if (${Me.AltAbilityReady[Fundament: second Spire of the Reavers]} && ${DpsMode}) /call cast "Fundament: second spire of the Reavers" alt 0
+/if (${Me.AltAbilityReady[Harm Touch]} && !${DpsMode}) /call cast "Harm Touch" alt 0
+/if (${Me.AltAbilityReady[Scourge Skin]}) /call cast "Scourge Skin" alt 0
+/if (${Me.AltAbilityReady[Visage of Death]}) /call cast "Visage of Death" alt 0
+/if (!${FindItem[${ClickyBP}].Timer}) /call CastItemClicky "${ClickyBP}" 
+/if (${Me.AltAbilityReady[Glyph of the Cataclysm]} && ${DpsMode}) 	/call cast "Glyph of the Cataclysm" alt 0
+/return
+
+Sub Pet
+/if (!${PetMoveTimer} && ${Me.Pet.ID} && ${Me.AltAbilityReady[Companion's Relocation]} && ${Target.Distance}<15) {
+/call cast "companion's relocation" alt 0
+/varset PetMoveTimer 10s
+}
+/return
+
+Sub Attack
+/varset MacroState Attack
+/if (${Me.Sitting}) /squelch /stand
+/if (!${Me.Combat}) /attack on
+/if (!${Stick.Active}) /squelch /stick ${StickSetting}
+/return
+
+Sub Nuke
+/varset MacroState Nuke
+/if (${Me.Dead}) /Return
+/if (${Me.SpellReady[${NukeSpell1}]} && ${Target.ID} && !${Target.Type.Equal["corpse"]} && !${Target.Type.Equal[PC]} && ${Target.Distance} <=50) {
+	/call castspell "${NukeSpell1}" gem1 0 Checkall ${Target.ID}
+	/return
+}
+/if (${Me.SpellReady[${NukeSpell2}]} && ${Target.ID} && !${Target.Type.Equal["corpse"]} && !${Target.Type.Equal[PC]} && ${Target.Distance} <=50) {
+	/call castspell "${NukeSpell2}" gem1 0 Checkall ${Target.ID}
+	/return
+}
+/if (${Me.AltAbilityReady[Vicious Bite Of Chaos]} && !${Target.Type.Equal["corpse"]} && ${Target.ID} ) /call castspell "Vicious Bite Of Chaos" alt 0
+/call castSpell "Ragged Bite of Agony" alt ${CurrentTarget}
+/if (${Me.AltAbilityReady[banestrike]} && !${Target.Type.Equal["corpse"]} && ${Target.ID} && ${Target.Distance} < 70 ) /call castspell "banestrike" alt 0
+/if (${Me.CombatAbilityReady[${BladeStrike}]} && !${Target.Type.Equal["corpse"]} && ${Target.ID} && ${Me.CurrentEndurance}> 8000 ) /call CastSpell  "${BladeStrike}" disc 0
+/if (${Target.PctHPs}<30 && !${SnareTimer${CurrentTarget}}) /call CastDebuff "Encroaching Darkness" alt ${CurrentTarget} SnareTimer${CurrentTarget} 60s 
+/return
+
+
+Sub CastDot
+/declare i int local
+/if (${DoDot}) {
+	/for i 1 to ${NumOfDots}
+		/if (!${DotTimer${i}${CurrentTarget}} && ${Me.SpellReady[${Dot${i}}]}) {
+			/call Castdebuff "${Dot${i}}" Gem1 ${CurrentTarget} DotTimer${i}${CurrentTarget} 1m
+			/return
+			}
+	/next i
+}
+/return
+
+Sub CheckHealth
+/varset MacroState CheckHealth
+/if (${Me.Dead}) /return
+/if (${Me.PctHPs}<=50 && ${Me.SpellReady[${DireImplication}]} && !${Target.Type.Equal["corpse"]} && ${Target.ID} && !${Target.Type.Equal[PC]}) /call castSpell "${DireImplication}" gem1 0 Checkall
+/if (${Me.SpellReady[${HpTapSpell}]} && ${Target.ID} && !${Me.Buff[${HpTapSpellRecourse}].ID} && !${Target.Type.Equal["corpse"]}) /call castSpell "${HpTapSpell}" gem1 0 Checkall
+/if (${Me.PctHPs}<85 && ${Me.SpellReady[${LifeTapSpell1}]} && !${Target.Type.Equal["corpse"]} && ${Target.ID} && !${Target.Type.Equal[PC]}) /call castSpell "${LifeTapSpell1}" gem1 0 Checkall
+/if (${Me.PctHPs}<85 && ${Me.SpellReady[${LifeTapSpell2}]} && !${Target.Type.Equal["corpse"]} && ${Target.ID} && !${Target.Type.Equal[PC]}) /call castSpell "${LifeTapSpell2}" gem1 0 Checkall
+/if (${Me.PctHPs}<90 && !${FindItem[Mark of the dragon slayer].Timer} && ${FindItem[Mark of the dragon Slayer].ID} && !${Target.Type.Equal["corpse"]} && ${Target.ID} && !${Target.Type.Equal[PC]}) /call CastItemClicky "mark of the dragon slayer" 
+/if (${Me.PctHPs}<20 && ${Me.AltAbilityReady[leech touch]} && !${Target.Type.Equal["corpse"]} && ${Target.ID} && !${Target.Type.Equal[PC]}) /call castSpell "Leech Touch" alt 0
+/if (${Me.SpellReady[${BondSpell}]} && ${Target.ID} && !${Me.Buff[${BondSpellRecourse}].ID} && !${Target.Type.Equal["corpse"]}) /call castSpell "${BondSpell}" gem1 0
+/return
+
+Sub Aggro
+/declare MobID int local
+/declare i int local
+/declare mobcount int local
+/declare Mobs int local
+/varset MacroState aggro
+ /if (${Me.Dead}) /return
+/if (!${Me.Combat} && ${Target.Distance} <= 50) /attack on
+/if (${Me.AbilityReady[Taunt]} && ${Target.Distance} <25 && ${Me.PctAggro} < 100) /doability Taunt
+/if (${Me.PctHPs}<35 && ${Me.CombatAbilityReady[Deflection discipline]}) {
+	/call interrupt
+	/disc Deflection discipline
+	/return
+}
+/if (  ${Target.ID} && !${AggroTimer1} && ${Me.Gem[${HateSpell1}]} && !${Target.Type.Equal["corpse"]} && !${Target.Type.Equal[PC]} && ${Me.SpellReady[${HateSpell1}]}) {
+	/call cast "${HateSpell1}" gem1 1s Checkall
+	/call CreateTimer AggroTimer1
+	/varset AggroTimer1 15s
+	/return
+}
+/if (  ${Target.ID} && !${AggroTimer2} && ${Me.Gem[${HateSpell2}]} && !${Target.Type.Equal["corpse"]} && !${Target.Type.Equal[PC]} && ${Me.SpellReady[${HateSpell2}]} ) {
+	/call cast "${HateSpell2}" gem1 1s Checkall
+	/call CreateTimer AggroTimer2
+	/varset AggroTimer2 21s
+	/return
+}
+/if (  ${Target.ID} && !${AggroTimer3} && ${Me.Gem[${HateSpell3}]} && !${Target.Type.Equal["corpse"]} && !${Target.Type.Equal[PC]} && ${Me.SpellReady[${HateSpell3}]}) {
+	/call cast "${HateSpell3}" gem1 1s Checkall
+	/call CreateTimer AggroTimer3
+	/varset AggroTimer3 26s
+	/return
+}
+/varset Mobs ${SpawnCount[npc los Range 5 110 radius 50 zradius 50 targetable]}
+/for i 1 to ${Mobs}
+/varset MobID ${NearestSpawn[${i}, npc los Range 5 110 radius 50 zradius 50 targetable].ID}
+ /if (${ExcludeList.Find[${Spawn[id ${MobID}].CleanName}]}) /return
+ 	/varcalc mobcount ${mobcount}+1
+/next i
+/if (${mobcount} >=2) /call castSpell "${AeHateSpell1}" ${AeHateSpell1Gem} 0 checkall
+/if (${mobcount} >=4 && ${Me.AltAbilityReady[Improved Explosion of spite]} && !${Target.Type.Equal["corpse"]}) {
+	/call castSpell  "Improved Explosion of spite" alt 0
+	} else /if (${mobcount} >=4 && ${Me.AltAbilityReady[Explosion of spite]} && !${Target.Type.Equal["corpse"]}) {
+	/call castSpell "Explosion of spite" alt 0
+	}
+/if (${mobcount} >=3 && ${Me.AltAbilityReady[Improved Explosion of hatred]} && !${Target.Type.Equal["corpse"]}) {
+	/call castSpell "Improved Explosion of hatred" alt ${CurrentTarget}
+	} else /if (${mobcount} >=3 && ${Me.AltAbilityReady[Explosion of hatred]} && !${Target.Type.Equal["corpse"]}) {
+	/call castSpell  "Explosion of hatred" alt ${CurrentTarget}
+	}
+/if (${mobcount} >=3 && ${FindItem[Innoruuk's Dark Blessing].ID} && !${FindItem[Innoruuk's Dark Blessing].Timer}) /call CastItemClicky "Innoruuk's Dark Blessing" 
+/if (${mobcount} >=6 && ${Me.SpellReady[${AeHateSpell2}]}) {
+	/call cast "${AeHateSpell2}" gem1 2s checkall
+	/call CreateTimer AeAggroTimer2
+	/varset AeAggroTimer2 30s
+	/return
+}
+/if (${mobcount} >=8 && ${Me.SpellReady[${AeHateSpell3}]}) /call cast "${AeHateSpell3}" gem1 2s
+/return
+
+Sub Event_Summon
+/call Leash
+/doevents flush
+/return
+
+
+Sub Checkall
+/doevents
+/varset MacroState checkall
+/declare MobID int local
+/declare i int local
+/declare mobcount int local
+/declare Mobs int local
+/if (${Me.Dead}) /return
+/if (!${Me.Casting.ID}) /return
+/if (${Me.Casting.Name.Equal[${LifeTapSpell2}]} && ${Me.PctHPs}>=90) /call interrupt
+/if (${Me.Casting.Name.Equal[${LifeTapSpell1}]} && ${Me.PctHPs}>=90) /call interrupt
+/if (${Target.Type.Equal[Corpse]} || ${Target.Type.Equal[PC]}) {
+	/squelch /target clear
+	/call interrupt
+	/return
+}
+/if (${DpsMode}) /return
+/if (${Me.PctHPs}<45 && ${Me.CombatAbilityReady[Deflection discipline]} && ${mobcount} >=4) {
+	/call interrupt
+	/disc Deflection discipline
+}
+/if (${SpawnCount[npc los Range 5 110 radius 50 zradius 50 targetable]}) {
+	/varset Mobs ${SpawnCount[npc los Range 5 110 radius 50 zradius 50 targetable]}
+	/for i 1 to ${Mobs}
+/varset MobID ${NearestSpawn[${i}, npc los Range 5 110 radius 50 zradius 50 targetable].ID}
+ /if (${ExcludeList.Find[${Spawn[id ${MobID}].CleanName}]}) /return
+ 	/varcalc mobcount ${mobcount}+1
+ 	:skip
+/next i
+}
+/if (!${CombatList.Find[${Me.Casting}]} && ${mobcount} && !${Me.Combat} && ${Aggro} && !${RaidMembers}) {
+	/call interrupt
+	/call GetMob
+	/return
+}
+/if (${AeList.Find[${Me.Casting}]} && (${mobcount} < 2 || !${Target.ID})) {
+	/call interrupt
+	/call GetMob
+	/return
+}
+
+/if (${mobcount} >=2 && !${AeAggroTimer1} && !${Me.Casting.Name.Equal[${AeHateSpell1}]} && ${Me.Gem[${AeHateSpell1}]} || ${mobcount} >=2 && !${AeAggroTimer1} && !${Me.Casting.Name.Equal[${AeHateSpell2}]} && ${Me.Gem[${AeHateSpell1}]}) {
+	/call interrupt
+	/call castSpell "${AeHateSpell1}" gem1 0
+	/call CreateTimer AeAggroTimer1
+	/varset AeAggroTimer1 30s
+	/return
+	}
+/if (${mobcount} >=4 && !${AeAggroTimer2} && !${Me.Casting.Name.Equal[${AeHateSpell1}]} && ${Me.Gem[${AeHateSpell2}]} || ${mobcount} >=4 && !${AeAggroTimer2} && !${Me.Casting.Name.Equal[${AeHateSpell2}]} && ${Me.Gem[${AeHateSpell2}]}) {
+	/call interrupt
+	/call castSpell "${AeHateSpell2}" gem1 0
+	/call CreateTimer AeAggroTimer2
+   /varset AeAggroTimer2 30s
+	}
+/return
+
+Sub GetTarget
+/varset MacroState GetTarget
+/declare tempID int local ${Target.ID}
+/if (${Me.Moving}) /return
+  /if (${Spawn[${MainAssist}].ID}) {
+    /assist ${MainAssist}
+  } else /if (${Spawn[${SecondAssist}].ID}) {
+    /assist ${SecondAssist}
+  } else /if (${Spawn[${TripleAssist}].ID}) {
+    /assist ${TripleAssist}
+  } 
+/if (!${ExcludeList.Find[${Target.DisplayName}]}) {
+   /if ( ( ${Spawn[${tempID}].Type.Equal[npc]} || ( ${Spawn[${tempID}].Type.Equal[pet]} && !${Spawn[${tempID}].Master.Type.Equal[pc]} ) ) && ( ( ${Spawn[pc ${mainTank}].NearestSpawn[radius ${Math.Calc[${AssistDistance}*2]} id ${tempID}].ID} && ${Spawn[pc ${mainTank}].Distance3D}<=${AssistDistance} ) || !${Spawn[pc ${mainTank}].ID} || ${Spawn[pc ${mainTank}].Distance3D}>200 ) && ${tempID}!=${petID} && ( ${aggroAnim.Find[|${Spawn[${tempID}].Animation}|]} || ${Spawn[${tempID}].PctHPs}<${AssistAt} || ${Me.TargetOfTarget.Type.Equal[pc]} || ${Me.TargetOfTarget.Master.Type.Equal[pc]} ) ) {
+      /varset validTarget 1
+      /varset CurrentTarget ${Target.ID}
+   } 
+ }
+/return
+
+Sub Checkselfbuff
+/varset MacroState CheckSelfBuff
+/if (${Zone.ID}!=${currentZone}) /call Event_Zone
+/if (${Me.Invis}) /return
+/call CheckBuffies
+
+/if (${Me.Height}>2.03 && ${FindItem[${ItemShrink}].ID}) {
+  /target myself
+  /call CastItemClicky "${ItemShrink}" 
+}
+/if (!${Me.PetBuff[${PetSpellHaste}]} && ${Me.Pet.ID}) {
+  	/if (!${Me.Gem[${PetSpellHaste}]}) /call MemSpell "${PetSpellHaste}" ${BuffGem} 
+  	/if (${Me.SpellReady[${PetSpellHaste}]}) /call cast "${PetSpellHaste}" gem10 0 Checkall
+}
+/varset bufftimer 10s
+/call CheckAmmo
+/if (!${Me.Pet.ID} && ${UsePet} && !${SpawnCount[npc los range 5 110 radius 50 zradius 50]}) {
+   	/if (!${Me.Gem[${PetSpell}]}) /call MemSpell "${PetSpell}" ${BuffGem} 
+   	/if (${Me.SpellReady[${PetSpell}]}) /call cast "${PetSpell}" gem10 0 CheckAll
+}
+/if (${Me.Dead}) /Return
+/return
+
+
+Sub Event_nosee
+/varset MacroState NOSEE
+/if (${Target.Distance} >50 && ${SpawnCount[npc radius 50]} || ${Target.Distance} > ${MobRadius}) {
+	/echo Can't see mob so I'm clearing the target.
+	/squelch /target clear
+	/varset MainMobID 0
+} else /if (${Target.Distance} <10) {
+	/squelch /stick 15 moveback
+	}
+/doevents flush nosee
+/delay 1
+/return
+
+Sub CheckName
+/declare lMobID    int local
+/declare Counter    int local
+/declare lMobToKill   int local 0
+/declare Mobs int local
+/if (!${SpawnCount[npc radius 50 zradius 30]}) /return
+/varset Mobs ${SpawnCount[npc radius 50 zradius 30 los]}
+/for Counter 1 to ${Mobs}
+    /varset lMobID ${NearestSpawn[${Counter},npc radius 50 zradius 30 los].ID}
+    /if (${NameList.Find[${Spawn[ID ${lMobID}].CleanName}]} || ${MezzImmuneList.Find[${Spawn[ID ${lMobID}].CleanName}]})  /if (!${ExcludeList.Find[${Spawn[ID ${lMobID}].CleanName}]}) {
+       /if (${Target.ID}!= ${lMobID} && !${NameList.Find[${Target.CleanName}]} && !${MezzImmuneList.Find[${Target.CleanName}]}) /target id ${lMobID}
+       /delay 1s ${Target.ID}==${lMobID}
+       /return
+}
+  /next Counter
+/return
+
+Sub Event_Experience
+/varset MacroState Experience
+/if (${Me.Casting.ID}) /call interrupt
+/if (${Math.Distance[${Me.Y},${Me.X}:${stakeY},${stakeX}]}> ${Math.Calc[${leashlength}+50]} && ${currentZone} == ${Zone.ID} && ${DoLeash}) /call leash
+/if (${SpawnCount[npc los Range 5 110 radius 50 zradius 50 targetable]} && !${DpsMode}) /call getmob
+/if (${Target.ID} && ${Target.Type.Equal[NPC]} && ${Aggro} && !${ExcludeList.Find[${Target.CleanName}]} && !${DpsMode}) /call GetAggro
+/if (${DpsMode}) /varset validTarget 0
+/doevents flush Experience
+/return
+
+Sub checkammo
+/if (${FindItemCount[${RangeItemSummon}]} < 30) {
+	/if (${FindItem[${RangeItem}].ID}) {
+		/call CastItemClicky "${RangeItem}" 
+		/delay 6s ${Cursor.ID}
+		/timed 5 /autoinventory
+		/delay 2s !${Cursor.ID}
+		}
+	}
+/return
+
+Sub Event_faraway
+/varset MacroState Faraway
+/delay 3s !${Me.Moving}
+/varcalc TempStickSetting ${TempStickSetting}-5
+/if (!${Me.Moving} && !${DpsMode} && ${Target.Distance} < 50) /squelch /stick 15 moveback
+/doevents flush faraway
+/return
+
+Sub Event_CantHit
+/varset CantHit ${Math.Calc[${CantHit}+1]}
+/if (${CantHit} > 10) /multiline ; /varset TempIgnoreTimer${Target.ID} 60s;/squelch /target clear
+/return
+
+Sub Event_NotHold
+/if (${Defined[TempIgnoreTimer${Target.ID}]} && ${castReturn.Equal[CAST_NOTHOLD]}) /multiline ; /varset TempIgnoreTimer${Target.ID} 60s;/squelch /target clear
+/doevents flush NotHold
+/delay 3
+/return
+
+Sub ResetVariables
+
+/return
+Sub Initialization
+/call GeneralDeclares
+/call GeneralDeclares2
+/call event_zone
+/call SetupAdvLootVars
+/if (${UseIRC}) /call Irc
+/call AAInit
+/squelch /alias /Skhelp /echo help
+/echo Shadow Knight Script Started 4.5
+/return
+
+Sub Event_NoTaunt
+/if (${Target.Distance} < 50) /stick 15 moveback
+/delay 1s
+/doevents flush NoTaunt
+/return
+
+Sub GeneralDeclares
+ /declare Y float outer
+ /declare X float outer
+ /declare iniName string outer SK_${Me.Name}.ini
+ /declare bufftimer timer outer
+ /declare PetMoveTimer timer outer
+ /declare MainMobID int outer
+ /declare p int local
+ /declare TempAggroTimer timer outer
+ /declare TempIgnoreTimer timer outer
+ /declare CurrentTarget int outer
+ /declare following string outer
+ /declare TempStickSetting int outer
+ /declare validTarget int outer
+ /declare irctimer timer outer 0s
+ /declare CantHit int outer
+ /call DeclareIniVar DoAlias string	GeneralSettings 1 /doalias
+ /call DeclareIniVar RangeItem string Settings "Huntsman's Ethereal Quiver"
+ /call DeclareIniVar RangeItemSummon string Settings "Ethereal Arrow"
+ /call DeclareIniVar MobRadius int SETTINGS 10 /radius
+ /call DeclareIniVar Aggro int SETTINGS 0 /doaggro
+ /call DeclareIniVar ItemShrink string Settings "Earring of Diminutiveness"
+ /call DeclareIniVar PlantCampFire int SETTINGS 0
+ /call DeclareIniVar CheckNames int SETTINGS 1 /checknames
+ /call DeclareIniVar MedOnLowMana bool SETTINGS FALSE
+ /call DeclareIniVar MedPercent int SETTINGS 30
+ /call DeclareIniVar SteelyStance string Spells "Steely Stance"
+ /call DeclareIniVar SkinBuff string Spells "Malarian Skin"
+ /call DeclareIniVar WithStand string Spells "WithStand"
+ /call DeclareIniVar BladeStrike string Spells "Gouging Blade"
+ /call DeclareIniVar CrimesonBlade string Spells "Crimson Blade"
+ /call DeclareIniVar DefensiveDisc string Spells "BoneBrood Mantle"
+ /call DeclareIniVar DefensiveDisc2 string Spells "Grelleth's Carapace"
+ /call DeclareIniVar DefensiveDisc3 string Spells "Unholy Guardian Discipline"
+ /call DeclareIniVar HateSpell1 string Spells "Terror of Jelvalak "
+ /call DeclareIniVar HateSpell1Gem string Spells 1
+ /call DeclareIniVar HateSpell2 string Spells "Terror of the Soulbleeder "
+ /call DeclareIniVar HateSpell3 string Spells "Terror of Vergalid"
+ /call DeclareIniVar AeHateSpell1 string Spells "Burst of Spite"
+ /call DeclareIniVar AeHateSpell1GeM string Spells 2
+ /call DeclareIniVar AeHateSpell2 string Spells "Revile"
+ /call DeclareIniVar AeHateSpell3 string Spells "Vilify"
+ /call DeclareIniVar AeHateSpell4 string Spells "Dread Gaze"
+ /call DeclareIniVar NukeSpell1 string Spells "Malarian Spear"
+ /call DeclareIniVar NukeSpell2 string Spells "Rotmarrow Spear"
+ /call DeclareIniVar ChallengeSpell string Spells "Charge for Power"
+ /call DeclareIniVar ChallengeSpellRecourse string Spells "Charge for Power Recourse rk. ii"
+ /call DeclareIniVar LifeTapSpell1 string Spells "Touch of Tharoff"
+ /call DeclareIniVar LifeTapSpell2 string Spells "Touch of Kildrukaun"
+ /call DeclareIniVar LifeTapSpell3 string Spells "Touch of Severan"
+ /call DeclareIniVar DireImplication string Spells "Dire Implication"
+ /call DeclareIniVar HpTapSpell string Spells "Touch of Lanys"
+ /call DeclareIniVar HpTapSpellRecourse string Spells "Gift of Lanys"
+ /call DeclareIniVar BondSpell string Spells "Bond of Laarthik"
+ /call DeclareIniVar BondSpellRecourse string Spells "Bond of Laarthik recourse rk. iii"
+ /call DeclareIniVar ManaTapSpell1 string Spells "Laarthik's bite"
+ /call DeclareIniVar ManaTapSpell2 string Spells "Ancient: Bite of Muram"
+ /call DeclareIniVar PetSpell string Spells "Minion of Sebilis"
+ /call DeclareIniVar PetSpellHaste string Spells "Gift of Sathir"
+ /call DeclareIniVar UsePet int SETTINGS 0 /usepet
+ /call DeclareIniVar RespiteDisc string Spells "Rest"
+ /call DeclareIniVar DpsMode int Settings 0 /dps
+ /call DeclareIniVar MaMode int Settings 0 /Mamode
+ /call DeclareIniVar MainAssist string Settings somebody /ma
+ /call DeclareIniVar SecondAssist string Settings somebody
+ /call DeclareIniVar TrippleAssist string Settings somebody
+ /call DeclareIniVar EventsMaster string Settings somebody
+ /call DeclareIniVar StickSetting string Settings 35 /sticksetting
+ /call DeclareIniVar AssistDistance int Settings 80 /assistdistance
+ /call DeclareIniVar AssistAt int Settings 97 /assistat
+ /call DeclareIniVar UseIRC string Settings 0
+ /call DeclareIniVar DoLoot int Settings 0 /Doloot
+ /call DeclareIniVar DoDot int Settings 0 /Dot
+ /call DeclareIniVar NumOfDots string Settings 1
+ /for p 1 to ${NumOfDots}
+	/call DeclareIniVar Dot${p} string Spells Changeme
+/next p
+ /call DeclareIniVar BuffGem string Spells "12"
+ /call DeclareIniVar NumSelfBuff string SelfBuffs 1
+ /declare CombatList string outer ${HateSpell1},${HateSpell2},${HateSpell3},${AeHateSpell1},${AeHateSpell2},${AeHateSpell3},${AeHateSpell4},${NukeSpell1},${NukeSpell2},${ChallengeSpell},${LifeTapSpell1},${LifeTapSpell2},${LifeTapSpell3},${HpTapSpell},${ManaTapSpell1},${ManaTapSpell2}|
+ /declare AeList string outer ${AeHateSpell1},${AeHateSpell2},${AeHateSpell3},${AeHateSpell4}
+ /if (${NumSelfBuff}) {
+	/for p 1 to ${NumSelfBuff}
+	/call DeclareIniVar selfBuff${p} string SelfBuffs ChangeMe
+	/if (${Me.Class.Name.Equal[cleric]} || ${Me.Class.Name.Equal[Shaman]}) {
+		/call DeclareIniVar selfBuffToCheck${p} string SelfBuffs ${selfBuff${p}}
+		} else  {
+		/declare selfBuffToCheck${p}  string outer ${selfBuff${p}}
+		}
+	/call DeclareIniVar SelfType${p} string SelfBuffs ChangeMe
+  /next p
+ }
+ /call DeclareIniVar ClickyBP string ITEMS "Elegant Soulrender Breastplate"
+/return
+
+Sub Event_Help
+/echo Shadow Knight Script Help
+/echo /Radius # - Sets The Range in which Macro will search for mobs. Any mob higher then 50 it will try to cast an aggro spell from a distance and/or use the range item you set up.
+/echo /Aggro On/Off - Turns Aggroing mobs on and off. When turned off and not in dps mode will basically do nothing but Buff himself. Good for Running around adding things to your ignore List.
+/echo /Usepet On/Off - If on will summon A Pet, Buff with haste and sends in Pet to attack.
+/echo /Dps On/Off - When turned on the Macro will not cast any aggro spells and will not taunt. It will start assisting someone else and just attack and use dps Type spells.
+/echo /MA ToonName - This is to be used with dps mode. This basically sets who you're going to be assisting.
+/echo /sticksetting # - This is your stick Range that you want to use. If you set it to high the Macro will try to compensate and Find Max melee. This is only for DPS mode.
+/echo /Assistdistance # - This is how close the mob has to be before it will start attacking when it reaches the desired health. This is only for DPS mode.
+/echo /Assistat # - This is the health the mob has to be before it decides to even attack If the mob is close enough. This is only for DPS Mode.
+/echo /Doloot On/Off - Turns looting On and Off.
+/echo /Leash On/Off - Turns leashing on or off. The stake is created when Macro is started.
+/echo /LeashLength # - How far the toon can be before it runs back to the leash point.
+/echo /AutoSit On/Off - Turns Auto Sitting on or off. Will try to sit If either Mana or Endurance is under 90%.
+/echo /Autoadjustexp On/Off - Turns on whether you want the Macro to auto adjust Whether your Exp goes to Level or AAs.
+/echo /Maintexplvl # - This is the minimum amount of Exp you want in the Level you're currently at to have before the AutoAdjuster will make Exp go to AAs.
+/echo /MaxLevel # - This is the Level your toon needs to be before it even decides to go to AAs.
+/return 
+

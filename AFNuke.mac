@@ -1,0 +1,518 @@
+|----------------------------------------------------------------------------|
+| AFNuke.mac created by Azum
+| Updated by Nytemyst
+
+#include spell_routines.inc
+#include events.inc
+#include AAPurchase.inc
+#include General.inc
+#include Ninjadvloot.inc
+#chat tell
+#turbo 50
+#Event mezbreak          "#*#awakened by #1#"
+#event Exp               "#*#has been slain#*#"
+#event EXP               "#*#gain experience!#*#"
+#event range             "#*#target is out of range#*#"
+#event cantsee           "You cannot see#*#"
+#event getout            "[MQ2] getout"
+#event SpellBranch		 "[MQ2] SpellSet: #1#"
+
+sub main
+/declare dummy int local
+/call GeneralDeclares	
+/call GeneralDeclares2
+/call AAInit
+/call SetupAdvLootVars
+/call event_zone
+/echo SpellSet: ${SpellSet}
+/squelch /alias /fire /echo SpellSet: Fire
+/squelch /alias /ice /echo SpellSet: Ice
+/squelch /alias /magic /echo SpellSet: Magic
+/echo  =+= Azum's AutoNuke Macro Enabled =+=
+/echo Your Main assist is ${MainAssist}
+/echo Your Secondary assist is ${SecondAssist}
+/echo Your Third assist is ${TripleAssist}
+ /if (${UseIRC}) /call Irc 
+ 
+| ---------------------------------
+:mainloop
+/varset MacroState MainLoop
+/if (${Died} || ${Me.Dead}) /call Wait4Rez
+/doevents
+/if (${Me.Pet.ID} && ${Me.Pet.Name.Find[familiar]}) /pet get lost
+/if (${SpawnCount[npc radius ${EngageDistance}]}) /call DPS
+/call MedTime
+/if (${DoLoot} && !${Me.Moving} && !${Me.Invis}) /call LootMobs
+/if (${DoLeash}) /call Leash
+/if (!${bufftimer} || !${Me.CombatState.Equal[Combat]}) /call CheckBuffs
+/if (!${CheckExpTimer}) /call AutoAdjustExp
+/if (${UseIRC} && !${Irc} && !${irctimer}) /call Irc
+/call SpecialSubs
+/goto :mainloop
+/endmacro
+	
+Sub DPS
+/varset MacroState DPS
+/doevents
+/call GetTarget
+/if (${validTarget} && ${Target.PctHPs}<=${mobhealth} && ${Target.Type.Equal[NPC]} && ${Target.Distance} < ${EngageDistance} && ${Target.ID} && ${Target.LineOfSight}) /goto :killtarget
+/return
+:killtarget
+/Echo ${Target.CleanName} is at the distance of: ${Target.Distance}
+:Combat
+/if (${Died} || ${Me.Dead}) /return
+/if (!${Spawn[${CurrentTarget}].ID} || ${Spawn[${CurrentTarget}].Type.Equal[corpse]} || !${Target.ID}) /varset validTarget 0
+/doevents
+/call SpecialSubs
+/call SpecialNukes
+/call Nuke
+/if (${validTarget}) /goto :Combat
+/return
+
+Sub SpecialNukes
+/if (${Died} || ${Me.Dead}) /return
+/varset MacroState SpecialNukes
+/if (${Target.Distance} < 70 ) /call castspell "banestrike" alt ${mobid} checkall
+/if (!${LowerElementTimer${CurrentTarget}}) /call CastDebuff "Lower Element" alt ${CurrentTarget} LowerElementTimer${CurrentTarget} 5m
+/if (${Me.TargetOfTarget.Name.Equal[${Me.Name}]} && ${NameList.Find[${Target.CleanName}]} && ${Me.AltAbilityReady[Mind Crash]}) /call castspell "Mind Crash" alt 0
+/if (${Me.AltAbilityReady[Improved Twincast]} && ${Target.PctHPs}<${WhenToBurn} && ${NameList.Find[${Target.CleanName}]} && (!${Me.Buff[Twincast].ID} || !${Me.Buff[Twincast rk. ii].ID} || !${Me.Buff[Twincast rk. iii].ID})) {
+	/call castspell "Improved Twincast" alt 0
+} else /if (${Me.SpellReady[${TwinCast}]} && !${Me.Buff[Twincast].ID} && ${Target.PctHPs}<${WhenToBurn} && ${NameList.Find[${Target.CleanName}]} || !${Raid.Members} && ${Me.SpellReady[${TwinCast}]} && ${SpawnCount[npc radius 50 los]} > 4) {
+	/call castSpell "${TwinCast}" gem1 0
+}
+/if (${Me.AltAbilityReady[Prolonged Destruction]} && ${Target.PctHPs}<${WhenToBurn} && ${NameList.Find[${Target.CleanName}]} && ${Me.Buff[Twincast].ID}) {
+	/call CastSpell "Prolonged Destruction" alt 0 
+	/call Burn
+} else /if (${Me.AltAbilityReady[Arcane Destruction]} && ${Target.PctHPs}<${WhenToBurn} && ${NameList.Find[${Target.CleanName}]} && !${Me.Song[Prolonged Destruction].ID} && (${Me.Buff[Twincast].ID} || ${Me.Buff[Twincast rk. ii].ID} || ${Me.Buff[Twincast rk. iii].ID})) {	
+	/call CastSpell "Arcane Destruction" alt 0 
+	/call Burn
+}
+/if (${Me.AltAbilityReady[conflagration]}) /call cast "conflagration" alt 0
+/if (${Me.AltAbilityReady[ice comet]}) /call cast "ice comet" alt 0
+/if (${Target.Distance}<250 && !${Me.SpellReady[${SmallNuke}]}) /call CastSpell "Force of Will" alt ${mobid} checkall
+/if (${Target.Distance}<250 && !${Me.SpellReady[${SmallNuke}]}) /call CastSpell "Force of Flame" alt ${mobid} checkall
+/if (${Target.Distance}<250 && !${Me.SpellReady[${SmallNuke}]}) /call CastSpell "Force of Ice" alt ${mobid} checkall
+/if (!${Snared} && ${Me.AltAbilityReady[Atol's Shackles]} && ${Target.Fleeing} && ${Target.PctHPs} < 30 && ${DoSnare}) /call NukeCast "Atol's Shackles" Alt "Snare"
+/return
+
+Sub Burn
+/call CastSpell "${FundamentalName}" alt 0
+/call CastItemClicky "staff of phenomenal power" 
+/if (!${FindItem[${ClickyBP}].Timer}) /call CastItemClicky "${ClickyBP}" 
+/call CastSpell "Fury of KeraFyrm" alt 0
+/if (${Me.AltAbilityReady[Call of Xuzl]} && ${doxuzl}) /call CastSpell "Call Of Xuzl" alt 0
+/if (${Me.AltAbilityReady[Acute Focus of arcanum]}) {
+   	 /call CastSpell "Acute Focus Of Arcanum" alt 0
+} else {
+   	/if (${Me.AltAbilityReady[Focus of arcanum]}) /call CastSpell "Focus of Arcanum" alt 0
+}
+/call CastSpell "Arcane Whisper" alt 0
+/call CastSpell "Silent Casting" alt 0
+/if (${Me.AltAbilityReady[Glyph of Courage]} && ${Raid.Members}) /call CastSpell "Glyph of Courage" alt 0
+/return
+
+	  
+Sub CheckAll
+/varset MacroState CheckAll
+/if (${Died} || ${Me.Dead}) /return
+/doevents 
+/declare i int local
+/if (${Target.Type.Equal["Corpse"]} || !${Target.ID}) {
+	/call interrupt
+}
+/if (${Zone.ShortName.Equal[discordtower_raid]} && ${Spawn[The Mindblight].ID} && ${Spawn[The Mindblight].Distance}<50) /call MoveAwayFromMindBlight
+	 /if (${Zone.ShortName.Equal[crystallos_raid]} && ${Spawn[Tempest of Vyskudra].ID} && ${Spawn[Tempest of Vyskudra].Distance}>30) /call MoveToTornado
+/if (${Target.ID}) {
+   	/for i 1 to ${Target.BuffCount}
+   /if (${MezSpellList.Find[${Target.Buff[${i}]}]}) {
+   	/call interrupt
+   	/clear Target
+   	/return
+  }
+  /next i
+}
+/return
+|=================================================================
+Sub Event_EXP
+	/if (${Target.CurrentHPs}>=0) /return
+	/varset mobid 0
+	/varset Snared 0
+/return
+
+sub event_stunned
+	:stunloop
+	/if (!${Me.Stunned}) /return
+	/delay 1s !${Me.Stunned}
+	/if (${Me.Stunned}) /goto :stunloop
+/return
+
+sub event_cantsee
+	/varset mobid 0
+/return
+
+sub event_range
+	/varset mobid 0
+/return
+
+Sub Event_mezbreak(string line,string name)
+	/if ( ${name.Equal[${Me.Name}]} ) {
+		/echo Mez break detected, getting a new target.
+		/varset mobid 0
+		/if (${Target.ID}) /squelch /target clear
+	}
+/return
+
+Sub Event_Chat(string ChatType,string Sender,string ChatText)
+/call Event_IRC ${ChatType} ${Sender.Right[-2].Left[-1]} "${ChatText}"
+/return
+
+Sub Event_getout
+	/if (${Me.Casting.ID}) /call Interrupt
+	/if (${Target.ID}) /squelch /target clear
+	/if (${Me.AltAbilityReady["43"]} && ${Me.AltAbility["43"]}>0 && !${Me.Casting.ID}) {
+		/call Cast "43" alt 7s
+	} else {
+		/call Cast "Evacuate" gem5 7s
+		/delay 8
+	}
+/return
+Sub SpecialSubs
+/if (${Spawn[npc Zlexak].ID} & ${ZlexakTimer} < 50 && ${ZlexakTimer}) {
+	/moveto loc 1053 -1776
+	/delay 1s
+	/moveto loc 1075 -1861
+	/delay 4s ${ZlexakTimer} > 190
+}
+/if (${DoLeashToon}) /call DoLeashPerson
+/return
+|=================================================================
+Sub Harvestcheck
+/varset MacroState Harvestcheck
+/call Rod
+/if ((${Me.Buff[Twincast rk. iii].ID} || ${Me.Buff[Twincast rk. ii].ID} || ${Me.Buff[Twincast].ID} || ${Me.Song[${GiftOfMana}].ID} || ${Me.Song[Thricewoven Power].ID} )) /return
+/if (${Me.PctMana}<=30 && !${Me.Moving} && ${Me.SpellReady["${HarvestSpell}"]} && !${Me.Casting.ID}) /call CastSpell "${HarvestSpell}" ${harvestgem} 0 	
+/if (${Me.PctMana}<=${harvestpercent} && !${Me.Moving} && ${Me.AltAbilityReady["172"]} && !${Me.Casting.ID}) /call Cast "172" alt 7s
+/return
+
+Sub CheckBuffs
+/varset MacroState CheckSelfBuff
+
+/declare i int local
+/declare Bard bool local FALSE
+/if (${Zone.ID}!=${currentZone}) /call Event_Zone
+/if ( !${NumSelfBuff} || ${Me.Invis} || ${Me.Dead} ) /return
+/call CheckBuffies
+/varset bufftimer 20s
+/call ReturnCurrentGroup
+/if (${Macro.Return.Find[brd]}) /varset Bard True
+	 /if (!${Me.Buff[Kerafyrm's Prismatic familiar].ID} && ${Me.AltAbilityReady[Kerafyrm's prismatic familiar]}) {
+	 	/if (${Me.Buff[${mainfamiliar}].ID}) /notify BuffWindow Buff${Math.Calc[${Me.Buff[${mainfamiliar}].ID}-1].Int} leftmouseup
+	 	/if (${Me.Buff[Improved Familiar].ID}) /notify BuffWindow Buff${Math.Calc[${Me.Buff[Improved Familiar].ID}-1].Int} leftmouseup
+	 	 /if (${Me.Buff[Familiar: Emerald Sokokar].ID}) /notify BuffWindow Buff${Math.Calc[${Me.Buff[Familiar: Emerald Sokokar].ID}-1].Int} leftmouseup
+    /if (${Me.AltAbilityReady[Kerafyrm's prismatic familiar]}) /call cast "Kerafyrm's prismatic familiar" alt 2s
+    /return
+  }
+   /if (${Bard} && !${Me.Buff[Improved Familiar].ID} && !${Me.Buff[Kerafyrm's Prismatic Familiar].ID}) {
+    /if (${Me.Buff[${mainfamiliar}].ID}) /notify BuffWindow Buff${Math.Calc[${Me.Buff[${mainfamiliar}].ID}-1].Int} leftmouseup
+      /if (${Me.Buff[Familiar: Emerald Sokokar].ID}) /notify BuffWindow Buff${Math.Calc[${Me.Buff[Familiar: Emerald Sokokar].ID}-1].Int} leftmouseup
+    /if (${Me.AltAbilityReady[Improved Familiar]}) /call cast "Improved Familiar" alt 2s
+   }
+	/if (!${Me.Buff[${mainfamiliar}].ID} && !${Bard} && !${Me.Buff[Kerafyrm's Prismatic Familiar].ID}) {
+	/if (${Me.Buff[Improved Familiar].ID}) /notify BuffWindow Buff${Math.Calc[${Me.Buff[Improved Familiar].ID}-1].Int} leftmouseup
+   /if (${Me.Buff[${firefamiliar}].ID}) /notify BuffWindow Buff${Math.Calc[${Me.Buff[${firefamiliar}].ID}-1].Int} leftmouseup
+   /if (${Me.Buff[${icefamiliar}].ID}) /notify BuffWindow Buff${Math.Calc[${Me.Buff[${icefamiliar}].ID}-1].Int} leftmouseup
+   /if (${Me.Buff[${magicfamiliar}].ID}) /notify BuffWindow Buff${Math.Calc[${Me.Buff[${magicfamiliar}].ID}-1].Int} leftmouseup
+	/if (${Me.AltAbilityReady[${mainfamiliar}]}) /call cast "${mainfamiliar}" alt 2s		
+	}
+/if (!${Me.Buff[Mana Reverberation].ID} && !${Me.Buff[PyroMancy].ID} && !${Me.Song[Mana Reverberation].ID} && !${Me.Buff[Mana Reverberation rk. ii].ID} && !${Me.Buff[Mana Reverberation rk. iii].ID} && !${MeSong[WildSpark Aura Effect iii].ID}) /call castspell "Pyromancy" alt 0 
+/if (${Me.Height}>2.03 && ${FindItem[${ItemShrink}].ID}) /call CastSpell "${ItemShrink}" item ${Me.ID}
+/return
+
+
+	
+Sub Event_SpellBranch(string line,string nukebranch)
+	/if (${nukebranch.Find[fire]}) {
+		/echo Using My Fire Nukes
+		/varset ClawNuke ${FireClawNuke}
+		/varset SmallNuke ${SmallFireNuke}
+		/varset MediumNuke ${MediumFireNuke}
+		/varset EtherealNuke ${EtherealFireNuke}
+		/varset mainfamiliar ${firefamiliar}
+		/varset InstantNuke ${InstantFireNuke}
+ 		/varset AeNuke ${FireAeNuke}
+ 		/varset RainNuke ${FireRainNuke}
+		/varset BeamNuke ${FireBeamNuke}
+ 		/varset Fury Fury of Ro
+		/call Event_SetVar Change SpellSet Settings Fire
+	}
+	/if (${nukebranch.Find[ice]}) {
+		/echo Using My Ice Nukes
+		/varset ClawNuke ${IceClawNuke}
+		/varset SmallNuke ${SmallIceNuke}
+		/varset MediumNuke ${MediumIceNuke}
+		/varset EtherealNuke ${EtherealIceNuke}
+		/varset mainfamiliar ${icefamiliar}
+		/varset InstantNuke ${InstantIceNuke}
+ 		/varset RainNuke ${IceRainNuke}
+		/varset BeamNuke ${IceBeamNuke}
+		/varset Fury Fury of Eci
+		/call Event_SetVar Change SpellSet Settings Ice
+	}
+	/if (${nukebranch.Find[magic]}) {
+		/echo Using My Magic Nukes
+		/varset ClawNuke ${MagicClawNuke}
+		/varset SmallNuke ${SmallMagicNuke}
+		/varset MediumNuke ${MediumMagicNuke}
+		/varset EtherealNuke ${EtherealMagicNuke}
+		/varset mainfamiliar ${magicfamiliar}
+		/varset InstantNuke ${InstantMagicNuke}
+		/varset Fury Fury of Druzzil
+		/call Event_SetVar Change SpellSet Settings Magic
+	}
+/return
+
+Sub GetTarget
+/doevents
+/varset MacroState getTarget
+/delay 1
+/declare i int local
+/if (${Me.Moving}) /return
+
+/if (${Spawn[${MainAssist}].ID}) {
+    /assist ${MainAssist}
+  } else /if (${Spawn[${SecondAssist}].ID}) {
+    /assist ${SecondAssist}
+  } else /if (${Spawn[${TripleAssist}].ID}) {
+    /assist ${TripleAssist}
+  } 
+/if (${ExcludeList.Find[${Target.DisplayName}]}) /goto :notgood
+/declare tempID int local ${Target.ID}
+/if (${Target.ID}) {
+	/for i 1 to ${Target.BuffCount}
+    /if (${MezSpellList.Find[${Target.Buff[${i}]}]}) /goto :notgood
+	/next i
+}
+/if (${AutoBalance}) {
+	/call ReturnAutoBalance
+	/if (${Macro.Return.Equal[false]}) /goto :notgood
+	}
+/if (${Spawn[${tempID}].Type.Equal[npc]} && ${Spawn[${tempID}].LineOfSight}) {
+	/varset validTarget 1
+	/varset CurrentTarget ${Target.ID}
+   } else {
+   	:notgood
+/varset validTarget 0
+}
+/return
+
+Sub Nuke
+/varset MacroState Nuke
+/if (!${validTarget}) /return
+/if (${DoLeash}) /call Leash
+:wait1
+/doevents
+/if (${Target.Type.Equal["Corpse"]} || !${Target.ID} || ${Target.Type.Equal[PC]} || !${Target.Type.Equal[NPC]}) /multiline ; /squelch /target clear;/return
+/if (${AutoBalance}) {
+	/call ReturnAutoBalance
+	/if (${Macro.Return.Equal[false]}) /goto :wait1
+	}
+/delay 2s ${Me.SpellReady[1]} || ${Me.SpellReady[2]} || ${Me.SpellReady[3]} || ${Me.SpellReady[4]} || ${Me.SpellReady[5]} || ${Me.SpellReady[6]} || ${Me.SpellReady[7]} || ${Me.SpellReady[8]}
+/if (${Me.PctAggro} >= 75 && ${Me.SpellReady[${ConcSpell}]}) { 
+	/echo Casting Concussion to prevent aggro!
+	/if (${Me.AltAbilityReady[Concussive Intuition]}) /call castSpell "Concussive Intuition" alt 0 
+	/call CastSpell "${ConcSpell}" ${myconcgem} 0 Checkall
+	}
+/call Harvestcheck
+/if (${Me.AltAbilityReady[Forceful Rejuvenation]} && ${NameList.Find[${Target.CleanName}]} && !${Me.SpellReady[${HarvestSpell}]} && !${Me.Buff[${TwinCast}].ID} && !${Me.Buff[Twincast].ID} && ${Me.PctMana}<=6) /call castSpell "Forceful Rejuvenation" alt 0 
+/if (${DoAE}) /call NukeCast "${AeNuke}" ${AeNukeGem} "General"
+/if (${DoRain}) /call NukeCast "${RainNuke}" ${RainNukeGem} "General"
+/if (${DoBeam}) /call NukeCast "${BeamNuke}" ${BeamNukeGem} "Beam"
+/if (${Me.Buff[Syllable of Mastery].ID} || ${Me.Buff[Syllable of Mastery II].ID} || ${Me.Buff[Syllable of Mastery III].ID}) /call NukeCast "Ethereal Nuke" 12 "Burn"
+/if (${Me.Buff[Syllable of ice].ID} || ${Me.Buff[Syllable of Ice II].ID} || ${Me.Buff[Syllable of Ice III].ID}) /call NukeCast "${EtherealIceNuke}" 12 "Ethereal2"
+/if (${Me.Buff[Syllable of Fire].ID} || ${Me.Buff[Syllable of Fire II].ID} || ${Me.Buff[Syllable of Fire III].ID}) /call NukeCast "${EtherealFireNuke}" 12 "Weave"
+/if (${Me.Buff[Syllable of Magic].ID} || ${Me.Buff[Syllable of Magic II].ID} || ${Me.Buff[Syllable of Magic III].ID}) /call NukeCast "${EtherealMagicNuke}" 12 "Ethereal2"
+/if ((${Me.Buff[Twincast rk. iii].ID} || ${Me.Buff[Twincast rk. ii].ID} || ${Me.Buff[Twincast].ID} || ${Me.Song[${GiftOfMana}].ID} || ${Me.Song[Thricewoven Power].ID} || (${NameList.Find[${Target.CleanName}]} && ${Target.PctHPs}<${WhenToBurn}) )) /call NukeCast "Ethereal Nuke" 12 "Burn"
+/call NukeCast "${ClawNuke}" ${ClawNukeGem} "General"
+/call NukeCast "${InstantNuke}" ${InstantNukeGem} "General"
+/if (${Stun} && ${Target.Level}<=${StunLevel} && !${StunTimer}) /call NukeCast "${StunNuke}" ${StunNukeGem} "Stun"
+/if (${Me.SpellReady[${Malediction}]}) /call NukeCast "${Malediction}" gem1 "General"
+/if (${Me.SpellReady[${FireVortex}]} && ${DoVortex}) /call NukeCast "${FireVortex}" gem1 "General"
+/if (${Me.SpellReady[${IceVortex}]} && ${DoVortex}) /call NukeCast "${IceVortex}" gem1 "General"
+/if (${Me.SpellReady[${ManaVortex}]} && ${DoVortex}) /call NukeCast "${ManaVortex}" gem1 "General"
+/if (${DoFoci}) /call NukeCast "${FociNuke}" ${FociNukeGem} "General"
+/if (${Target.CurrentHPs}<=${stopnuke}&& !${Me.Moving} && ${Target.CurrentHPs}>${stopnuke2} && ${Target.ID}==${mobid}) /call NukeCast "${MediumNuke}" ${MediumNukeGem} "General"
+/call NukeCast "${SmallNuke}" ${SmallNukeGem} "General"
+/return
+
+Sub NukeCast(nukespell,nukegem, spelltype)
+/doevents
+/varset MacroState NukeCast
+/if (${spelltype.Equal[Beam]}) {
+	/if (${Target.ID}) /face fast
+	/call castSpell "${nukespell}" ${nukegem} ${mobid} Checkall
+	/return
+	}
+/if (${spelltype.Equal["Snare"]}) {
+	/echo Casting ${nukespell}
+	/call cast "${nukespell}" ${nukegem} 0 CheckAll
+	/if ( ${Macro.Return.Equal[CAST_SUCCESS]} || ${Macro.Return.Equal[CAST_IMMUNE]}) /varset Snared 1
+	/return
+	}
+/if (${spelltype.Equal["Weave"]}) {
+	/if (${Me.SpellReady[${EtherealWeave}]}) /call castSpell "${EtherealWeave}" 12 ${mobid} CheckAll
+	/if (${Me.SpellReady[${EtherealFireNuke}]}) /call castSpell "${EtherealFireNuke}" 12 ${mobid} CheckAll	
+	/return
+}
+/if (${spelltype.Equal["Burn"]}) {
+	/if (${Me.SpellReady[${EtherealWeave}]}) /call castSpell "${EtherealWeave}" 12 ${mobid} CheckAll
+	/if (${Me.SpellReady[${EtherealFireNuke}]}) /call castSpell "${EtherealFireNuke}" 12 ${mobid} CheckAll
+	/if (${Me.SpellReady[${EtherealIceNuke}]}) /call castSpell "${EtherealIceNuke}" 12 ${mobid} CheckAll
+	/if (${Me.SpellReady[${EtherealMagicNuke}]}) /call castSpell "${EtherealMagicNuke}" 12 ${mobid} CheckAll
+	/return
+}
+/if (${spelltype.Equal["Ethereal2"]} && ${Me.SpellReady[${nukespell}]}) /call castSpell "${nukespell}" ${nukegem} ${mobid} CheckAll
+/if (!${Me.Gem[${nukespell}]} && (!${spelltype.Equal["Ethereal"]} || !${spelltype.Equal["Ethereal2"]})) /call MemSpell "${nukespell}" ${nukegem}
+/if (!${Me.SpellReady[${nukespell}]}) /return
+/if (${spelltype.Equal["General"]}) /call castSpell "${nukespell}" ${nukegem} ${mobid} CheckAll
+/if (${spelltype.Equal["Foci"]}) {
+	/call castspell "${nukespell}" ${nukegem} 0 CheckAll
+	/call CreateTimer FociNukeTimer
+	/varset FociNukeTimer 10s
+	/return
+	}
+/if (${spelltype.Equal["Stun"]}) {
+	/call castspell "${nukespell}" ${nukegem} 0 CheckAll
+	/call CreateTimer StunTimer
+	/varset StunTimer 18s
+	/return
+	}
+/return
+
+Sub TL(person)
+	/if (${Spawn[${person}].ID} && ${Spawn[${person}].Distance}<=100 && ${Me.AltAbilityReady[Translocate]}) {
+		/squelch /target id ${Spawn[${person}].ID}
+		/delay 1s ${Target.ID}==${Spawn[${person}].ID}
+		/call Cast "Translocate" alt 3s
+	} else {
+		/echo Translocate failed - ${person} too far away,not in Zone, or you don't have the Book.
+	}
+/return
+
+Sub Port(Sender,Place,Fool)
+/if (!${Spawn[${Fool}].ID}) /goto :nogood
+/tell ${Sender} Porting ${Fool} with ${${Place}}
+/target ${Fool}
+/call cast ${${Place}} gem12
+:loop
+/if (${Me.Casting}) /goto :loop
+/tell ${Sender} Porting is Done
+/target clear
+:nogood
+/if (!${Spawn[${Fool}].ID}) /tell ${Sender} That fool ain't even in the Zone who'S the fool now?
+/return
+
+
+Sub ResetVariables
+/varset validTarget 0
+/varset CurrentTarget 0
+/return
+Sub GeneralDeclares
+/echo Setting up Wizard Variables
+/declare iniName		string outer nuke_${Me.Name}.ini
+/declare validTarget	int outer
+/declare following		int outer
+/declare p				int local
+/declare CurrentTarget	int outer 0
+/declare mobid			int outer 0
+/declare ClawNuke		string outer
+/declare SmallNuke		string outer
+/declare MediumNuke		string outer
+/declare EtherealNuke	string outer
+/declare InstantNuke	string outer
+/declare BeamNuke		string outer
+/declare AeNuke			string outer
+/declare RainNuke		string outer
+/declare irctimer		timer outer 0s
+/declare mainfamiliar	string outer
+/declare oldfamiliar	string outer
+/declare bufftimer		timer outer 0
+/declare Snared			int outer 0
+/declare firefamiliar	string outer Ro's Flaming familiar
+/declare icefamiliar	string outer E'ci's icy familiar
+/declare magicfamiliar	string outer Druzzil's Mystical Familiar
+/declare Fury			string outer
+/call DeclareIniVar  DoAlias		 string	GeneralSettings 1 /doalias
+/Call DeclareIniVar MainAssist string Settings somebody /ma
+/Call DeclareIniVar SecondAssist string Settings somebody
+/Call DeclareIniVar TrippleAssist string Settings somebody
+/call DeclareIniVar DoLoot int Settings 0 /doloot
+/call DeclareIniVar doxuzl int Settings 0 /sword 
+/call DeclareIniVar DoRain int Settings 0 /rain
+/call DeclareIniVar DoFoci int Settings 1 /focinuke
+/call DeclareIniVar DoBeam int Settings 0 /beam
+/call DeclareIniVar Stun int Settings 0 /stun
+/call DeclareIniVar mobhealth int Settings 97 /mobhealth
+/call DeclareIniVar WhenToBurn int Settings 50 /burn
+/call DeclareIniVar DoSnare   int Settings 0 /snare
+/call DeclareIniVar DoVortex  int Settings 1 /vortex
+/call DeclareIniVar StunLevel int Settings 85
+/call DeclareIniVar harvestpercent int Settings 70
+/call DeclareIniVar DoAE int Settings 0 /DoAE
+/call DeclareIniVar MezSpellList string Settings "Befuddle|Befuddle rk. ii|Befuddle rk. iii|"
+/call DeclareIniVar MezSpellList string Settings ""
+/call DeclareIniVar EngageDistance int Settings 200
+/call DeclareIniVar EtherealWeave string Spells "Ethereal Weave"
+/call DeclareIniVar SmallFireNuke string Spells "Chaos Incandescence"
+/call DeclareIniVar FireClawNuke string Spells "Claw of the Flamewing"
+/call DeclareIniVar MediumFireNuke string Spells "Gosik's Fire"
+/call DeclareIniVar EtherealFireNuke string Spells "Ethereal Incandescence"
+/call DeclareIniVar InstantFireNuke string Spells "Flashsear"
+/call DeclareIniVar FireAeNuke string Spells "Self-Destruction"
+/call DeclareIniVar FireBeamNuke string Spells "Incinerating Beam"
+/call DeclareIniVar FireRainNuke string Spells "Magmatic Vent"
+/call DeclareIniVar FireVortex string Spells "Fire Vortex"
+/call DeclareIniVar SmallIceNuke string Spells "Lure of the Wastes"
+/call DeclareIniVar IceClawNuke string Spells "Claw of the Icewing"
+/call DeclareIniVar MediumIceNuke string Spells "Hoarfrost Cascade"
+/call DeclareIniVar EtherealIceNuke string Spells "Ethereal Hoarfrost"
+/call DeclareIniVar InstantIceNuke string Spells "Flashfreeze"
+/call DeclareIniVar IceBeamNuke string Spells "Frigid Beam"
+/call DeclareIniVar IceRainNuke string Spells "Tamagrist Torrent"
+/call DeclareIniVar IceVortex string Spells "Ice Vortex"
+/call DeclareIniVar SmallMagicNuke string Spells "Leap of Static Sparks"
+/call DeclareIniVar MagicClawNuke string Spells "Claw of the Ashwing"
+/call DeclareIniVar MediumMagicNuke string Spells "Lightning Squall"
+/call DeclareIniVar EtherealMagicNuke string Spells "Ethereal Salvo"
+/call DeclareIniVar InstantMagicNuke string Spells "Cloudburst Storm"
+/call DeclareIniVar ManaVortex string Spells "Mana Vortex"
+/call DeclareIniVar SmallNukeGem string Spells 1
+/call DeclareIniVar ClawNukeGem string Spells 2
+/call DeclareIniVar MediumNukeGem string Spells 3
+/call DeclareIniVar EtherealNukeGem string Spells 4
+/call DeclareIniVar InstantNukeGem string Spells 5
+/call DeclareIniVar AeNukeGem string Spells 11
+/call DeclareIniVar BeamNukeGem string Spells 11
+/call DeclareIniVar RainNukeGem string Spells 10
+/call DeclareIniVar StunNuke string Spells "Telajara"
+/call DeclareIniVar StunNukeGem string Spells 11
+/call DeclareIniVar FociNuke string Spells "Thricewoven mana"
+/call DeclareIniVar FociNukeGem string Spells 8
+/call DeclareIniVar harvestgem string Spells 7	
+/call DeclareIniVar HarvestSpell string Spells "Bucolic Harvest"
+/call DeclareIniVar TwinCast string Spells "TwinCast"
+/call DeclareIniVar Malediction string Spells "Malediction of Havoc"
+/call DeclareIniVar ConcSpell string Spells "Concussive Salvo"
+/call DeclareIniVar myconcgem string Spells 6
+/call DeclareIniVar FundamentalName string Settings "Fundament: Second spire of arcanum" 
+/call DeclareIniVar SpellSet string Settings "Fire"
+/call DeclareIniVar ClickyBP string ITEMS "Gelid FrostFire Robe"
+/Call DeclareIniVar ItemShrink string Settings ""
+/call DeclareIniVar NumSelfBuff string SelfBuffs 0
+/if (${NumSelfBuff}) { 
+	/for p 1 to ${NumSelfBuff}
+  /call DeclareIniVar selfBuff${p} string SelfBuffs Buff/Item Name here
+  /call DeclareIniVar SelfType${p} string SelfBuffs Gem# for spells/Item for clickies
+  /next p
+ }
+/return
+

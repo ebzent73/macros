@@ -1,0 +1,774 @@
+|
+|  AFKNecro.mac 1.15
+|  AFK necro DPS macro
+|  by: EQBot_Man    10.8.2004
+|  Updated by NyteMyST
+|
+| 12/11/07
+| - Now can exclude mobs that you want the bot to never attack
+| - support for quickbeg
+|
+| 10/30/2007
+| -Added Demand for blood support
+|
+| 10/29/2006
+| - Changed some of the pet code.  Pets will now be suspended upon camp
+|   and unsuspended upon aborting camp.
+| - The MakePet call will now first attempt to unsuspend a pet
+| - added /dmf to toggle tell support for dmf requests
+| - Added a Snare call
+| - Added the missing event_lifetap sub
+| - Removed redundant Subs and created a generic sub which allows paramater
+|   passing and dereferencing.  Added {BroadCast} variable to allow changing of how we
+|   make announcements.  ie: i say, bc, echo -- teabag
+|
+| 10/27/2006 Made a couple of typo fixes and change some of the FD routine. Added a Nukedelay that you can configure so you're not chain nuking and
+| blowing all your mana on one mob.
+|
+| 10/25/2006 changes - Changed how clickies with timers worked. Instead of having seperate subs for the 2 most common clicky with timers. You can now
+| set them in the ini.  This will allow adding future clickies easier instead of editing the actual macro. The macro is going to dump all the clickies
+| first before dotting now since they cost no mana and will get more use of the clicky plus allowing it to reset faster.
+| Don't put any clickies that have no timers on them like elemental pants or it will just keep casting it on every loop.
+|
+| - Added ini Support
+| - Added Irc Support
+| - Added support to use Necro Epic.
+| - Fixed all the string issues that i could find.   
+| - Added support for more dots. Can set what gem they will get memorized if the spell is not memorized already. Can also set the duration of the dot.
+| - Converted everything to use spell_routines
+| - Added support for 5 spell buffs and 5 clicky buffs
+| - added support to Debuff mobs with scent line
+| - Added support to use Gift of mana. You can select the spell you want to always use for Gom but if the spell was already casted earlier is not fading
+|   anytime soon, then it will  search for a different dot to cast so you're not double casting.
+|
+| - Added Support to use Dagger of Death from tacvi
+| - added support to use aa's like swarm of decay on names.
+| - Added option to burn names. If on it will cast 6 Dots total on the mob whether you have them turned on or not.
+| - added support to set how long to stay Fded after you nuke.
+| - added support to set a maximum amount of resists before it decides not to cast the dot for a set time.
+| - Pet is now handled by MQ2Melee. If you don't have mq2melee you won't receive any errors but your pet won't attack.
+| - fixed some subs to not "assume" you have the item.
+| - Got rid of some None Working code.
+| - Added support To check your health after every dot/nuke and if under the percentange that you set in ini, it will cast the defined lifetap spell
+
+|----------------------------------------------------------------------------------------------------------+
+|  slash commands:                                                                                         |
+|----------------------------------------------------------------------------------------------------------+
+| /snare       - Toggles Snare Dot on or off
+| /fire1       - Toggles First Fire Dot on or off
+| /fire2       - Toggles Second fire Dot on or off
+| /poison1     - Toggles First poison dot on or off
+| /poison2     - Toggles Second poison dot on or off
+| /curse1      - Toggles first curse dot on or off
+| /curse2      - Toggles second curse dot on or off
+| /disease     - Toggles Disease dot on or off
+| /legproc     - Toggles using elemental pants on or off
+| /mw          - Toggles using mind wrack spell on or off
+| /dynama      - Toggles using dynamic mana on or off
+| /startnuke   - Turns dots/nukes on
+| /stopnuke    - Turns dots/nukes off
+| /usemoremana - Makes you use more mana if you have dynamic mana option on
+| /lifetap     - Turns on whether you will lifetap when low on health
+| /debuff      - Toggles debuffing with scent line on or off
+| /makepet     - Makes a pet and toggles whether to keep making a pet on or off
+| /switch      - Switches between the two nukes
+| /shrink      - Shrinks you
+| /demand      - Toggles demand for blood on or off
+| /doloot      - Toggle loot on and off
+#include spell_routines.inc
+#include Events.inc
+#include AAPurchase.inc
+#include General.inc
+#include Ninjadvloot.inc
+
+#Turbo 40
+
+#chat tell
+#chat chat
+
+#Event FD         "#*#YOU for#*#points of damage."
+#Event FD         "#*#You will not evade me ${Me}!#*#"
+#Event FD         "You have been summoned!"
+#Event mezbreak   "#*#awakened by ${Me}#*#"
+#Event follow     "[MQ2] follow#*#"
+#Event pethaste   "[MQ2] pethaste"
+#Event makepet    "[MQ2] makepet"
+#Event MAChange   "[MQ2] ma #1#"
+#Event SAChange   "[MQ2] sa #1#"
+#Event TAChange   "[MQ2] ta #1#"
+#Event Switch     "[MQ2] primarynuke"
+#Event pethaste   "Your pet's Rune of Death#*#"
+#Event DMFMeh     "#*#tells you, 'dmf#*#"
+#Event Status     "[MQ2] status"
+#Event tell       "#*#tells you, '#*#"
+#Event Shrink     "[MQ2] shrink"
+#Event StopNuke   "[MQ2] casthealth"
+#Event StartNuke  "[MQ2] stopcasthealth"
+#event Camping    "It will take you about #*# seconds to prepare your camp."
+#Event AbortCamp  "You abandon your preparations to camp."
+#Event OnlyOnePet "You cannot have more than one pet at a time."
+Sub main
+/declare dummy int local
+/call GeneralDeclares
+/call GeneralDeclares2
+/call AAInit
+/call SetupAdvLootVars
+/squelch /alias /shrink /echo shrink
+/squelch /alias /switch /echo primarynuke
+/if (${UseIRC}) /call Irc
+  
+:Mainloop
+/varset MacroState ContinueLoop
+/call SpecialSubs
+/doevents
+/delay 1
+/if (${Me.Dead} || ${Died}) /call wait4rez
+/if (${Followflag} || ${Me.Invis} ) /goto :Mainloop
+/call ClearTimers
+/if ((!${Me.Pet.ID} && ${MakeAPet}) && (!${Defined[CampInProgress]}||(${Defined[CampInProgress]}&&!${CampInProgress})) ) /call makepet
+/if (!${BuffTimer} || !${Me.CombatState.Equal[Combat]} ) /call CheckIniBuffs
+/if (${SpawnCount[npc radius 200 zradius 50]} ) /call DPS
+/if (${DoLoot} && !${Me.Moving} && !${Me.Invis}) /call LootMobs
+/if (${DoLeash}) /call Leash
+/if (!${CheckExpTimer} && ${AutoExpAdjust}) /call AutoAdjustExp
+/call NecroticPulse
+/call MedTime
+/goto :Mainloop
+/return
+|=====================================================
+Sub DPS
+/Call GetTarget
+/if (${validTarget} && ${Target.PctHPs}<=${mobhealth} && ${Target.Type.Equal[NPC]} && ${Target.Distance} < ${engagedistance} && ${Target.ID} && ${Target.LineOfSight}) /goto :killtarget
+/return
+:killtarget
+/echo Got my Target! ${Target.CleanName}  
+:Startcombat
+/if (${Me.Pet.ID} && ${Me.Pet.Following.ID}!= ${CurrentTarget} && ${Target.PctHPs} <= 95) /pet attack
+/doevents
+|/if (!${Balanced} && ${BalanceHP}) /goto :StartCombat
+/call SpecialSubs
+/call MobCheck
+/if (${Target.ID}) /call SpecialNukes
+/if (${Me.TargetOfTarget.ID}==${Me.ID} && !${Me.State.Equal[Feign]}) /call Event_FD
+/if (${DoLeash}) /call Leash
+/if (${Me.Pet.ID}) /call Pet
+/if (${MWBit}) /call MW
+/call Lifetap
+/if (${DoDots}) /call Dot
+/call DotTimers
+/if (${DemandForBlood}) /call demand
+/if (${DoNuke}) /call Nuke
+/if (!${Me.State.Equal[Feign]} && ${dots} > 6) /call cast "improved Death peace" alt
+/if (${validTarget}) /goto :Startcombat
+/return
+
+Sub SpecialNukes
+/varset MacroState SpecialNukes
+/if (!${Defined[ScentTimer]}) /declare ScentTimer timer outer 0
+/if (${Me.Dead}) /return
+/if (${NameList.Find[${Target.CleanName}]}) { 
+	/call CastSpell "Silent Casting" alt 0
+	/if (${Me.AltAbilityReady[Acute Focus of arcanum]} && ${NameList.Find[${Target.CleanName}]}) {
+	/call CastSpell "Acute focus of arcanum" alt 0
+   } else {
+   	/if (${Me.AltAbilityReady[Focus of arcanum]} && ${NameList.Find[${Target.CleanName}]}) /call CastSpell "Focus of arcanum" alt 0
+  }
+	/call CastSpell "rise of bones" alt 0
+	/if (${SpawnCount[corpse radius 100]}) /call CastSpell "army of the dead" alt 0
+	/call CastSpell "swarm of decay" alt 0
+	/call CastSpell "Mercurial Torment" alt 0
+	/if (!${FindItem[${ClickyBP}].Timer}) /call CastItemClicky "${ClickyBP}
+	/call CastSpell "Gift of Deathly Resolve" alt 0
+	/if (${dots} >5 ) /call CastSpell "Blightbringer's tunic of the grave" item 0 
+	/if (${dots} >6 ) /call CastSpell "${FundamentalName}" alt 0
+	/if (${dots} >6 && ${Raid.Members}) /call CastSpell "Glyph of the Cataclysm" alt 0
+	}
+/if (${Target.Distance} <= 100 ) /call CastSpell "Robe of Whispered Death" item 0
+/if (${Target.Distance} <= 100 ) /call CastSpell "Dagger of Death" item 0
+/if (${Target.Distance} <= 100 ) /call CastSpell "DeathWhisper" item 0
+/if (${Me.AltAbilityReady[Scent of Terris]} && !${ScentTimer}) {
+   	/call CastSpell "Scent of Terris" alt 0
+   	/if (${castReturn.Equal[CAST_SUCCESS]}) /varset ScentTimer 11m
+  }
+/if (${Target.Distance} < 70) /call CastSpell "banestrike" alt 0
+/return
+|=====================================================
+Sub GetTarget
+/varset MacroState GetTarget
+/if (${Me.Moving}) /return
+  /if (${Spawn[${MainAssist}].ID}) {
+    /assist ${MainAssist}
+  } else /if (${Spawn[${SecondAssist}].ID}) {
+    /assist ${SecondAssist}
+  } else /if (${Spawn[${TripleAssist}].ID}) {
+    /assist ${TripleAssist}
+  } 
+  /declare tempID int local ${Target.ID}
+/if (${ExcludeList.Find[${Target.DisplayName}]}) /goto :notgood
+/if (${Spawn[${tempID}].Type.Equal[npc]} && ${Spawn[${tempID}].LineOfSight}) {
+	  /varset validTarget 1
+      /varset CurrentTarget ${Target.ID}
+   } else {
+   	:notgood
+      /varset validTarget 0
+   }
+/return
+|=====================================================
+Sub MobCheck
+/if (${Target.Type.Equal["Corpse"]} || !${Target.ID} || ${Target.Type.Equal[pc]}) /multiline ; /squelch /target clear; /varset validTarget 0;
+/if (!${validTarget} || ${ExcludeList.Find[${Target.DisplayName}]}) {
+      /call Event_exp
+}
+/return
+Sub Demand
+/if (${dots} < 4 && !${Me.Buff[Gift of Deathly Resolve].ID}) /return
+/if (!${Me.Song[Chaotic Power].ID} && !${ExcludeList.Find[${Target.DisplayName}]} || ${Me.Buff[Gift of Deathly Resolve].ID}) {
+/if (!${Me.Gem[${DemandSpell}]}) /call MemSpell "${DemandSpell}" ${DemandSpellGem}
+/if (${Me.SpellReady[${DemandSpell}]} && ${Target.ID}) /call cast "${DemandSpell}" ${DemandSpellGem} 0 LifeTap
+}
+/return
+
+Sub Dot
+/varset MacroState Dot
+/varset OutOfDots 1
+/declare i int local
+/if (${Raid.Members}) /goto :raid
+/for i 1 to ${NumGroupDots}
+/if (!${DotTimer${i}${CurrentTarget}}) /call CastDOT "${GroupDot${i}}" gem${GroupDotGem${i}} DotTimer${i}${CurrentTarget}
+/next i
+/goto :end
+:raid
+/for i 1 to ${NumRaidDots}
+/if (!${DotTimer${i}${CurrentTarget}}) /call CastDOT "${RaidDot${i}}" gem${RaidDotGem${i}} DotTimer${i}${CurrentTarget}
+/next i
+:end
+/return
+
+Sub Nuke
+   /varset MacroState Nuke
+   /declare tempID int local ${Target.ID}
+   /doevents
+   /if (${ExcludeList.Find[${Target.DisplayName}]} || !${DoNuke} || ${Me.Moving} || ${Spawn[${CurrentTarget}].Type.Equal["corpse"]} || !${Target.ID} ) /return
+   /if (${nuketimer} && ${DoDots}) /return   
+   | Do we still want to cast on the current Target? Yes? Ok then continue
+   /if (${Target.Type.Equal[npc]} && ${Target.Distance}<190 && ${Target.LineOfSight}) {
+      /if (${FaceBit}==1) {
+         /face fast nolook
+         /look 0
+      }
+      /if (!${Me.Gem[${PrimaryNuke}]}) /call MemSpell "${PrimaryNuke}" ${PrimaryNukeGem}
+      /if (!${Me.Gem[${SecondaryNuke}]}) /call MemSpell "${SecondaryNuke}" ${SecondaryNukeGem}
+      /if (${Me.SpellReady[${PrimaryNuke}]}) { 
+         /call Cast "${PrimaryNuke}" gem${PrimaryNukeGem}
+		 /echo casting ${PrimaryNuke}
+         /varset nuketimer ${NukeDelay}S
+         /return
+      }
+          /if (${Me.SpellReady[${SecondaryNuke}]}) { 
+         /call Cast "${SecondaryNuke}" gem${SecondaryNukeGem}
+		 /echo Casting ${SecondaryNuke}
+         /varset nuketimer ${NukeDelay}S
+      }
+   }
+/return
+
+Sub Pet
+/if (!${PetMoveTimer} && ${Me.Pet.ID} && ${Me.AltAbilityReady[Companion's Relocation]}) {
+/if (${Me.Pet.Following.ID} && (${Math.Calc[${Target.Heading.DegreesCCW}-${Me.Pet.Heading.DegreesCCW}]}>90 || ${Math.Calc[${Target.Heading.DegreesCCW}-${Me.Pet.Heading.DegreesCCW}]}<-90 )) /multiline ; /face fast heading ${Math.Calc[${Target.Heading.DegreesCCW}-180]} ; /call cast "companion's relocation" alt 0
+      /varset PetMoveTimer 30s
+}
+/return
+|=====================================================
+Sub oom
+   /varset MacroState OOM
+   /delay 1
+   /if (${Me.PctMana}<95 && !${Me.Moving} && ${Me.CombatState.Equal[COOLDOWN]}) {
+      /if (${Me.State.Equal[feign]}) /stand
+      /if (!${Me.Sitting}) /sit   
+   }
+   /if ((!${FindItem[${Rod}].Timer})&&(${Me.PctMana}<=80)&&(${Me.PctHPs}>=80)) /call CastItemClicky "{Rod}" 
+/return
+|=====================================================
+Sub Event_mezbreak
+   /echo You broke a mez, shame on you.
+   /target clear
+/return
+|=====================================================
+|If you  have windows up somtimes it can fuck up the macro
+Sub Event_distract
+   /keypress esc
+   /keypress esc
+   /keypress esc
+   /keypress esc
+   /keypress esc
+   /keypress esc
+   /stand
+/return
+|=====================================================
+|This Subroutine is called when the ${CurrentMob} is dies
+Sub Event_exp
+   /multiline ; /pet follow; /pet back off; /pet hold; /varset validTarget 0
+   | /if ( ${SitBit} && ${Me.Standing} && !${NearestSpawn[radius 100 zradius 0]}) /sit
+   /return
+|=====================================================
+|The upcoming subroutines are called via an echo to turn on/off the options for the macro
+Sub Event_MAChange(string line,Name)
+   /echo ============================================
+   /echo Changing MA to ${Name}
+   /echo ============================================
+   /varset MainAssist ${Name}
+   /ini "${iniName}" Settings MainAssist ${Name}
+/return
+|======================================
+Sub Event_SAChange(string line,Name)
+   /echo ============================================
+   /echo Changing SA to ${Name}
+   /echo ============================================
+   /varset SecondAssist ${Name}
+   /ini "${iniName}" Settings SecondAssist ${Name}
+/return
+|======================================
+Sub Event_TAChange(string line,Name)
+   /echo ============================================
+   /echo Changing TA to ${Name}
+   /echo ============================================
+   /varset TripleAssist ${Name}
+   /ini "${iniName}" Settings TripleAssist ${Name}
+/return
+|====================================================
+Sub Event_Switch
+   /if (${CurrentNuke.Equal[${PrimaryNuke}]}) {
+      /varset CurrentNuke ${SecondaryNuke}
+      /echo |===================================
+      /echo You will now cast ${SecondaryNuke} as your nuke
+      /echo |===================================
+   } Else /if (${CurrentNuke.Equal[${SecondaryNuke}]}) {
+      /varset CurrentNuke ${PrimaryNuke}
+      /echo |===================================
+      /echo You will now cast ${PrimaryNuke} as your nuke
+      /echo |===================================
+   }
+/return
+|=====================================================
+Sub Event_StartNuke
+   /if (${DynManaBit}==0) /echo Dynmana
+   /varset CastHealth 85
+   /varset StopCastHealth 0
+   /echo You will start nuking now
+/return
+|=====================================================
+Sub MW
+/varset MacroState MW
+/declare tempID int local ${Target.ID}
+/doevents
+/if (${ExcludeList.Find[${Target.DisplayName}]} ||  ${Me.Moving} || ${Spawn[${CurrentTarget}].Type.Equal["corpse"]} ) /return
+/if (!${Me.Gem[${MindWrackSpell}]}) /call MemSpell "${MindWrackSpell}" ${MindWrackSpellGem}
+/if (${Target.Type.Equal[npc]} && ${Target.Distance}<190 && ${Target.LineOfSight} && !${Me.Buff[${MindWrackSpell}].ID} && ${Me.SpellReady[${MindWrackSpell}]})  /call Cast "${MindWrackSpell}" gem${MindWrackSpellGem} 3s CheckAll
+/return
+|=====================================================
+Sub LifeTap
+/varset MacroState Lifetap
+/doevents
+/if (${ExcludeList.Find[${Target.DisplayName}]} || ${Me.Moving} || ${Spawn[${CurrentTarget}].Type.Equal["corpse"]}) /return
+/if (${Me.PctHPs}<20 && ${Me.AltAbilityReady[Dying Grasp]}) /call cast "Dying Grasp" alt 0
+/if (${Me.PctHPs}<${LifeTapHealth} ) {
+      /if (${Me.State.Equal[feign]}) /stand
+      /call Interrupt
+      /call CastSpell "${LifeTapSpell}" ${LifeTapSpellGem} 0
+   }
+/return
+|=====================================================
+| This is going to cast any clickies you setup that have a recast timer on them.
+Sub DotClickyTimers
+   /varset MacroState DotClickyTimers
+   /declare tempID int local ${Target.ID}
+   /declare i int local
+   /doevents
+   /delay 1
+   /if (${ExcludeList.Find[${Target.DisplayName}]} || ${Me.Moving} || ${Spawn[${CurrentTarget}].Type.Equal["corpse"]} || ${Target.Distance} >100 || !${Target.ID}) /return
+   /for i 1 to 5
+      /if (!${FindItem[=${DotClickyTimer${i}}].Timer}) {
+         /Call CastItemClicky "${DotClickyTimer${i}}" 
+         /return
+      }
+   /next i
+/return
+|=====================================================
+|The next bunch of subroutines call other subroutines most from the include files when the proper /echo is made, like /echo pethaste
+Sub Event_pethaste
+   /call PetHaste
+/return
+|=====================================================
+Sub Event_makepet
+   /call MakePet
+/return
+|=====================================================
+Sub Event_DMFMeh
+   /if (${CastDMF}) /call DMFSomeone
+/return
+|=====================================================
+|Shrinks myself using my shrink wand must have MQ2Exchange
+Sub Event_Shrink
+   /call Shrink
+/return
+|=====================================================
+|This is called whenever you type /echo status..a very handy subroutine to keep track of what options you have on/off
+Sub Event_Status
+   /echo Status Report:
+   /echo ~~~~~~   AFKNecro.mac   ~~~~~~~~~~~~
+   /echo /macro AFKNecro <Tank Name> <Cast Health> <Stop Casting Health>
+   /echo You will cast "${CurrentNuke}" between ${CastHealth} and ${StopCastHealth}
+   /echo Primary assist is set to: "${MainAssist}"
+   /echo Secondary Assist is set to: "${SecondAssist}"
+   /echo Third Assist is set to: "${TripleAssist}"
+   /echo Casting of ${CurseSpell1} is: ${Bool[${CurseDot1}]}
+   /echo Casting of ${CurseSpell2} is: ${Bool[${CurseDot2}]}
+   /echo Casting of ${CurseSpell3} is: ${Bool[${CurseDot3}]}
+   /echo Casting of ${FireSpell1} is: ${Bool[${FireDot1}]}
+   /echo Casting of ${FireSpell2} is: ${Bool[${FireDot2}]}
+   /echo Casting of ${FireSpell3} is: ${Bool[${FireDot3}]}
+   /echo Casting of ${PoisonSpell1} is: ${Bool[${PoisonDot1}]}
+   /echo Casting of ${PoisonSpell2} is: ${Bool[${PoisonDot2}]}
+   /echo Casting of ${PoisonSpell3} is: ${Bool[${PoisonDot3}]}
+   /echo Casting of ${DiseaseSpell} is: ${Bool[${DiseaseDot}]}
+   /echo Casting of ${MindWrackSpell} is: ${Bool[${MWBit}]}
+   /echo Procing Of Elemental Pants is: ${Bool[${LegProc}]}
+   /echo Facing mob on casting is: ${Bool[${FaceBit}]}
+   /echo Sitting Down is: ${Bool[${SitBit}]}
+   /echo Casting Death Peace when you get hit is: ${Bool[${FDBit}]}
+   /if (${FireDot1} && ${FireDot2} && ${PoisonDot1} && ${PoisonDot2} && ${CurseDot1} && ${CurseDot2} && ${DiseaseDot}) /popup You have all Dots turned on, Good luck.
+   /echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/return
+|=====================================================
+Sub Event_OnlyOnePet
+   /if (!${Defined[PetAlreadySuspended]}) /declare PetAlreadySuspended int outer
+   /varset PetAlreadySuspended 1
+   /echo Only one Pet can Exist, Setting Variable
+/return
+|=====================================================
+Sub CastDOT(ourSpell,ourGem,ourTimer,ourDuration,ourResistMax)
+/varset OutOfDots 0
+/varset MacroState CastDot
+/declare tempID int local ${Target.ID}
+/if (${ExcludeList.Find[${Target.DisplayName}]} || ${Me.Moving} || !${tempID} || !${validTarget} || ${Spawn[${CurrentTarget}].Type.Equal["corpse"]}) /return
+/doevents
+/if ( ${${ourTimer}} > 50 ) /return
+/call CastSpell "${ourSpell}" ${ourGem} ${CurrentTarget} CheckAll
+/if (${castReturn.Equal[CAST_SUCCESS]}) {
+	/if (!${Defined[${ourTimer}]} ) /declare ${ourTimer} timer outer 
+	/varset ${ourTimer} ${Math.Calc[${Spell[${ourSpell}].Duration.TotalSeconds}*${DetrimentalDurationFocus}/100+${Spell[${ourSpell}].Duration.TotalSeconds}]}S 
+   } 
+/if (${castReturn.Equal[CAST_IMMUNE]} || ${castReturn.Equal[CAST_NOHOLD]} ) {
+	/if (${castReturn.Equal[CAST_NOHOLD]}) /echo ${ourSpell} didn't take hold.
+	/if (!${Defined[${ourTimer}]} ) /declare ${ourTimer} timer outer 
+	/varset ${ourTimer} 9000
+   }  
+/return 
+|=====================================================
+Sub Event_FD
+   /varset MacroState Event FD
+   /doevents Dead
+   /if  (${Me.TargetOfTarget.ID}==${Me.ID}) /goto :top_of_FD
+   /if ( ${Me.PctHPs}>=50 ) /return
+   /docommand ${BroadCast} My ass is taking a beat down. Trying to FD!
+   :top_of_FD
+   /if (${Me.Dead}) /return
+   /if (!${Me.State.Equal[Feign]}) {
+      /if (${Me.AltAbilityReady[improved Death Peace]}) {
+         /call Interrupt
+         /stand
+         /call Cast "improved Death Peace" alt 5s
+         /if (${Me.State.Equal[Feign]}) /goto :fded
+         /goto :top_of_FD
+         /return
+         :fded
+         /if (${Me.Dead}) /return
+         /docommand ${BroadCast} I successfully FDed my way through a beating. Staying down for 10 seconds or when mob dies.
+         /doevents flush FD
+         /delay 10s !${Target.ID} || ${Target.Type.Equal[Corpse]}
+         /if (${Me.TargetOfTarget.ID}==${Me.ID}) /goto :fded
+         /stand
+      }
+   }
+   /doevents flush FD
+   /doevents dead
+/return
+|=====================================================
+Sub Demiplane
+/varset MacroState Demiplane
+   :bats
+   /if (${Me.Class.Name.Equal[necro]} && !${FindItem[blood-stained mirror].Timer} && ${Target.CleanName.Equal[Karaghli of the obsidian claw]} || ${Target.CleanName.Equal[r`kazzi of the obsidian claw]} || ${Target.CleanName.Equal[xiamocha of the obsidian claw]} || ${Target.CleanName.Equal[yurrexxith of the obsidian claw]}) /call CastItemClicky "blood-stained mirror" 
+   /if (${Spawn[npc "a voracious bat"].ID}) {
+      /tar npc A voracious bat
+      /if (${Me.SpellReady[greater immobilize]}) /call cast "greater immobilize" gem10 3s
+      /goto :bats
+   }
+/return
+|=====================================================
+Sub CheckAll
+   /varset MacroState Checkall
+   /if (${Me.Dead}) /return
+   /if (!${Me.Casting.ID}) /return
+   /if (${Me.Casting.ID} && ${Target.Type.Equal[Corpse]} || !${Target.ID}) /call Interrupt
+   /if (${Zone.ShortName.Equal[discordtower_raid]} && ${Spawn[The Mindblight].ID} && ${Spawn[The Mindblight].Distance}<50) /call MoveAwayFromMindBlight
+   /if (${Zone.ShortName.Equal[crystallos_raid]} && ${Spawn[Tempest of Vyskudra].ID} && ${Spawn[Tempest of Vyskudra].Distance}>30) /call MoveToTornado
+   /if (${Target.Type.Equal[PC]}) /call Interrupt
+   /if  (${Me.TargetOfTarget.ID}==${Me.ID}) {
+      /call Interrupt
+      /if (${Me.AltAbilityReady[improved Death Peace]}) /call cast "improved death peace" alt 1s
+   }
+/doevents
+/return
+|=====================================================
+Sub CheckIniBuffs
+/varset MacroState CheckIniBuffs
+/if (${Zone.ID}!=${currentZone}) /call Event_Zone
+/if (${Me.Invis}) /return
+/call CheckBuffies  
+/if ( ${Me.Pet.ID} && !${Me.PetBuff[${petSpellHaste}]} || ${Me.Pet.ID} && !${Me.PetBuff[Aegis of kildrukaun]}) /call PetHaste
+/if (!${Me.Buff[Gift of the grave].ID} && ${Me.AltAbilityReady[Gift of the Grave]}) /call cast "gift of the grave" alt 0
+/if (!${Me.Buff[Cascade of Decay].ID} && ${Me.AltAbilityReady[Cascade of decay]}) /call CastSpell "Cascade of Decay" alt 0
+/if (${Me.Height}>2.03 && ${FindItem[${ItemShrink}].ID}) /call CastSpell "${ItemShrink}" item ${Me.ID}
+/varset BuffTimer 15s
+/return
+|=====================================================
+Sub ClearTimers
+/varset MacroState ClearTimers
+/if (${Defined[snareTimer${CurrentTarget}]}) /deletevar snareTimer${CurrentTarget}
+/if (${Defined[ScentTimer]}) /deletevar ScentTimer
+/declare i int local
+/if (!${Raid.Members}) {
+/for i 1 to ${NumGroupDots}
+/if (${Defined[DotTimer${i}${CurrentTarget}]}) /deletevar DotTimer${i}${CurrentTarget}
+/next i
+}
+/if (${Raid.Members}) {
+/for i 1 to ${NumRaidDots}
+/if (${Defined[DotTimer${i}${CurrentTarget}]}) /deletevar DotTimer${i}${CurrentTarget}
+/next i
+}
+/return
+|=====================================================
+Sub PetHaste
+   /varset MacroState Pethaste
+   /if (${Me.Pet.ID} && !${Me.PetBuff[Aegis of Kildrukaun]} && ${Me.AltAbilityReady[Aegis of kildrukaun]}) /call cast "Aegis of Kildrukaun" alt 0
+   /if (! ${Me.Pet.ID}||${Me.PetBuff[${petSpellHaste}]}) /return
+   /if (!${Me.Gem[${petSpellHaste}]}) /call MemSpell "${petSpellHaste}" ${petSpellGem}
+   /if (${Me.SpellReady[${petSpellHaste}]}) /call Cast "${petSpellHaste}" ${petSpellHasteGem}
+/return
+|=====================================================
+Sub shrink
+   /echo Shrinking self
+    /if (${FindItem[=${ShrinkItem}].ID}) {
+		/call CastItemClicky "${ShrinkItem}" 
+      :Loop
+      /if (${Me.Casting.ID}) /goto :Loop
+   }
+/return
+|=====================================================
+Sub MakePet
+   /declare olditem string local
+   :Loop
+   /if (${Defined[CampInProgress]} && ${CampInProgress}) /return
+   /if (${Me.Casting.ID}) /goto :Loop
+   /if (${Me.Pet.ID}) {
+      /echo You already have a pet
+      /return
+   }
+   /if (! ${Me.Pet.ID} && ${FindItem[=Bone Chips].ID} ) {
+      /if (!${Me.Gem[${petSpell}]}) /call MemSpell "${petSpell}" ${petSpellGem}
+      /if (${Me.SpellReady[${petSpell}]})  /call Cast "${petSpell}" ${petSpellGem}
+   }
+   /if (${Me.Pet.ID}) {
+      :Loop0
+      /if (${Me.Casting.ID}) /goto :Loop0
+      /keypress esc
+      /pet follow
+      /pet back off
+      /pet hold
+      :Loop1
+      /if (${Me.Casting.ID}) /goto :Loop1
+       /if (${FindItem[=${PetShrinkItem}].ID}) {
+					 /call CastItemClicky "${PetShrinkItem}" 
+					 /delay 1
+					 /call CastItemClicky "${PetShrinkItem}" 
+					}
+   }
+/return
+|=====================================================
+Sub DMFSomeone
+   /echo DMFing Someone
+   /declare PersonToDMF string local
+   /varset PersonToDMF ${MacroQuest.LastTell}
+   :ReTarget
+   :WaitForFinishOfCast
+   /target ${PersonToDMF}
+   /delay 2
+   /if (${Target.Type.Equal["NPC"]}) /goto :ReTarget
+   /if (${Target.Distance}>190) {
+      /delay 2s
+      /tell ${PersonToDMF} OOR
+      /return
+   }
+   /call Cast "Dead Man Floating" alt 0
+   /delay 4s
+   /tell ${PersonToDMF} inc DMF
+   /doevents flush
+/return
+|=====================================================
+Sub Irc
+   /Call DeclareIniVar IRCServer string Settings ""
+   /Call DeclareIniVar IRCChannel string Settings ""
+   /if (!${Irc}) {
+      /i quit
+      /iconnect ${IRCServer} ${IRCCchannel} ${Me}
+      /timed 30 /i join #${IRCChannel}
+      /varset irctimer 30s
+   }
+/return
+|=====================================================
+Sub NecroticPulse
+/if (${Spawn[${MainAssist}].ID} && !${NecroPulseTimer} && ${Spawn[${MainAssist}].Distance}<=${Spell[${NecroticPulseSpell}].MyRange} ) {
+	/call CastSpell "${NecroticPulseSpell}" ${BuffGem} ${Spawn[${MainAssist}].ID}
+	/if (${castReturn.Equal[CAST_OUTOFRANGE]}) /varset NecroPulseTimer 200
+	/if (${castReturn.Equal[CAST_SUCCESS]}) /varset NecroPulseTimer 300s
+}
+/return
+|=====================================================
+Sub DotTimers
+/varset MacroState DotTimers
+/varset dots 0
+/declare i int local
+/if (!${Raid.Members}) {
+/for i 1 to ${NumGroupDots}
+      /if (${DotTimer${i}${Target.ID}} > 50) /varcalc dots ${dots}+1
+/next i
+}
+/if (${Raid.Members}) {
+/for i 1 to ${NumRaidDots}
+      /if (${DotTimer${i}${Target.ID}} > 50) /varcalc dots ${dots}+1
+/next i
+}
+/return
+
+Sub ResetVariables
+/varset validTarget 0
+
+/return
+|=====================================================
+Sub SpecialSubs
+   /varset MacroState SpecialSubs
+   /if (${Zone.ShortName.Equal[discordtower_raid]} && ${Spawn[The Mindblight].ID} && ${Spawn[The Mindblight].Distance}<50) /call MoveAwayFromMindBlight
+   /if (${Zone.ShortName.Equal[crystallos_raid]} && ${Spawn[Tempest of Vyskudra].ID} && ${Spawn[Tempest of Vyskudra].Distance}>30) /call MoveToTornado
+   /if (${Me.AltAbilityReady[Death Bloom]} && ${Me.PctMana}<=30 && ${Me.CurrentHPs} >18000) /call cast "death bloom" alt 0
+   /if (${Me.Song[Death Bloom].ID} && ${Me.CurrentHPs} <12000) /notify BuffWindow Buff${Math.Calc[${Me.Song[Death bloom].ID}-1].Int} leftmouseup
+   /if (${Zone.ID}==351) /call demiplane
+   |/if (${Me.AltAbilityReady[Reluctant Benevolence]} && ) /call cast "Reluctant Benevolence" alt 0
+/if (${Spawn[npc Zlexak].ID} & ${ZlexakTimer} < 50 && ${ZlexakTimer}) {
+	/moveto loc 1053 -1776
+	/delay 1s
+	/moveto loc 1075 -1861
+	/delay 4s ${ZlexakTimer} > 190
+}
+/if (${DoLeashToon}) /call DoLeashPerson
+/return
+|=====================================================
+Sub Event_Balance(Person,ChatText)
+/varset BalanceHPCheck ${ChatText}
+/echo BalanceHPCheck set to ${ChatText}
+/return
+|=====================================================
+Sub GeneralDeclares
+   /Echo Setting up all the Necro Variables.
+   /declare iniName string outer AfkNecro${Me.Name}.ini
+   /declare validTarget int outer 0
+   /declare CurrentTarget int outer
+   /declare nuketimer timer outer
+   /declare BuffTimer timer outer 0s
+   /declare irctimer timer outer 0s
+   /declare PetMoveTimer timer outer
+   /declare following int outer 0
+   /declare dots int outer 0
+   /declare NecroPulseTimer timer outer 0
+   /declare p int local
+   /declare OutOfDots int outer 0
+   /call DeclareIniVar  DoAlias		 string	GeneralSettings 1 /doalias
+   /Call DeclareIniVar BroadCast string Settings "/i say"
+   /call DeclareIniVar DoLoot int settings 0 /doloot
+   /Call DeclareIniVar MainAssist string Settings somebody /ma
+   /Call DeclareIniVar SecondAssist string Settings somebody /sa
+   /Call DeclareIniVar TrippleAssist string Settings somebody
+   /Call DeclareIniVar EventsMaster string Settings somebody
+   /Call DeclareIniVar MasterList string Settings ""
+   /call DeclareIniVar ShrinkItem string Settings
+   /call DeclareIniVar PetShrinkItem string Settings
+   /call DeclareIniVar Rod string Settings "rod of prime transvergence"
+   /call DeclareIniVar DetrimentalDurationFocus int Settings 26
+   /call DeclareIniVar BuffGem string Spells "gem12"
+   /call DeclareIniVar NumSelfBuff string BUFFS 0
+   /call DeclareIniVar NumGroupDots string GroupDots 1
+   /call DeclareIniVar NumRaidDots string RaidDots 1
+   /Call DeclareIniVar SnareDot int Settings 1 /snare
+   /Call DeclareIniVar CastDMF int Settings 1 /dmf
+   /Call DeclareIniVar BurnName int Settings 1 /burnname
+   /Call DeclareIniVar FaceBit int Settings 0 /facebot
+   /call declareinivar DoNuke int Settings 0 /donuke
+   /Call DeclareIniVar MWBit int Settings 0 /mw
+   /Call DeclareIniVar DoDots int Settings 1 /dot
+   /call DeclareIniVar engagedistance int Settings 200 /mobradius
+   /call DeclareIniVar mobhealth int Settings 97 /mobhealth
+   /Call DeclareIniVar StopCastHealth int Settings 10 /Stopnuke
+   /Call DeclareIniVar FDBit int Settings 1 /fdbit
+   /Call DeclareIniVar ResistMax int settings 2
+   /Call DeclareIniVar LifeTap int settings 1 /lifetap
+   /call DeclareIniVar DemandForBlood int settings 1 /demand
+   /call DeclareIniVar NecroticPulseSpell string Spells "Necrotic Pustules"
+   /call DeclareIniVar DemandSpell string Spells "Demand for blood rk. ii"
+   /call DeclareIniVar DemandSpellGem string Settings 8
+   /Call DeclareIniVar SnareSpell string Spells "Desecrating Darkness"
+   /Call DeclareIniVar SnareDuration string Settings 1200
+   /Call DeclareIniVar SnareSpellGem string Settings 8
+   /Call DeclareIniVar MindWrackSpell string Spells "Mind Flay"
+   /Call DeclareIniVar MindWrackSpellGem string Settings 8
+   /Call DeclareIniVar LifeTapSpell string Spells "Drain Life" 
+   /Call DeclareIniVar LifeTapSpellGem string Settings 1
+   /Call DeclareIniVar LifeTapHealth string Settings 80
+   /Call DeclareIniVar ScentDebuffSpell string Spells "Scent of Twilight"
+   /Call DeclareIniVar ScentDebuffSpellGem string Settings 9
+   /Call DeclareIniVar MakeAPet int Settings 0 /makepet
+   /Call DeclareIniVar SecondaryNuke string Settings "Venin"
+   /Call DeclareIniVar PrimaryNuke string Settings "Demand for Blood Rk. II"
+   /Call DeclareIniVar NukeDelay int Settings 10
+   /Call DeclareIniVar PrimaryNukeGem string Settings 8
+   /Call DeclareIniVar SecondaryNukeGem string Settings 8
+   /Call DeclareIniVar HowLongToWaitBetweenFDAfteRspell int Settings 5
+   /Call DeclareIniVar petSpell string Spells "Putrescent Servant"
+   /call DeclareIniVar petSpellGem string Settings 10
+   /Call DeclareIniVar petSpellHaste string Spells "Sigil of the Unnatural"
+   /call DeclareIniVar petSpellHasteGem string Settings 10
+   /call DeclareIniVar FundamentalName string Settings "Fundament: Third spire of Necromancy"
+   /Call DeclareIniVar ItemShrink string Settings ""
+   /Call DeclareIniVar DotClickyTimer1 string DotClickiesWithTimers "Dagger of Death"
+   /Call DeclareIniVar DotClickyTimer2 string DotClickiesWithTimers "DeathWhisper"
+   /Call DeclareIniVar DotClickyTimer3 string DotClickiesWithTimers " "
+   /Call DeclareIniVar DotClickyTimer4 string DotClickiesWithTimers " "
+   /if (${NumSelfBuff}) {
+	/for p 1 to ${NumSelfBuff}
+  /call DeclareIniVar selfBuff${p} string BUFFS ChangeMe
+  /call DeclareIniVar SelfType${p} string BUFFS ChangeMe
+  /next p
+ }
+/if (${NumGroupDots}) {
+	/for p 1 to ${NumGroupDots}
+    /call DeclareIniVar GroupDot${p} string GroupDots ChangeMe
+    /call DeclareIniVar GroupDotGem${p} string GroupDots ChangeMe
+  /next p
+ }
+ /if (${NumRaidDots}) {
+	/for p 1 to ${NumRaidDots}
+    /call DeclareIniVar RaidDot${p} string RaidDots ChangeMe
+    /call DeclareIniVar RaidDotGem${p} string RaidDots ChangeMe
+  /next p
+ }
+ /call DeclareIniVar ClickyBP string ITEMS "Grandiose Robe of the Exhumer"
+/return
