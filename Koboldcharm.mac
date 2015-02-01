@@ -198,7 +198,7 @@ Sub Arias2
 /tar Arias
 /delay 1s
 /moveto loc -130, -24
-/delay 7s
+/delay 30s ${MoveTo.Stopped}
 /face fast
 /hail
 /delay 1s

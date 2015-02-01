@@ -84,7 +84,7 @@ Sub Event_ALCantLoot
 
 Sub LootMobs
 
-   /if (!${LootMobs} || ${SpawnCount[npc radius ${MobsTooClose} zradius 100 noalert ${AlertList}]} || !${SpawnCount[corpse radius ${CorpseRadius} zradius 100 noalert 25]} || ${Me.Combat} || (${Cursor.NoDrop} && !${Me.FreeInventory})) /return
+   /if (!${LootMobs} || ${SpawnCount[npc radius ${MobsTooClose} zradius 10 noalert ${AlertList}]} || !${SpawnCount[corpse radius ${CorpseRadius} zradius 100 noalert 25]} || ${Me.Combat} || (${Cursor.NoDrop} && !${Me.FreeInventory})) /return
    /if (!${CorpseRotTimer}) /squelch /alert clear 25
    /declare mhjtfi int local
    /declare CorpseList string local |

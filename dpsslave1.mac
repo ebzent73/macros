@@ -46,6 +46,7 @@ Sub Main
 /declare Exper2 float outer
 /declare Expstart float outer
 /declare Ready2BS int outer 0
+/declare HolyAuraFlag int outer 0
 /varset PrctExp 0
 /varset Exper ${Me.PctExp}
 /varset Exper1 0
@@ -57,7 +58,8 @@ Sub Main
    /tar ${Group.MainTank}
    /call buff
    :MainLoop
-      /call FollowMA
+    	/if (${Window[AlertWnd]}) /notify AlertWnd ALW_Close_Button leftmouseup
+    	/call FollowMA
 
 |      :healloop
 |		/if (${Select[${Me.Class.ShortName},DRU,CLR,SHM]} && !${Me.Moving} && !${Me.Invis} && ${Group}) {
@@ -173,7 +175,6 @@ Sub Buff
 			/if (!${Defined[bufftimer_${Me.Name}_${i}]} || ${bufftimer_${Me.Name}_${i}}<10) {
 				/squelch /tar ${Group.MainTank}
 				/casting "${Me.Gem[${i}]}" gem${i} -maxtries|3
-				/delay 2s
 				/delay 10s !${Me.Casting.ID}
 				/if (${Cast.Result.Equal["CAST_SUCCESS"]}) {
 					/if (!${Defined[bufftimer_${Me.Name}_${i}]}) /declare bufftimer_${Me.Name}_${i} timer outer
@@ -187,22 +188,40 @@ Sub Buff
 				/return
 			}
 	    }
-		/if (${Me.CurrentMana}>${Me.Gem[${i}].Mana} && ${Me.Gem[${i}].SpellType.Equal[beneficial]} && ${Me.Gem[${i}].Duration.TotalSeconds}>300 && ${Me.Gem[${i}].TargetType.Equal[self]}) {
+		/if ((${Me.CurrentMana}>${Me.Gem[${i}].Mana} && ${Me.Gem[${i}].SpellType.Equal[beneficial]} && ${Me.Gem[${i}].Duration.TotalSeconds}>300 && ${Me.Gem[${i}].TargetType.Equal[self]})||(${Me.Gem[${i}].Name.Equal[holy aura]}&&${HolyAuraFlag}<1)) {
 			/if (!${Defined[bufftimer_${Me.Name}_${i}]} || ${bufftimer_${Me.Name}_${i}}<10) {
 				/casting "${Me.Gem[${i}]}" gem${i} -maxtries|3
 				/delay 2s
 				/delay 10s !${Me.Casting.ID}
-				/if (${Cast.Result.Equal["CAST_SUCCESS"]}) {
+				/if (${Cast.Result.Equal["CAST_SUCCESS"]}&&!${Me.Gem[${i}].Name.Equal[holy aura]}) {
 					/if (!${Defined[bufftimer_${Me.Name}_${i}]}) /declare bufftimer_${Me.Name}_${i} timer outer
 					/varset bufftimer_${Me.Name}_${i} ${Me.Gem[${i}].Duration.TotalSeconds}s
 					/echo setting timer bufftimer_${Me.Name}_${i}
 				}
+				/if (${Me.Gem[${i}].Name.Equal[holy aura]}) /varset HolyAuraFlag 1
 			}
 		}
    /next i
    /squelch /target clear
 /return
 
+Sub Yaulp
+/declare iy int local
+	/for iy 1 to 12
+		/if (${Me.CurrentMana}>${Me.Gem[${iy}].Mana} && ${Me.Gem[${iy}].Name.Find[Yaulp]}) {
+			/if (!${Defined[bufftimer_${Me.Name}_${iy}]} || ${bufftimer_${Me.Name}_${iy}}<1) {
+				/casting "${Me.Gem[${iy}]}" gem${iy} -maxtries|3
+				/delay 10s !${Me.Casting.ID}
+				/if (${Cast.Result.Equal["CAST_SUCCESS"]}) {
+					/if (!${Defined[bufftimer_${Me.Name}_${iy}]}) /declare bufftimer_${Me.Name}_${iy} timer outer
+					/varset bufftimer_${Me.Name}_${iy} ${Me.Gem[${iy}].Duration.TotalSeconds}s
+					/echo setting timer bufftimer_${Me.Name}_${iy}
+				}		
+			}
+		}
+   /next iy
+/return
+		
 Sub Event_Have_Released
    /declare GotRez int local 0
    /delay 300s ${Window[ConfirmationDialogBox].Open}
@@ -359,6 +378,7 @@ Sub Combat
          /assist ${Group.MainTank}
          /if (${Me.Pet.ID}) /pet attack
          /stick behind 10
+         /call Yaulp
          /if (${Me.Class.ShortName.Equal[ROG]}) /call HideSneakBS
          /call Abilities
          /attack on
@@ -481,11 +501,12 @@ Sub DoSneak
 							/target ${Me.XTarget[${xa}]}
 							/casting "${Me.Gem[${i}]}" gem${i} -maxtries|3
 							/delay 10s !${Me.Casting.ID}
+							/delay 1s
 							/if (${Cast.Result.Equal["CAST_SUCCESS"]}) {
 								/if (!${Defined[${Target.ID}_${Me.Name}_${i}]}) /declare ${Target.ID}_${Me.Name}_${i} timer outer
 								/varset ${Target.ID}_${Me.Name}_${i} ${Me.Gem[${i}].Duration.TotalSeconds}s
 								/g ${Me.Gem[${i}]} on ${Target.CleanName}
-								/delay 10s !${Me.Casting.ID}
+								/delay 2s
 							}
 						}
 					/next xa
@@ -559,4 +580,82 @@ Sub Snare
 		}
 	/next inm
 }
+/return
+
+Sub FollowLoad
+	/declare FollowLoaded int outer 1
+	/declare FollowMethod string outer stick|30 healer
+	/declare DistanceToFollow int outer 30
+	/declare FollowCommand string outer Follow me
+	/declare StopFollowCommand string outer Stop here
+	/declare MoveUpCommand string outer Move up
+	/if (!${Defined[Following]}) /declare Following int outer
+	/if (!${Defined[MoveID]}) /declare MoveID int outer
+	/if (!${Defined[NameToFollow]}) /declare NameToFollow string outer
+	/squelch /moveto set trytojump off
+	/squelch /moveto set stucklogic on
+	/squelch /moveto set usewalk off
+/return
+
+Sub Follow
+/varset CurrentSub Follow
+/if (!${Spawn[id ${MoveID}].ID}||!${Following}) /return
+/if (${Spawn[id ${MoveID}].Distance}>${DistanceToFollow}) {
+	/if (${Me.Casting.ID} && !${Me.Class.ShortName.Equal[BRD]}) /delay 15s !${Me.Casting.ID}
+	/if (${FollowMethod.Find[nav]} && !${Navigation.Active}) /navi name "${NameToFollow}"
+	/if (${FollowMethod.Find[stick]} && !${Stick.Distance}) /stick id ${MoveID} ${FollowMethod.Arg[2,|]}
+	/if (${FollowMethod.Find[adv]} && ${AdvPath.State}!=1) /afollow spawn ${MoveID}
+	/if (${FollowMethod.Find[keypress]} && !${Me.Moving}) /call MoveToLoc ${Spawn[id ${MoveID}].Y} ${Spawn[id ${MoveID}].X}
+}
+/return
+
+Sub FollowCheck
+/varset CurrentSub FollowCheck
+	/if (${Following}) {
+	/if (!${Defined[followwait]}) /declare followwait timer outer
+	/varset followwait 30s
+		:wait
+		/if (!${Spawn[pc ${NameToFollow}].ID} && ${followwait}) {
+			/doevents
+			/goto :wait
+			}
+		
+		/varset MoveID ${Spawn[pc ${NameToFollow}].ID}
+		
+		/echo Following ${NameToFollow} - ID: ${MoveID}
+		/if (${Me.Casting.ID} && !${Me.Class.ShortName.Equal[BRD]}) /delay 5s !${Me.Casting.ID}
+		/if (${FollowMethod.Find[nav]} && !${Navigation.Active}) /navi name "${NameToFollow}"
+		/if (${FollowMethod.Find[stick]} && !${Stick.Distance}) /stick id ${MoveID} ${FollowMethod.Arg[2,|]}
+		/if (${FollowMethod.Find[adv]} && ${AdvPath.State}!=1) /afollow spawn ${MoveID}
+		/if (${FollowMethod.Find[keypress]} && !${Me.Moving}) /call MoveToLoc ${Spawn[id ${MoveID}].Y} ${Spawn[id ${MoveID}].X}
+		/call Follow
+	}
+/return
+
+Sub Event_Follow(followname,int moveup)
+/varset CurrentSub Event_Follow
+/if (!${Defined[FollowLoaded]}) /call FollowLoad
+/if (!${Spawn[pc ${followname}].ID}) /return
+/varset NameToFollow ${followname}
+/varset MoveID ${Spawn[pc ${followname}].ID}
+/echo Following ${NameToFollow} - ID: ${MoveID}
+/if (!${moveup}) /varset Following 1
+/if (${FollowMethod.Find[nav]} && !${Navigation.Active}) /navi name "${NameToFollow}"
+/if (${moveup}) {
+	/moveto loc ${Spawn[id ${MoveID}].Y} ${Spawn[id ${MoveID}].X} ${Spawn[id ${MoveID}].Z} loose
+	/return
+}
+/if (${FollowMethod.Find[stick]}) /stick id ${Spawn[pc ${followname}].ID} ${FollowMethod.Arg[2,|]}
+/if (${FollowMethod.Find[adv]}) /afollow spawn ${Spawn[pc ${followname}].ID}
+/call Follow
+/return
+
+Sub Event_StopFollow
+/varset CurrentSub StopFollow
+/varset Following 0
+/varset MoveID 0
+/varset NameToFollow
+/keypress back
+/if (${Stick.Distance}) /stick off
+/if (${FollowMethod.Find[adv]}) /afollow off
 /return

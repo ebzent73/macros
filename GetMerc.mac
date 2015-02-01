@@ -44,7 +44,7 @@ Sub Elegist
 /delay 2s
 /click right target
 /delay 2s
-/nomodkey /notify MMTW_MerchantWnd MMTW_SubtypeListBox listselect 4
+/nomodkey /notify MMTW_MerchantWnd MMTW_SubtypeListBox listselect 9
 /delay 2s
 /nomodkey /notify MMTW_MerchantWnd MMTW_HireButton leftmouseup
 /delay 1s

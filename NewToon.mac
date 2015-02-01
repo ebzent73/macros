@@ -9,6 +9,8 @@
 
 #turbo 40
 
+#Event Mines  "You have entered The Mines of Gloomingdeep."
+
 Sub Main
 /popup Starting NewToon.Mac v1.0
 /popup Let's do this!
@@ -24,6 +26,12 @@ Sub Main
 /delay 1s
 /keypress alt+o
 /delay 1s
+/popup Goodbye General Channels
+/keypress alt+o
+/delay 1s
+/notify OptionsWindow OGP_AutojoinCheckbox leftmouseup
+/delay 1s
+/keypress alt+o
 /popup Goodbye Lantern
 /itemnotify ${FindItem[=Gloomingdeep Lantern].InvSlot} leftmouseup
 /delay 1s
@@ -42,10 +50,11 @@ Sub Main
 /call HanditOver
 /delay 1s
 /nomodkey /notify LargeDialogWindow LDW_OkButton leftmouseup
-/delay 17s
+/delay 30s
+/doevents
 
-/popup We are done here. You're Welcome!
-/mac Koboldcharm
+/popup IF YOU SEE THIS SOMETHING WENT WRONG!
+/echo IF YOU SEE THIS SOMETHING WENT WRONG!
 
 /return
 
@@ -63,13 +72,13 @@ Sub Letsdoit
 
 Sub Moveme
 /moveto loc 10, 100
-/delay 2s
+/delay 30s ${MoveTo.Stopped}
 /moveto loc 13, 72
-/delay 2s
+/delay 30s ${MoveTo.Stopped}
 /moveto loc 62, 14
-/delay 2s
+/delay 30s ${MoveTo.Stopped}
 /moveto loc 195, 17
-/delay 6s
+/delay 30s ${MoveTo.Stopped}
 
 /return
 
@@ -77,12 +86,16 @@ Sub Killem
 
 /tar Gloom
 /stick 5
+/melee plugin=1
+/melee melee=1
 /attack on
 /attack on
 :fight
-/if (${Me.Combat} && ${Target.PctHPs}>0) {
+/if (${Me.Combat} && ${Target.PctHPs}>1) {
 /goto :fight
 /delay 5S
+/tar Gloom
+/if (!${Target.Type.Equal[corpse]}) /goto :fight
 }
 
 /return
@@ -94,6 +107,10 @@ Sub Loot
 /loot
 /delay 2s
 /nomodkey /notify "LootWnd" LW_LootSlot0 rightmouseup
+/delay 2s
+/nomodkey /notify "LootWnd" LW_LootSlot1 rightmouseup
+/delay 2s
+/nomodkey /notify "LootWnd" LW_LootSlot2 rightmouseup
 /delay 2s
 /nomodkey /notify "LootWnd" LW_DoneButton leftmouseup
 
@@ -112,3 +129,9 @@ Sub HanditOver
 
 /return
 
+Sub Event_Mines
+
+/popup We are done here. You're Welcome!
+/mac Koboldcharm
+
+/return

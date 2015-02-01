@@ -93,6 +93,7 @@ Sub Main
       /echo No stickypoint set
    }
    :startpoint
+    /if (${Window[AlertWnd]}) /notify AlertWnd ALW_Close_Button leftmouseup
    /squelch /target clear 
    /delay 2s
    /call CheckCombat
@@ -104,11 +105,12 @@ Sub Main
 	   /delay 10s !${Me.Moving}
    }
    /squelch /target clear
-   |/if (${Me.Class.PetClass}) /call Pet
+   /if (${Me.Class.PetClass}) /call Pet
    /call CheckCombat
    /if (${UnderAttack.Equal[FALSE]}) {
 	|   /call CheckLoot
-	   /call LootMobs
+	   /echo LootMobs
+		/call LootMobs
 	   /call buff
 	   /call CheckMana
 	   /if (${HaveMoved}==1) /goto :startpoint
@@ -148,6 +150,7 @@ Sub Event_Exp
    /varcalc Exper1 ${Exper2}/${RunTime1}
    /echo [Last Kill]: ${Exper} [Total EXP]: ${Exper2} in [${RunTime}] Minutes...
    /echo [%EXP to level]: ${PrctExp}%   [Exp per hr]: ${Exper1}
+   /echo LootMobs
    /call LootMobs
 /return
 
@@ -190,7 +193,7 @@ Sub SpellCheck2
 			/delay 10s !${Me.Casting.ID}
 			/if (${Cast.Result.Equal["CAST_SUCCESS"]}) {
 				/if (!${Defined[${Me.XTarget[${x}].ID}_${Me.Name}_${i}]}) /declare ${Me.XTarget[${x}].ID}_${Me.Name}_${i} timer outer
-				/varset ${Target.ID}_${Me.Name}_${i} ${Me.Gem[${i}].Duration.TotalSeconds}s
+				/varset ${Me.XTarget[${x}].ID}_${Me.Name}_${i} ${Me.Gem[${i}].Duration.TotalSeconds}s
 			}
 		}
 		/if (${Me.CurrentMana}>${Me.Gem[${i}].Mana} && ${Select[${Me.Gem[${i}].Subcategory},Enthrall]} && ${Me.XTarget}>1) {
@@ -327,6 +330,7 @@ Sub Combat
       /keypress forward
    } 
    /delay 1s
+   /if ((${Target.Type.Equal[pc]}||${Target.Master.Type.Equal[pc]}||${Target.Type.Equal[mercenary]})) /return
    /call Snare
    /casting "${Me.Gem[${pull}]}" gem${pull}
    /doevents Check_Damage
@@ -343,7 +347,7 @@ Sub Combat
          /varset i 1 
          :beingattacked
          /call CheckCombat
-         /if (${UnderAttack.Equal[FALSE]}) /goto :endcombat
+         /if (${UnderAttack.Equal[FALSE]}) /return
          /if (${i}<5) {
             /varcalc i ${i}+1
             /delay 3s
@@ -420,7 +424,7 @@ Sub Snare
 		   /if (${Me.Pet.ID}) {
 			  /declare ipet2 int local
 			  /for ipet2 1 to 12
-			  /if (${Me.CurrentMana}>${Me.Gem[${ipet2}].Mana} && ${Me.Gem[${ipet2}].Category.Equal[pet]} && ${Me.Gem[${ipet2}].Subcategory.Find[pet haste]} && ${Me.Gem[${ipet2}].StacksPet} && !${Me.Pet.Buff[${Me.Gem[${ipet2}]}]}) {
+			  /if (${Me.CurrentMana}>${Me.Gem[${ipet2}].Mana} && ${Me.Gem[${ipet2}].Category.Equal[pet]} && ${Me.Gem[${ipet2}].Subcategory.Find[haste]} && ${Me.Gem[${ipet2}].StacksPet} && !${Me.Pet.Buff[${Me.Gem[${ipet2}]}]}) {
 				 /delay 10s !${Me.Casting.ID}
 				 /casting "${Me.Gem[${ipet2}]}" gem${ipet2}
 				 /delay 2s
