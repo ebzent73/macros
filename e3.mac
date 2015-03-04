@@ -1,0 +1,101 @@
+|--------------------------------|
+|- e3.mac	v5.1				-|
+|- Written by Killians of PEQ.	-|
+|--------------------------------|
+
+#turbo 20
+
+#include e3 Includes\e3_Setup.inc
+
+SUB Main(modeSelect)
+
+/declare macroVersion string outer 5.1.33 (r7)
+/declare i int local
+
+/call e3_Setup "${modeSelect}"
+
+:MainLoop
+/if (${Debug}) /echo |- MainLoop ==>
+
+	| If my class is not set, I must not be in game, end the macro.
+	/if (!${Bool[${Me.Class}]}) {
+		/endmacro
+	} else {
+		
+|	************************************************************************************	|
+|   ******************************* Background Functions *******************************	|
+|	************************************************************************************	|
+	
+		/if (${ActionTaken}) /varset ActionTaken FALSE
+		
+		/if (${currentZone} != ${Zone.ID}) /call check_Zone
+		/if (${Following} && !${Assisting}) /call check_Follow
+		/call check_Active
+		/call check_Combat
+		/call check_Idle
+		
+		| If I'm not holding an item, check Life Support and Instant Buffs.
+		/if (!${Bool[${Cursor}]}) {
+		
+			| Check if I'm casting
+			/if (!${Me.Casting.ID} || ${Me.Casting.ID} && ${Me.Class.ShortName.Equal[BRD]}) {
+		
+				| Check LifeSupport
+				/if (${lifeSupport.Size} && ${Me.PctHPs} < 100) /call check_lifeSupport
+
+				| Check Instant buffs
+				/if (${BuffCheck} && ${InstantBuffs.Size} && ${Me.FreeBuffSlots} > ${MaxBuffs}) /call buffInstants
+			}
+		}
+		
+		/call Background_Events
+		/doevents
+	
+		| If I'm not active, call mainFunctions
+		/if (!${activeTimer}) {
+		
+			| check for a pending item exchange
+			/if (${swapItemBack} && !${itemExchange_Timer}) /call completePendingExchange
+
+|	******************************************************************************	|
+|   ******************************* Main Functions *******************************	|
+|	******************************************************************************	|
+			/for i 1 to ${mainLoop_Array.Size}
+				/if (${Bool[${mainLoop_Array[${i}]}]}) /call ${mainLoop_Array[${i}]}
+			/if (!${ActionTaken}) /next i
+	
+|	**********************************************************************************	|
+|   ******************************* Tertiary Functions *******************************	|
+|	**********************************************************************************	|
+			
+			| MedBreak
+			/if (${medBreak}) /call check_MedBreak
+			
+			| Maintain macro timers
+			/if (${timerArray.Size}) /call check_macroTimers
+		}
+	}
+
+/if (${Debug}) {
+	/echo <== MainLoop -|
+	/delay 5
+}
+/goto :MainLoop	
+/RETURN
+
+
+
+|--------------------------------------------------------------------------------------------------------------------|
+|- Background events and functions that are checked even while casting or otherwise considered active.		   		-|
+|--------------------------------------------------------------------------------------------------------------------|
+|- This function is checked constantly, included events and functions should have minimal character interaction.	-|
+|--------------------------------------------------------------------------------------------------------------------|
+SUB Background_Events
+
+	/declare i int local
+
+	/for i 1 to ${macroSetups.Size}
+		/if (${Bool[${macroSetups[${i}]}]}) /call ${macroSetups[${i}]}_Background_Events
+	/next i
+
+/RETURN

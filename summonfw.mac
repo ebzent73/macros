@@ -1,0 +1,122 @@
+|-fw.mac by fearless
+|-For the love of god don't use this mac as an example of how to code things.
+|-I absolutely abuse delay and goto like there is no tomorrow.
+|-If lax ever sees this both of those commands may just go the way of String.
+|-Requires spell_routines.inc by Rusty, can be found in the Snippets forum.
+|
+|-This macro will summon food for yourself and for your groupmates if you wish.
+|-It will automatically walk to them and put the items in their trade window 
+|-if they are less then 50 distance from you.
+|
+|-Usage: Modify the declares below
+|--FoodSpell - the spell you cast to summon food
+|--DrinkSpell - the spell you cast to summon drink
+|--FoodItem - the name of the item that FoodSpell summons
+|--DrinkItem - the name of the item that DrinkSpell summons
+|--FoodSpellGem - the gem to memorize FoodSpell to
+|--DrinkSpellGem - the gem to memorize DrinkSpell to
+|--CastAmt - The number of times to cast FoodSpell and DrinkSpell
+|
+|-Call with "/mac fw" to summon food for yourself
+|-Call with "/mac fw 1" to summon food for yourself and your entire group
+
+#include spell_routines.inc
+
+Sub Main
+
+|-Edit Below
+/declare  FoodSpell      string outer Cornucopia
+/declare  DrinkSpell     string outer Everfount
+/declare  FoodItem       string outer Summoned: Black Bread
+/declare  DrinkItem      string outer Summoned: Globe of Water
+/declare  FoodSpellGem   int outer 5
+/declare  DrinkSpellGem  int outer 6
+/declare  CastAmt        int outer 6
+|-Edit Above
+/declare  DoGroupFood    int outer 0
+
+/declare  a              int local
+/declare  b              int local
+
+/if ( ${Defined[Param0]} ) {
+      /varset DoGroupFood ${Param0}
+}      
+
+/if ( !${Me.Gem[${FoodSpell}]} ) {
+  /memspell ${FoodSpellGem} "${FoodSpell}"
+  /delay 5s !${Window[SpellBookWnd].Open}
+}
+/if ( !${Me.Gem[${DrinkSpell}]} ) {
+  /memspell ${DrinkSpellGem} "${DrinkSpell}"
+  /delay 5s !${Window[SpellBookWnd].Open}
+}  
+/if ( ${Me.Sitting} ) /stand
+
+/if ( ${FindItemCount["${FoodItem}"]}<40) {
+  /for b 1 to ${CastAmt}
+    /call cast "${FoodSpell}"
+    /delay ${Math.Calc[(${Spell["${FoodSpell}"].CastTime}+${Spell["${FoodSpell}"].RecastTime}]}s ${Me.SpellReady[${FoodSpell}]}
+  /next b
+}
+/if ( ${FindItemCount["${DrinkItem}"]}<40) {
+  /for b 1 to ${CastAmt}
+    /call cast "${DrinkSpell}"
+    /delay ${Math.Calc[(${Spell["${DrinkSpell}"].CastTime}+${Spell["${DrinkSpell}"].RecastTime}]}s ${Me.SpellReady[${DrinkSpell}]}
+  /next b
+}
+:AutoInvLoop
+/if ( ${Cursor.ID} ) {
+  /autoinv
+  /delay 1s
+  /goto :AutoInvLoop
+}
+  
+/if ( ${DoGroupFood}==1 ) {
+  /for a 1 to ${Group.Members} {
+    /if ( ${Group.Member[${a}].Distance}<50 ) {
+      /for b 1 to ${CastAmt}
+        /call cast "${FoodSpell}"
+        /delay ${Math.Calc[(${Spell["${FoodSpell}"].CastTime}+${Spell["${FoodSpell}"].RecastTime}]}s ${Me.SpellReady[${FoodSpell}]}
+      /next b
+      /for b 1 to ${CastAmt}
+        /call cast "${DrinkSpell}"
+        /delay ${Math.Calc[(${Spell["${DrinkSpell}"].CastTime}+${Spell["${DrinkSpell}"].RecastTime}]}s ${Me.SpellReady[${DrinkSpell}]}
+      /next b
+      /squelch /target clear
+      /target pc ${Group.Member[${a}]}
+      /delay 10s ${Target.ID}
+      :MoveLoop
+      /if ( ${Target.Distance}>12 ) {
+        /face
+        /delay 3s
+        /if ( ${Target.Distance}>12 ) {
+          /keypress FORWARD HOLD
+          /delay 1s ${Target.Distance}<=12
+          /keypress FORWARD
+        }
+        /if ( ${Target.Distance}<=5 ) {
+          /keypress BACK HOLD
+          /delay 1s ${Target.Distance}>=5
+          /keypress BACK
+        }
+        /goto :MoveLoop
+      }
+      /delay 1s
+      :ClickLoop
+      /for c 1 to ${Math.Calc[${CastAmt}*2]}
+        /click left target
+        /delay 1s
+      /next c
+      /delay 1s
+      /if ( ${Cursor.ID} ) /goto :ClickLoop
+      :TradeWindLoop
+      /if ( ${Window[TradeWnd].Open} ) {
+        /notify TradeWnd TRDW_Trade_Button leftmouseup
+        /delay 1s
+        /goto  :TradeWindLoop
+      }
+    }
+  }
+  /next a  
+}
+/return

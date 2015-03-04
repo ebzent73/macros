@@ -188,7 +188,7 @@ Sub Main
 	}
 	/if (${Me.XTarget} && ${AdvPath.Playing}) /play off
 	/if (${Following} && ${AdvPath.Playing}) /play off
-	/if (${Following}) && ${AdvPath.Recording}) /record save
+	/if (${Following} && ${AdvPath.Recording}) /record save
 	/if (${Me.CombatState.NotEqual[COMBAT]} && !${AdvPath.Recording} && !${AdvPath.Playing} && ${Following}) /call Follow
 	/if (${mode.Equal[seek]}) /call Move
 	/if (${mode.Equal[seek]} && !${AdvPath.Recording} && !${AdvPath.Playing}  && ${Math.Distance[${Me.Loc}:${loc}]}>20) {

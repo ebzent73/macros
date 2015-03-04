@@ -110,12 +110,12 @@ Sub AAPicker
 /if (${AA[${x}].Arg[2,"|"].Equal[M]}) {
    /varset maxPurchaseLevel ${maxAALevel}
 } else /if (${AA[${x}].Arg[2,"|"].Equal[E]}) {
-   /${AAChatChannel} Error. ${nameAA} is set to equal but this feature is not active yet.
+   /g Error. ${nameAA} is set to equal but this feature is not active yet.
    /return
 } else {
    /varset maxPurchaseLevel ${AA[${x}].Arg[2,"|"]}
    /if (${maxPurchaseLevel}<=0) {
-      /${AAChatChannel} Error. ${nameAA} is set to an invalid level to train to. Skipping.
+      /g Error. ${nameAA} is set to an invalid level to train to. Skipping.
                /next x
         }
 }
@@ -125,7 +125,7 @@ Sub AAPicker
 /if (!${Me.Subscription.Equal[GOLD]} && ${Me.AAPointsTotal}>1000) {
    /if (${AABuy}) {
       /varset atq FALSE
-      /echo Turning off AA autobuying.
+      /g Turning off AA autobuying.
       /return
    }
 }
@@ -137,7 +137,7 @@ Sub AAPicker
    /call AASelect "${nameAA}"
         /call AAPurchase
         /varcalc curAALevel ${curAALevel}+1
-        /${AAChatChannel} ${Time} Purchased level ${curAALevel}/${maxAALevel} of ${nameAA} for ${Cost} points.
+        /g ---> Purchased level ${curAALevel}/${maxAALevel} of ${nameAA} for ${Cost} points.
         /delay 2s
         /if (${Me.AAPoints}>0) /goto :BuyAdditional
    /return
@@ -156,30 +156,30 @@ Sub AAPicker
    /echo You are ${Me.Level} and ${nameAA} requires ${requiredLevel}. Skipping.
    }
 } else /if (${AltAbility[${nameAA}].ID}==NULL) {
-   /${AAChatChannel} ${nameAA} is not a ${Me.Class} Ability.
+   /echo ${nameAA} is not a ${Me.Class} Ability.
         /varcalc maxCounter ${maxCounter}+1
       }
 /next x
 /if (${maxCounter}==${AACount}) {
-   /${AAChatChannel} All defined skills maxed or unable to be purchased due to expansion/prerequisite issues. You should define new ones.
+   /g All defined skills maxed or unable to be purchased due to expansion/prerequisite issues. You should define new ones.
    /if (${AABuy}) {
       /varset AABuy FALSE
       /echo Turning off AABuying.
       /return
    }
 } else {
-   /${AAChatChannel} Cycled through all AA and nothing to purchase this round.
+   /g Cycled through all AA and nothing to purchase this round.
 }
-/if (${Me.AAPoints}>=29 && ${Me.AAPoints}<30) /${AAChatChannel} WARNING!!! You are at ${Me.AAPoints} banked AA.
+/if (${Me.AAPoints}>=29 && ${Me.AAPoints}<30) /g WARNING!!! You are at ${Me.AAPoints} banked AA.
 /if (${Me.Level}<91) {
    /if (${Me.AAPoints}>=30) {
-      /${AAChatChannel} You have maxed your AAs and are unable to purchase any of your defined AAs.
-      /${AAChatChannel} Changing you to full level XP. Hopefully you are not max level yet.
+      /g You have maxed your AAs and are unable to purchase any of your defined AAs.
+      /g Changing you to full level XP. Hopefully you are not max level yet.
       /alt off
    } else {
    /if (${Me.AAPoints}>=50) {  
-      /${AAChatChannel} You have maxed your AAs and are unable to purchase any of your defined AAs.
-      /${AAChatChannel} Changing you to full level XP. Hopefully you are not max level yet.
+      /g You have maxed your AAs and are unable to purchase any of your defined AAs.
+      /g Changing you to full level XP. Hopefully you are not max level yet.
       /alt off
       }
    }
@@ -221,8 +221,8 @@ Sub Event_AAToggleVar(Stuff,TempMessage,TempVar,IniSection,IniEntry,Line)
    }
    /if (${Line.Arg[1].Equal[ON]} || ${Line.Arg[1].Equal[TRUE]} || ${Line.Arg[1].Equal[1]}) /varset ${TempVar} 1
    /if (${Line.Arg[1].Equal[OFF]} || ${Line.Arg[1].Equal[FALSE]} || ${Line.Arg[1].Equal[0]}) /varset ${TempVar} 0
-   /if (${${TempVar}}) /${AAChatChannel} AA Buying is now ON
-   /if (!${${TempVar}}) /${AAChatChannel} AA Buying is now OFF
+   /if (${${TempVar}}) /g AA Buying is now ON
+   /if (!${${TempVar}}) /g AA Buying is now OFF
    /ini "AAIniFile" Settings AABuy ${${TempVar}}
 }
 /return
@@ -243,6 +243,6 @@ Sub AAEvent_ToggleString(Stuff,TempMessage,TempVar,IniSection,IniEntry,Line)
       /varset ${TempVar} ${Line}
       /ini "${AAIniFile}" ${IniSection} ${IniEntry} "${${TempVar}}"
    }
-   /${AAChatChannel} ${TempMessage} is now: ${${TempVar}}
+   /g ${TempMessage} is now: ${${TempVar}}
 }
 /return
