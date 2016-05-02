@@ -1,0 +1,33 @@
+| fw.mac
+| Summon food and drink macro
+| Usage: /mac fw, followed by the amount of stacks should be summoned
+
+#include spell_routines.inc
+
+Sub main
+
+/declare amount int outer ${Param0}
+/declare TotalAmount int outer
+/declare x int outer 1
+/declare c int outer 1
+
+/if (!${Defined[Param0]}) /varset amount 2
+/echo summoning food and drink :: ${amount} stacks of each
+
+/varcalc TotalAmount ${amount} * 20
+
+/for x 1 to ${TotalAmount}
+   /call cast "Summon Food" gem8
+   /delay 5 
+   /autoinventory
+   /popup ${FindItemCount[Summoned: Black Bread]} total food in inventory
+/next x
+
+/for c 1 to ${TotalAmount}
+   /call cast "Summon Drink" gem8
+   /delay 5
+   /autoinventory
+   /popup ${FindItemCount[Summoned: Globe of water]} total water in inventory
+/next c
+
+/return

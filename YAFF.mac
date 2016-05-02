@@ -1,0 +1,310 @@
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+| yaff.mac
+|req. MQ2Exchange,MQ2Cast
+|
+| /mac yaff      forage
+| /mac yaff 1      forage & fishing
+| /mac yaff 1 1      fishing
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+| yaff.ini
+| 0 = destroy
+| x = keep at most x of this item
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+#include SpellCast.inc
+
+#event BrokenPole "#*#You can't fish without a fishing pole, go buy one.#*#"
+#event BrokenPole "#*#You need to put your fishing pole in your primary hand.#*#"
+#event NoBait "#*#You can't fish without fishing bait, go buy some.#*#"
+#event InvisDrop "#*#You appear#*#"
+
+||||||||||||||||||||
+| Main
+||||||||||||||||||||
+
+sub Main
+	/declare op_GotLootArray      int outer 0
+	/declare op_LoopCounter       int outer 0
+	/declare op_GotDestroyArray   bool outer FALSE
+	/declare op_ExitMacro         bool outer FALSE
+	/declare op_GotFishComp       bool outer FALSE
+   /declare DoForage   bool   outer 1
+   /declare DoFishing   bool   outer 0
+   /declare FishingPole   string   outer Fishing Pole
+   /if ( ${FindItemCount[=Fisherman's Companion]} ) /varset FishingPole Brell's Fishin' Pole
+   /declare set_UseBaitDispenser bool outer TRUE
+   /if (${set_UseBaitDispenser}) /call PopulateDispenser
+   /declare DefaultMaxSave int outer 
+   /varset DefaultMaxSave ${Ini[yaff.ini,Setting,MaxSave,${NotFound}]}
+   /if (${DefaultMaxSave}==${NotFound}) {
+      /ini "yaff.ini" "Setting" "MaxSave" "100"
+      /varset DefaultMaxSave 100
+   }
+
+   /if ( ${Param0}!=NULL ) /varset DoFishing 1
+   /if ( ${Param1}!=NULL ) /varset DoForage 0
+
+   /echo =========================
+   /echo yaff: DoFishing = ${DoFishing}
+   /echo Yaff: DoForage = ${DoForage}
+   /echo =========================
+
+   /if ( !${DoForage} && !${DoFishing} ) /end
+   /call ClearCursor 
+   /if (${DoFishing}) /call CheckPole
+   :MainLoop
+   /if (${op_ExitMacro}) /end
+   /call Invisme
+   /if ( !${DoForage} && !${DoFishing} ) {
+      /echo yaff: Both FALSE ENDMACRO
+      /echo =========================
+      /beep
+      /beep
+      /beep
+      /end
+   }
+   /if (${Me.AbilityReady[fishing]} && ${DoFishing}) {
+      /if (${Me.State.NotEqual[STAND]}) {
+         /stand
+         /delay 2s ${Me.State.NotEqual[STAND]}
+      }
+      /doability fishing
+      /delay 10s ${Me.AbilityReady[fishing]}
+      /doevents
+   }
+
+   /if (${Cursor.ID}) /call HandleItem
+
+   /if (${Me.AbilityReady[Forage]} && ${DoForage}) {
+      /if (${Me.State.NotEqual[STAND]}) {
+         /stand
+         /delay 2s ${Me.State.NotEqual[STAND]}
+      }
+      /doability forage
+   }
+   /if (${Cursor.ID}) /call HandleItem
+   /goto :MainLoop
+
+/return
+
+||||||||||||||||||||
+| HandleItem
+||||||||||||||||||||
+sub HandleItem
+
+   /declare ItemSetting int local
+   /declare NotFound int local
+   /declare ItemsHave int local
+   /varset NotFound -1
+   :LootIt
+   /varset ItemSetting ${Ini[yaff.ini,ItemList,${Cursor.Name},${NotFound}]}
+   /if (${ItemSetting}==${NotFound}) {
+      /ini "yaff.ini" "ItemList" "${Cursor.Name}" "${DefaultMaxSave}"
+      /varset ItemSetting ${DefaultMaxSave}
+   }
+   /varset ItemsHave ${FindItemCount[=${Cursor}]}
+   /if (${ItemSetting}>${ItemsHave}) {
+      /echo yaff: Keep [${Cursor}]
+      /autoinventory
+   } else {
+      /echo yaff: Destroy [${Cursor}]
+      /destroy
+   }
+   /delay 2s
+   /if (${Cursor.ID}) /goto :LootIt
+
+/return
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Sub CheckPole
+   /if ( !${DoFishing} ) /return
+   /if (${Me.Inventory[mainhand].Name.Find[${FishingPole}]}) /return
+
+   /if (${FindItemCount[=${FishingPole}]}) {
+      /exchange "${FishingPole}" mainhand
+      /return
+   } else {
+      /if (${FindItemCount[=Fisherman's Companion]}) {
+         /casting "Fisherman's Companion" item
+         /delay 12s
+         /autoinv
+         /delay 2
+         /exchange "${FishingPole}" mainhand
+         /delay 2
+         /return
+      } else {
+         /echo yaff: Out of ${FishingPole} !!!
+         /if (!${DoForage}) /varset DoFishing 0
+      }
+   }
+/return
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+sub Invisme
+	/declare ai int local
+	/if (!${Defined[bufftimer_${Me.Name}_invis]} || ${bufftimer_${Me.Name}_invis}<10) {
+		/for ai 1 to 12
+				/if (${Me.CurrentMana}>${Me.Gem[${ai}].Mana} && ${Me.Gem[${ai}].Subcategory.Equal[Invisibility]}) {
+					/squelch /tar myself
+					/call Cast "${Me.Gem[${ai}]}" gem${ai} -maxtries|3
+				}
+		/next ai
+		/delay 10s !${Me.Casting.ID}
+		/delay 2s
+		/if (${Cast.Result.Equal["CAST_SUCCESS"]}) {
+			/if (!${Defined[bufftimer_${Me.Name}_invis]}) /declare bufftimer_${Me.Name}_invis timer outer
+			/echo cast successful, setting timer
+			/varset bufftimer_${Me.Name}_invis 660s
+		}		
+	}
+/return
+		
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Sub Event_BrokenPole
+   /call CheckPole
+/return
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Sub Event_InvisDrop
+	/if (!${Defined[bufftimer_${Me.Name}_camo]}) /declare bufftimer_${Me.Name}_camo timer outer
+	/varset bufftimer_${Me.Name}_camo 5s
+	/echo invis dropped, calling invis sub
+	/call Invisme
+/return
+		
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Sub Event_NoBait
+/if (${DoForage}) /delay 45s ${Me.AbilityReady[Forage]}
+/if (${Cursor.ID}) /call HandleItem
+/delay 2s
+/if (${set_UseBaitDispenser}) {
+  /call MakeBait
+} else {
+   /echo yaff: Out of Bait !!! 
+   /if (!${DoForage}) /varset DoFishing 0
+} 
+/return
+
+| ---------------------------------------------------------------------------
+| SUB: Populate Anizok's Bait Dispenser array
+| ---------------------------------------------------------------------------
+		Sub PopulateDispenser
+
+		/echo Attempting to Read [Bait] Section from HyperFish.ini
+
+		/if (${Ini["HyperFish.ini","Bait",Loot1,NULL].Equal[NULL]}) {
+		  /echo [Bait] section missing from HyperFish.ini. Turning off Bait Dispenser
+		  /varset set_UseBaitDispenser FALSE     
+		  /return
+		}
+
+		| Build Bait loot array
+		/declare nValues     int local  1
+		/declare nArray      int local  0
+
+		:BaitCount
+		/if (${Ini["HyperFish.ini","Bait",Loot${nValues},NULL].Equal[NULL]}) {
+		   /varcalc nValues ${nValues}-1
+		   /goto :MakeArray
+		}
+		/varcalc nValues ${nValues}+1
+		/goto :BaitCount
+
+
+		:MakeArray
+		/echo I found ${nValues} different items I can make bait with
+		  /if (!${nValues}) {
+		  /echo Something is wrong with your [bait] section
+		  /varset set_UseBaitDispenser FALSE
+		  /return
+		}
+
+		/declare Bait_LootArray[${nValues}]  string outer
+
+		/for nArray 1 to ${nValues}
+		  /varset Bait_LootArray[${nArray}] ${Ini["HyperFish.ini","Bait",Loot${nArray}]}
+		/next nArray
+
+		/delay 1s
+
+		/return
+
+
+| ---------------------------------------------------------------------------
+| SUB: MakeBait
+| ---------------------------------------------------------------------------
+		Sub MakeBait
+		/declare BaitCounter int local 0
+		/declare BaitCompare int local 0
+
+
+		| Open Anizok's Bait Dispenser in slot 8
+		/echo Opening bait Dispenser
+		/if (!${Window[Pack8].Open}) /nomodkey /itemnotify pack8 rightmouseup
+		/delay 3s ${Window[Pack8].Open}
+
+		| Dig around and try and find a fish we can make bait out of
+		/for op_LoopCounter 1 to 10
+		  /if (${InvSlot[pack${op_LoopCounter}].Item.Container}) {
+		    /for BaitCounter 1 to ${InvSlot[pack${op_LoopCounter}].Item.Container}
+		      /for BaitCompare 1 to ${Bait_LootArray.Size}
+		      /if (${InvSlot[pack${op_LoopCounter}].Item.Item[${BaitCounter}].Name.Equal[${Bait_LootArray[${BaitCompare}]}]}) {
+		|        /echo WE GOT A CANDIDATE in pack${op_LoopCounter} slot ${BaitCounter}
+		         /if (!${Window[pack${op_LoopCounter}].Open}) /nomodkey /itemnotify pack${op_LoopCounter} rightmouseup
+		         /delay 3s ${Window[pack${op_LoopCounter}].Open}
+		         /delay 5
+		         /nomodkey /ctrlkey /itemnotify in pack${op_LoopCounter} ${BaitCounter} leftmouseup
+		         /delay 5s ${Cursor.ID}
+		         /goto :ExitBaitLoops
+		       }
+		      /next BaitCompare
+		    /next BaitCounter
+		       
+		    } else {
+		      /for BaitCompare 1 to ${Bait_LootArray.Size}
+		        /if (${InvSlot[pack${op_LoopCounter}].Item.Name.Equal[${Bait_LootArray[${BaitCompare}]}]}) {
+		|          /echo WE GOT A CANDIDATE in slot ${op_LoopCounter}
+		          /nomodkey /ctrlkey /itemnotify pack${op_LoopCounter} leftmouseup
+		          /delay 5
+		          /goto :ExitBaitLoops
+		        }
+		      /next BaitCompare 
+		      }
+		     
+		/next op_LoopCounter
+
+		/echo We're out of Fishing Bait
+		/varset op_ExitMacro TRUE
+		/return
+
+		:ExitBaitLoops
+
+		| Make the Bait
+		/echo Making some bait.
+		/nomodkey /itemnotify in pack8 1 leftmouseup
+		/delay 5s !${Cursor.ID}
+		/combine pack8
+		/delay 5s ${Cursor.ID}
+		/autoinventory
+		/delay 1 
+		/autoinventory
+		/return
+		
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Sub ClearCursor 
+
+   :auto_inv 
+   /if (${Cursor.ID}) { 
+      /timed 5 /autoinventory 
+      /goto :auto_inv 
+   }
+/return 
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

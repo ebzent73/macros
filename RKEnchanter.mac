@@ -1,0 +1,227 @@
+#include RKBase.inc
+#include RKCasterBase.inc
+#include RKPetBase.inc
+#include RKCrowdControlBase.inc
+
+#Event SpellWoreOff "#*#Your Docility spell has worn off of#*#"
+#Event KillPet "#*#kill your pet#*#"
+
+Sub Event_KillPet
+	/varset ShouldICharm FALSE
+	/call GroupInvis
+	/i say Not charming until this is dead
+/return
+
+Sub Event_SpellWoreOff
+	/call ClearMezzedMobArrays
+/return
+
+Sub Main
+	/call Init_RKBase
+	/call AddToArray "NonCombatSubs" "EnchanterNonCombatSubs"
+	/call Init_RKPetBase
+	/call AddToArray "PreTargetAcquisitionCombatActionSubs" "EnchanterPreCombat"
+	/call Init_RKCrowdControlBase
+	/call Init_RKCasterBase
+
+
+| *** VARIABLE DECLARATIONS
+
+
+	|/varset ForageMode TRUE
+
+	/varset SpellMemSlot 9
+	/varset TargetHpEngagePercentage 100
+	/varset UpperAggroThreshold 100
+	/varset MercBurnThreshold 90
+	/varset InCombatStickToCommander TRUE
+
+	/varset CharmMode TRUE
+	/varset CharmSpell Enticer's Command
+	/varset CharmSpellLevelCap 104
+
+	/varset CCMode TRUE
+	/varset MultipleTargetMez Perilous Bafflement
+	/varset SingleTargetMez Chaotic Bewildering Rk. II
+	|/varset SingleTargetMez2 "Stasis"
+	/varset SingleTargetMezLevelCap 108
+
+	/varset AEMezSub EnchanterAEMez
+	/varset MezSub EnchanterMez
+		
+	/call AddToArray "InvisModeSubs" "GroupInvis"
+	
+	/call AddToArray "BurnCombatActionSubs" "EnchanterBurnActions"
+	/call AddToArray "DefensiveActionSubs" "EnchanterDefensiveActions"		
+	/call AddToArray "CombatActionSubs" "EnchanterCombatActions"
+	
+	/declare SlowSpell string outer Undermining Helix Rk. II
+		
+	|/call AddToArray "DetrimentalSpells" "Decree of Tashan Rk. II"
+	/call AddToArray "DetrimentalSpells" "Chromatic Blink Rk. II"
+	/call AddToArray "DetrimentalSpells" "Mindsunder"
+	/call AddToArray "DetrimentalSpells" "Intellectual Appropriation Rk. II"
+	
+	/call AddToArrayWithUniqueName "NonCombatSelfBuffs" "Enticer's Unity" "Polyrefractive Rune"
+	/call AddToArrayWithUniqueName "NonCombatSelfBuffs" "Enticer's Unity" "Enticer's Rune"	
+	
+	/call AddToArray "CombatSelfBuffs" "Ward of the Enticer"
+	/call AddToArray "CombatSelfBuffs" "Hastening of Prokev Rk. II"
+	/call AddToArray "CombatSelfBuffs" "Voice of Precognition Rk. II"
+	|/call AddToArray "CombatSelfBuffs" "Shield of the Pellarus Rk. II"	
+
+	/echo Done initializing macro!
+	
+| *** INITIALIZATION
+	/echo Starting Box Commander - Enchanter Macro
+
+| *** MAIN LOOP
+:loop
+	/call Tick
+	/goto :loop
+/return
+
+Sub EnchanterBurnActions
+	/call RKAACast "Silent Casting" ${CurrentTargetId}
+	/call RKAACast "Focus of Arcanum" ${CurrentTargetId}
+	/call RKAACast "Chromatic Haze" ${CurrentTargetId}
+	/call RKAACast "Mental Contortion" ${CurrentTargetId}
+	/call RKAACast "Improved Twincast" ${CurrentTargetId}
+	/call RKAACast "Reactive Rune" ${CurrentTargetId}
+	/call RKAACast "Calculated Insanity" ${CurrentTargetId}
+/return FALSE
+
+Sub EnchanterAEMez
+	/if (${Me.AltAbilityReady[Beam of Slumber]}) {
+		/echo casting Beam of Slumber at Y: ${AECentroidY} and X: ${AECentroidX}
+		/squelch /stick off
+		/face loc ${AECentroidY}, ${AECentroidX} nolook
+		/delay 5
+		/call RKAACast "Beam of Slumber"
+		/if (${Macro.Return}) /return TRUE
+	}
+
+	/if (FALSE && ${Me.AltAbilityReady[Scintillating Beam]}) {
+		/echo casting Scintillating Beam at Y: ${AECentroidY} and X: ${AECentroidX}
+		/squelch /stick off
+		/face loc ${AECentroidY}, ${AECentroidX} nolook
+		/delay 5
+		/call RKAACast "Scintillating Beam"
+		/if (${Macro.Return}) /return TRUE
+	}
+
+	
+	|/call RKAACast "Beguiler's Banishment" ${ccTargetId}
+	
+/return FALSE
+
+Sub EnchanterMez(int ccTargetId)
+	|/call RKAACast "Beguiler's Directed Banishment" ${ccTargetId}
+	|/call RKAACast "Stasis" ${ccTargetId}
+/return FALSE
+
+Sub EnchanterCombatActions
+	/if (${Me.Pet.ID} && ${Me.Pet.PctHPs} < 10) {
+		/call RKAACast "Perfected Invisibility"
+		/return TRUE
+	}
+	
+	/if (!${Me.Moving} && ${Me.Pet.Distance} > 50) /call RKAACast "Summon Companion" ${CurrentTargetId}
+
+	/if (${Me.AltAbilityReady[Crippling Aurora]}) {
+		/if (${Me.XTarget} > 2) {
+			/call RKAACast "Crippling Aurora" ${CurrentTargetId}
+			/return TRUE
+		}
+	}
+	
+	
+	/if (${Me.PctMana} < 60) {
+		/if (${DebugMode}) /echo casting Gather Mana
+		/call RKAACast "Gather  Mana"
+		/alt act 57
+	}
+	
+	/call RKAACast "Doppelganger" ${CurrentTargetId}
+	/call RKAACast "Illusory Ally" ${CurrentTargetId}	
+	/call RKDebuffCast "Mind Storm Rk. II" "Mind Storm Rk. II" ${CurrentTargetId}
+
+	/call WillSelfBuffStack ${Spell[Eldritch Rune].Name}
+	/if (${Macro.Return}) /call RKAACast "Eldritch Rune" ${CurrentTargetId}
+
+	|Group mana return - 
+	/call RKAACast "Fundament: Second Spire of Enchantment"
+	|Spell crit - /call RKAACast "Fundament: Third Spire of Enchantment"
+	
+	|/if (${Bool[${Target.Buff}]} && !${Bool[${Target.Slowed}]}) /call RKAACast "Dreary Deeds" ${CurrentTargetId}
+	/call RKAACast "Phantasmal Opponent" ${CurrentTargetId}
+
+	/if (!${Bool[${Target.Slowed}]}) /call RKCast "${SlowSpell}" ${CurrentTargetId}
+	
+	/cast item "Distorted Robe of Compulsion"
+	
+	/call CheckAuras
+/return ${Macro.Return}
+
+Sub EnchanterPreCombat
+	/if (!${Bool[${CharmSpell}]} || ${Me.XTarget} == 0 || !${ShouldICharm} || !${CharmMode}) /return FALSE
+	
+	|/echo checking potential charm pets
+	/if (!${Me.Pet.ID}) {
+		/call GetCharmTarget
+		/if (${Macro.Return} != 0) {
+			/declare charmTargetId int local ${Macro.Return}
+			/call SelectNewTarget ${charmTargetId}
+			
+			/delay 1s ${Target.ID} == ${charmTargetId}
+			
+			|/if (${Me.GroupMarkNPC[2].ID} != ${CurrentTargetId}) {
+			|	/gmarknpc 2
+			|}
+			
+			|/if (!${Bool[${Target.Buff[Decree of Tashan Rk. II]}]}) {
+			|	/call RKCast "Decree of Tashan Rk. II" ${CurrentTargetId}
+			|	/return TRUE
+			|}
+			
+			/echo casting ${CharmSpell} at ${charmTargetId}
+			
+			/call RKCast "${CharmSpell}" ${charmTargetId}
+			/return TRUE
+		}
+	}
+/return FALSE
+
+Sub EnchanterDefensiveActions
+	/if (${Me.PctHPs} < 90) /call RKAACast "Veil of Mindshadow" ${CurrentTargetId}
+	/if (${Me.PctHPs} < 80) /call RKAACast "Rune of Banishment" ${CurrentTargetId}
+	/if (${Me.PctHPs} < 70) /call RKAACast "Dimensional Shield" ${CurrentTargetId}
+/return FALSE
+
+Sub EnchanterNonCombatSubs
+	/call CheckAuras
+/return ${Macro.Return}
+
+Sub CheckAuras
+	/if (!${Bool[${Me.Aura[Mana Reciprocation Aura]}]}) {
+		|/echo need Reciprocation aura
+		/call RKMemCast "Mana Reciprocation Aura" ${CurrentTargetId}
+		/return TRUE
+	}
+	
+	/if (!${Bool[${Me.Aura[Twincast Aura]}]}) {
+		|/echo need Twincast aura
+		/call RKMemCast "Twincast Aura" ${CurrentTargetId}
+		/return TRUE
+	}
+	
+	|/if (!${Bool[${Me.Aura[Governing Aura Rk. II]}]}) {
+	|	|/echo need governing aura
+	|	/call RKMemCast "Governing Aura Rk. II" ${CurrentTargetId}
+	|	/return TRUE	
+	|}
+/return FALSE
+
+Sub GroupInvis
+	/if (!${Me.Invis}) /call RKAACast "Group Perfected Invisibility"
+/return FALSE

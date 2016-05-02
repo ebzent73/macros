@@ -1,0 +1,49 @@
+#Event HOT_Landed_Self "#*#message#*#"
+#Event HOT_Landed "#1#'s message"
+#Event HOT_Worn_off_Self "#*#message#*#"
+#Event HOT_Worn_off "message #1#."
+
+#include RKBase.inc
+#include RKCasterBase.inc
+#include RKPetBase.inc
+#include RKMeleeBase.inc
+#include RKHealerBase.inc
+
+Sub Main
+	/call Init_RKBase
+	/call Init_RKCasterBase
+	/call Init_RKHealerBase
+	/call Init_RKPetBase
+	/call Init_RKMeleeBase
+
+
+| *** VARIABLE DECLARATIONS
+
+	/varset HealSpell Gotikan's Mending Rk. II
+	/varset HoTSpell Halcyon Breath Rk. II
+	/varset GroupHeal Gotikan's Recourse Rk. II
+	/varset EmergencyGroupHeal Progenitor's Intervention Rk. II
+
+	/varset TankHoTThreshold 90
+	/varset TankHealThreshold 65
+	
+	/varset SingleTargetHoTThreshold 80
+	/varset SingleTargetHealThreshold 50
+	
+	/varset GroupHealThreshold 70
+	/varset EmergencyGroupHealThreshold 50
+
+	/call AddToArray "DetrimentalSpells" "Blank Rk. II"
+	/call AddToArray "GiftSpells" "Blank Rk. II"
+	/call AddToArray "CombatSelfBuffs" "Blank Rk. II"
+
+	/echo Done initializing macro!
+
+| *** INITIALIZATION
+	/echo Starting Box Commander - Shell Macro
+
+| *** MAIN LOOP
+:loop
+	/call Tick
+	/goto :loop
+/return

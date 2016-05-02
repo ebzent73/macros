@@ -1,0 +1,181 @@
+| --------------------------------------------------------------------------
+| autoShroom.mac
+| Harvests the kaladim fungi
+| Start in the mushroom field in Kaladim
+| Original macro was by psychotik
+| Updates by BrainDeath, Exmarine
+| Version 2.0 by EqMule 2016
+| --------------------------------------------------------------------------
+
+#turbo 120
+#chat tell 
+#event Full "#*#There was no place to put that#*#"
+
+Sub Main
+   /echo Welcome to autoShroom 2.0
+   /declare DummyMsg string outer
+   /declare ShroomCount int local
+
+   /varset DummyMsg BRB
+   /cleanup
+   /if (${GroundItemCount[mush]}<18) {
+      /call WaitForShrooms
+   }
+:HarvestLoop
+   /if (${Me.Running}) {
+      /echo Im running, need to walk here, setting walk mode
+      /keypress run_walk
+      /delay 2s ${Me.Running}==FALSE
+   }
+   /if (${Me.AFK}) {
+      /echo Im afk, turning it off
+      /afk off
+      /delay 2s ${Me.AFK}==FALSE
+   }
+   /if (${Me.Sitting}) {
+      /echo Im sitting, Standing up!
+      /sit off
+      /delay 2s ${Me.Sitting}==FALSE
+   }
+
+   /call CheckForPCs
+
+   /for ShroomCount 1 to 9
+      /call GetShroom "*Blue"
+      /call GetShroom "*Red"
+      /call CheckForPCs
+   /next ShroomCount
+
+   /call WaitForShrooms
+   /goto :HarvestLoop
+/return
+
+Sub WaitForShrooms
+   /declare ShroomTimer timer local 1m
+   /declare timercount int local 1
+   /echo Next Harvest as soon as we have 18 mushrooms ready for harvest...
+   /if (!${Me.Sitting}) {
+      /echo Im standing, will sit down
+      /sit on
+      /delay 2s ${Me.Sitting}==TRUE
+   }
+   /if (!${Me.Running}) {
+      /keypress run_walk
+      /delay 2s ${Me.Running}==TRUE
+   } 
+   /if (!${Me.AFK}) {
+      /afk ${DummyMsg}
+      /delay 2s ${Me.AFK}==TRUE
+   }
+:sowewait
+   /if (${GroundItemCount[mush]}<18) {
+      /if (${ShroomTimer}==0) {
+         /echo we waited ${timercount}m so far
+         /varcalc timercount ${timercount}+1
+         /varset ShroomTimer 1m
+      }
+      /delay 6s
+      /goto :sowewait
+   }
+   /echo there are ${GroundItemCount[mush]} Mushrooms ready to be harvested!
+   /echo Preparing to Harvest them, Let's GO! (mario style)
+   /doevents 
+/return
+
+Sub GetShroom(string shroom)
+   /echo Trying to target a ${shroom}
+   /squelch /itemtarget ${shroom}
+   /delay 2s ${Bool[${Ground.ID}]}==TRUE
+   /if (${Bool[${Ground.ID}]} == TRUE) {
+      /echo found a ${Ground.DisplayName}
+      /if (${Ground.Distance3D} < 150) {
+         /echo Its within 150 yards, im moving over to it.
+         /call MoveToTarget
+         /call GetIt
+         /doevents
+      }
+   }
+/return
+Sub MoveToTarget 
+:KeepMoving 
+   /face loc ${Ground.Y}, ${Ground.X}
+   /delay 1 
+   /keypress forward hold 
+   /if (${Ground.Distance3D}>15) {
+      /goto :KeepMoving
+   }
+   :StopMoving
+   /keypress forward
+   /echo We have arrived at the ${Ground.DisplayName} (${Ground.Distance3D})
+/return
+
+Sub DummyMode
+   /declare DummyTimer timer local 10s
+   /beep 
+   /echo Entering Dummy Mode...
+   /if (!${Me.AFK}) {
+      /afk ${DummyMsg}
+      /delay 2s ${Me.AFK}==TRUE
+   }
+   /if (!${Me.Sitting}) {
+      /sit on
+      /delay 2s ${Me.Sitting}==TRUE
+   }
+:waitabit 
+   /if (${DummyTimer}>0) {
+      /if (${Spawn[gm].ID} || (${SpawnCount[pc radius 150 loc -140 640]}>1)) {
+         varset DummyTimer 10s
+         /goto :waitabit
+      }
+      /delay 1s
+      /goto :waitabit
+   }
+   /if (${Me.AFK}) {
+      /afk off
+      /delay 2s ${Me.AFK}==FALSE
+   }
+   /if (${Me.Sitting}) {
+      /sit off
+      /delay 2s ${Me.Sitting}==FALSE
+   }
+/return 
+
+Sub CheckForPCs 
+   /echo checking for PCs
+   /if (${Spawn[gm].ID}) {
+      /echo GM in Zone!
+      /call DummyMode
+   }
+   /if (${SpawnCount[pc radius 150 loc -140 640]}>1) {
+      /echo PC nearby!
+      /call DummyMode
+   }
+/return
+
+Sub GetIt
+   /echo picking up a ${Ground.DisplayName}
+   /click left item
+   /delay 5s (${Cursor.ID})
+   /delay ${Math.Rand[10]}
+   /autoinv
+   /delay 5s (!${Cursor.ID})
+   /delay ${Math.Rand[10]}
+   /doevents
+/return
+
+Sub Event_Chat
+   /if (!${Me.AFK}) {
+      /reply AFK Message: ${DummyMsg}
+      /afk ${DummyMsg}
+   }
+   /echo Received a Tell...Ending. Camping soon
+   /beep
+   /timed 1000 /camp
+   /endmacro
+/return
+
+Sub Event_Full
+   /echo "Your inventory is full...Ending."
+   /camp
+   /endmacro
+/return

@@ -1,0 +1,175 @@
+#include RKBase.inc
+#include RKHealerBase.inc
+#include RKMeleeBase.inc
+#include RKCasterBase.inc
+
+Sub Main
+	/call Init_RKBase
+	/call AddToArray "NonCombatSubs" "PaladinNonCombatSubs"
+	/call AddToArray "CombatActionSubs" "ExecutePriorityCombatActions"
+	/call Init_RKMeleeBase
+	/call AddToArray "CombatActionSubs" "PallyCombat"
+	/call Init_RKHealerBase	
+	/call Init_RKCasterBase
+	
+| *** VARIABLE DECLARATIONS
+
+	/declare OstracizeTimer timer outer 55
+
+	/varset HealSpell Burst of Sunrise
+	/varset GroupHeal Aurora of Sunrise
+	
+	/varset TankHealThreshold 70
+	
+	/varset SingleTargetHealThreshold 60
+	
+	/varset TargetHpEngagePercentage 100
+
+
+	/varset KeepAgroOnAdds FALSE
+
+	/varset TargetHpEngagePercentage 100
+	/varset UpperAggroThreshold 101
+	
+	
+	|/call AddToArray "DetrimentalSpells" "Force of the Iceclad"
+	|/call AddToArray "DetrimentalSpells" "Reverent Force Rk. II"
+	|/call AddToArray "DetrimentalSpells" "Devout Audacity"		
+
+	/call AddToArray "DetrimentalSpells" "Crush of the Iceclad"	
+	/call AddToArray "DetrimentalSpells" "Demand for Honor Rk. II"
+	/call AddToArray "DetrimentalSpells" "Glorious Expurgation"
+	/call AddToArray "DetrimentalSpells" "Force of Reverence"
+	/call AddToArray "DetrimentalSpells" "Crush of Tarew"
+	/call AddToArray "DetrimentalSpells" "Ostracize"
+	/call AddToArray "DetrimentalSpells" "Valiant Deflection Rk. II"
+
+	/call AddToArray "CombatAbilities" "Bash"
+	/call AddToArray "CombatAbilities" "Disarm"
+	/call AddToArray "CombatAbilities" "Taunt"
+		
+	/call AddToArray "NonCombatSelfBuffs" "Armor of Formidable Grace"
+	/call AddToArray "NonCombatSelfBuffs" "Reverent Fury"
+	/call AddToArray "NonCombatSelfBuffs" "Preservation of the Iceclad"
+	/call AddToArray "NonCombatSelfBuffs" "Brell's Steadfast Bulwark"
+	|/call AddToArray "NonCombatSelfBuffs" "Reinvigorating Steel"		
+	
+	/call AddToArray "DefensiveActionSubs" "ExecuteDefensiveActions"
+	/call AddToArray "BurnCombatActionSubs" "ExecuteBurnPaladinCombatActions"	
+	
+	/echo Done initializing paladin macro!
+	
+| *** MAIN LOOP
+
+:loop
+	/call Tick
+	/goto :loop
+/return
+
+Sub ExecuteBurnPaladinCombatActions
+	/if (${Me.Moving}) /return FALSE
+	/call RKDisc "Reflexive Righteousness"
+	/call RKDisc "Unbroken Affirmation"
+	/call RKAACast "Fundament: Third Spire of Holiness"
+	/call RKAACast "Righteous Umbrage"
+	/call RKItemCast "Invocation of the Faithful" "Boreal Breastplate of the Zealot"
+	|/call RKItemCast "Circle of Power I Effect" "Unsuspected Striker"
+/return FALSE
+
+Sub ExecutePriorityCombatActions
+	/if (!${Target.ID}) /return FALSE
+	/if (${BOTMode} != 5) /face fast nolook
+	/if (!${Me.Buff[Yaulp].ID} && !${Me.Sitting} && !${Me.Moving}) /call RKAACast "Yaulp (Lesser)"
+	
+	/if (${CurrentGroupHealthPercentage} < 95 && ${Me.GemTimer[${Me.Gem[Splash of Cleansing]}]} == 0) {
+		/echo CurrentGroupHealthPercentage = ${CurrentGroupHealthPercentage} casting Splash
+		/cast "Splash of Cleansing"
+		/return TRUE
+	}
+	
+	/if (${BOTMode} != 5 && ${Target.Distance} > 100) {
+		/call RKAACast "Divine Call"
+		|/if (!${Macro.Return}) /call RKAACast "Leap of Faith"	
+	}
+	
+	/call CountTargetsInRange 30
+	/if (${Macro.Return} && ${Macro.Return} > 2) {
+		/call RKAACast "Beacon of the Righteous"
+		/cast item "Magmatic Deflector"
+	}
+	
+	/if (${Bool[${Me.XTarget}]}) /call RKAACast "Force of Disruption"
+/return FALSE
+
+Sub PallyCombat
+	/return FALSE
+
+	/call IsSpellMemorized "Ostracize"
+	/if (${Macro.Return}) {
+		/if (${Me.TargetOfTarget.ID} && ${Me.TargetOfTarget.PctHPs} < 80 && ${OstracizeTimer} == 0) {
+			/call RKCast "Ostracize" ${CurrentTargetId}
+			/if (${Macro.Return}) /varset OstracizeTimer 55
+			/return TRUE
+		}
+	}
+
+/return FALSE
+
+Sub CheckProtectiveGuard
+	/if (!${Me.Song["Protective Dedication Guard II"].ID}) {
+		/call RKCast "Protective Dedication Rk. II" ${Me.ID}
+		/return TRUE	
+	}
+/return FALSE
+
+Sub PaladinNonCombatSubs
+	/if (${Me.XTarget} != ) /return FALSE
+	/if (!${Bool[${Me.Aura[Blessed Aura]}]}) {
+		/call RKBuff "Blessed Aura" ${Me.ID}
+		/return TRUE
+	}
+	/if (!${Me.Buff[Yaulp].ID} && !${Me.Sitting}) /call RKAACast "Yaulp"
+	
+	/if (${Me.PctEndurance} < 25) /call RKDisc "Rest Rk. II"
+	
+	/if (!${Me.Moving}) /call RKCast "Steadfast Stance" ${Me.ID}
+/return FALSE
+
+Sub ExecuteDefensiveActions
+	/if (${Me.PctHPs} < 5) /call RKAACast "Divine Aura"
+	/if (${Bool[${Macro.Return}]} && ${Macro.Return}) {
+		/g I just popped DA - hit some defensives otherwise you're totally fucked
+		/return FALSE
+	}
+	
+	/if (${Me.Song[Divine Aura].ID}) /return FALSE
+
+	/call RKDisc "Reprove"
+	
+	/if (${Me.PctHPs} < 20) /call RKAACast "Lay on Hands"
+	/if (${Bool[${Macro.Return}]} && ${Macro.Return}) /return FALSE	
+
+	/if (${Me.PctHPs} < 25 || (${Me.PctHPs} < 50 && ${Me.XTarget} > 2)) /call RKDisc "Deflection Discipline"
+	/if (${Bool[${Macro.Return}]} && ${Macro.Return}) /return FALSE
+	/if (${Window[CombatAbilityWnd].Child[CAW_CombatEffectLabel].Text.Equal["Deflection Discipline"]}) /return FALSE
+
+	/if (${Me.PctHPs} < 70) /call RKAACast "Armor of the Inquisitor"
+	/if (${Bool[${Macro.Return}]} && ${Macro.Return}) /return FALSE
+	
+	/if (${BOTMode} == 5) /return FALSE
+
+	
+	/if (${Me.PctHPs} < 70) /call RKDisc "Holy Guardian Discipline Rk. II"
+	/if (${Bool[${Macro.Return}]} && ${Macro.Return}) /return FALSE	
+	/if (${Window[CombatAbilityWnd].Child[CAW_CombatEffectLabel].Text.Equal["Holy Guardian Discipline Rk. II"]}) /return FALSE	
+	
+	/if (${Me.PctHPs} < 70) /call RKDisc "Brightwing Mantle"
+	/if (${Bool[${Macro.Return}]} && ${Macro.Return}) /return FALSE	
+
+	/if (${Window[CombatAbilityWnd].Child[CAW_CombatEffectLabel].Text.Equal["Brightwing Mantle"]}) /return FALSE	
+	
+	/if (${Me.PctHPs} < 70) /call RKDisc "Armor of Reverence"
+	/if (${Bool[${Macro.Return}]} && ${Macro.Return}) /return FALSE
+	
+
+/return FALSE

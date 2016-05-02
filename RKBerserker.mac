@@ -1,0 +1,30 @@
+#include RKBase.inc
+#include RKMeleeBase.inc
+
+Sub Main
+	/call Init_RKBase
+	/call Init_RKMeleeBase
+
+| *** VARIABLE DECLARATIONS
+
+	/varset TargetHpEngagePercentage 100
+	/varset UpperAggroThreshold 100
+
+
+	/call AddToArray "CombatDiscs" "Elbow Strike"
+	|/call AddToArray "CombatDiscs" "Leg Strike"	
+
+	/call AddToArray "CombatAbilities" "Frenzy"
+	/call AddToArray "CombatAbilities" "Disarm"	
+	/call AddToArray "CombatAbilities" "Intimidation"
+
+	/echo Done initializing macro!
+
+| *** INITIALIZATION
+	/echo Starting Box Commander - Berserker Macro
+
+| *** MAIN LOOP
+:loop
+	/call Tick
+	/goto :loop
+/return

@@ -134,7 +134,7 @@ Sub Main
 	/if (${Param0.Length}) /varset mode ${Param0}
 	/if (${Param1.Length}) /varset myHP ${Param1}
 	/if (${Param2.Length}) /varset assist ${Param2}
-	/if (${mode.Equal[assist]}) /varset assist ${Target}
+	/if (${mode.Equal[assist]}||${mode.Equal[pl]}) /varset assist ${Target}
 
 	/if (${AdvPath.Playing}) /play off
 /echo ${Macro.Name} - Mode: ${mode} ${If[${assist.Length},${assist},]} ${If[${Param1},at ${myHP}%,]} 
@@ -238,33 +238,41 @@ Sub Buff
 /declare ax int local
 /if (${Target.ID}) /declare temp_${Target.ID} int local ${Target.ID}
 	/for ai 1 to 12
-		/if (${Me.CurrentMana}>${Me.Gem[${ai}].Mana} && ${Me.Gem[${ai}].SpellType.Equal[beneficial]} && ${Me.Gem[${ai}].Duration.TotalSeconds}>300 && !${Me.Gem[${ai}].TargetType.Equal[pet]} && !${Me.Gem[${ai}].TargetType.Equal[self]} && !${Select[${Me.Gem[${ai}].Subcategory},Misc,Invisibility,Undead,Invulnerability]}) {
+		/if (${Me.CurrentMana}>${Me.Gem[${ai}].Mana} && ${Me.Gem[${ai}].SpellType.Equal[beneficial]} && ${Me.Gem[${ai}].Duration.TotalSeconds}>60 && !${Me.Gem[${ai}].TargetType.Equal[pet]} && !${Me.Gem[${ai}].TargetType.Equal[self]} && !${Select[${Me.Gem[${ai}].Subcategory},Invisibility,Undead,Invulnerability]}) {
 			/for ax 0 to ${If[${Group},${Group},0]}
-				/if (!${Target.ID}_${Me.Gem[${ai}]}) {
-					/if (${Group}) {
-						/squelch /tar id ${Group.Member[${ax}].ID}
-						/delay 1s ${Target.ID}==${Group.Member[${ax}].ID}
-					}
-					/if (!${Group}) {
-						/squelch /tar myself
-						/delay 1s ${Target.ID}==${Me.ID}
-						}
-					/call Cast "${Me.Gem[${ai}]}" gem${ai} -maxtries|3
-					/delay 2s
-					/delay 10s !${Me.Casting.ID}
-					/if (${Me.Gem[${ai}].TargetType.Equal[single]})  {
-						/if (!${Defined[${Target.ID}_${Me.Gem[${ai}]}]}) /declare ${Target.ID}_${Me.Gem[${ai}]} timer outer
-						/varset ${Target.ID}_${Me.Gem[${ai}]} ${Me.Gem[${ai}].Duration.TotalSeconds}s
-					}
-					/if (${Me.Gem[${ai}].TargetType.Find[group]})  {
-						/declare z int local
-						/for z 0 to ${Group}
-							/if (!${Defined[${Group.Member[${z}].ID}_${Me.Gem[${ai}]}]}) /declare ${Group.Member[${z}].ID}_${Me.Gem[${ai}]} timer outer
-							/varset ${Group.Member[${z}].ID}_${Me.Gem[${ai}]} ${Me.Gem[${ai}].Duration.TotalSeconds}s
-						/next z
-					}
-				/delay 1s
+				/if (${Group}) {
+					/squelch /tar id ${Group.Member[${ax}].ID}
+					/delay 1s ${Target.ID}==${Group.Member[${ax}].ID}
 				}
+				/if (!${Group}) {
+					/squelch /tar myself
+					/delay 1s ${Target.ID}==${Me.ID}
+					}
+				/if (${mode.Equal[pl]}) {
+					/squelch /tar ${assist}
+					/delay 1s
+				}
+				/echo checking timer - defined? ${Defined[${Target.ID}_${ai}]} about to run out? ${${Target.ID}_${ai}}<10
+				/if (!${Defined[${Target.ID}_${ai}]}||${${Target.ID}_${ai}}<10) {
+					/call Cast "${Me.Gem[${ai}]}" gem${ai} -maxtries|3
+					/delay 10s !${Me.Casting.ID}
+					/delay 2s
+					/if (${Cast.Result.Equal["CAST_SUCCESS"]})  {
+						/if (!${Defined[${Target.ID}_${Me.Gem[${ai}]}]}) {
+							/echo target is ${Target} /\ setting timer ${Target.ID}_${ai} for ${Me.Gem[${ai}].Duration.TotalSeconds}s
+							/declare ${Target.ID}_${ai} timer outer
+						}
+						/varset ${Target.ID}_${ai} ${Me.Gem[${ai}].Duration.TotalSeconds}s
+					}
+				}
+				|/if (${Me.Gem[${ai}].TargetType.Find[group]})  {
+				|	/declare z int local
+				|	/for z 0 to ${Group}
+				|		/if (!${Defined[${Group.Member[${z}].ID}_${Me.Gem[${ai}]}]}) /declare ${Group.Member[${z}].ID}_${Me.Gem[${ai}]} timer outer
+				|		/varset ${Group.Member[${z}].ID}_${Me.Gem[${ai}]} ${Me.Gem[${ai}].Duration.TotalSeconds}s
+				|	/next z
+				|}
+				/delay 1s
 			/next ax
 		}
 	/next ai
@@ -630,23 +638,30 @@ Sub PL_sub
 /varset CurrentSub PL_Sub
 /declare ii int local
 	/for ii 1 to 12
-	/if ((${Me.Gem[${ii}].Category.Equal[heals]} && !${Me.Gem[${ii}].Duration}||${spellLevelCheck}) && ${Me.CurrentMana}>${Me.Gem[${ii}].Mana} && ${Me.Gem[${ii}].Category.Equal[Heals]} && ${Me.Gem[${ii}].Subcategory.Equal[Heals]} && !${Me.GemTimer[${ii}]} && ${Target.PctHPs}<=${myHP} && ${Target.Type.Equal[pc]}) {
-
+	/if ((${Me.Gem[${ii}].Category.Equal[heals]} && !${Me.Gem[${ii}].Duration}||${spellLevelCheck}) && ${Me.CurrentMana}>${Me.Gem[${ii}].Mana} && ${Me.Gem[${ii}].Subcategory.Equal[Heals]} && !${Me.GemTimer[${ii}]} && ${Target.PctHPs}<=${myHP} &&) {
 			/delay 10s !${Me.Casting.ID}
 			/call Cast "${Me.Gem[${ii}]}" gem${ii} -maxtries|3
-			/delay 2s
 			/delay 10s !${Me.Casting.ID}
-		}
-	/next ii
-	/for ii 1 to 12
-	/if (${spellLevelCheck} && !${bufftimer${ii}_${Target.ID}} && ${Me.CurrentMana}>${Me.Gem[${ii}].Mana} && ${Me.Gem[${ii}].SpellType.Equal[beneficial]} && ${Me.Gem[${ii}].Duration.TotalSeconds}>120 && !${Me.Gem[${ii}].TargetType.Equal[pet]} && !${Me.Gem[${ii}].TargetType.Equal[self]} &&  !${Select[${Me.Gem[${ii}].Subcategory},Misc,Invisibility,Undead,Invulnerability]}) {
-			/call Cast "${Me.Gem[${ii}]}" gem${ii} -maxtries|3
 			/delay 2s
-			/delay 10s !${Me.Casting.ID}
-			/if (!${Defined[bufftimer${ii}_${Target.ID}]}) /declare bufftimer${ii}_${Target.ID} timer outer
-			/varset bufftimer${ii}_${Target.ID} ${Me.Gem[${ii}].Duration.TotalSeconds}s
-		}
+	}
+	/tar id ${Spawn[=${assist}].MercID}
+	/if ((${Me.Gem[${ii}].Category.Equal[heals]} && !${Me.Gem[${ii}].Duration}||${spellLevelCheck}) && ${Me.CurrentMana}>${Me.Gem[${ii}].Mana} && ${Me.Gem[${ii}].Subcategory.Equal[Heals]} && !${Me.GemTimer[${ii}]} && ${Target.PctHPs}<=${myHP} &&) {
+				/delay 10s !${Me.Casting.ID}
+				/call Cast "${Me.Gem[${ii}]}" gem${ii} -maxtries|3
+				/delay 10s !${Me.Casting.ID}
+				/delay 2s
+	}
 	/next ii
+|	/for ii 1 to 12
+|	/if (${spellLevelCheck} && !${bufftimer${ii}_${Target.ID}} && ${Me.CurrentMana}>${Me.Gem[${ii}].Mana} && ${Me.Gem[${ii}].SpellType.Equal[beneficial]} && ${Me.Gem[${ii}].Duration.TotalSeconds}>120 && !${Me.Gem[${ii}].TargetType.Equal[pet]} && !${Me.Gem[${ii}].TargetType.Equal[self]} &&  !${Select[${Me.Gem[${ii}].Subcategory},Misc,Invisibility,Undead,Invulnerability]}) {
+|			/call Cast "${Me.Gem[${ii}]}" gem${ii} -maxtries|3
+|			/delay 2s
+|			/delay 10s !${Me.Casting.ID}
+|			/if (!${Defined[bufftimer${ii}_${Target.ID}]}) /declare bufftimer${ii}_${Target.ID} timer outer
+|			/varset bufftimer${ii}_${Target.ID} ${Me.Gem[${ii}].Duration.TotalSeconds}s
+|		}
+|	/next ii
+/if (!${Target.ID}||${Target.Name.NotEqual[${assist}]}) /squelch /tar ${assist} pc
 /return
 
 Sub Raise(skilltype)

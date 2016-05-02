@@ -1,0 +1,262 @@
+| Smith2.mac version 1.0
+|
+| Written by Armysoldier
+|
+| March 5 2006
+|
+| Modifications:
+|
+| 23 APR 2006: Fixed sell routine
+|              Added another Loc to keep from getting stuck at the forge
+|
+| 17 APR 2006: fixed the Folded sheet making
+|              fixed the /if statements deeling with the MQFSM's
+|
+| 26 MAR 2006: moved 2 subs and event declarations to CommonSubs.inc
+|
+| This new line of tradeskill macros uses the NEW UI and the OLD UI for TS containers
+| 
+| The Macro will attempt to find the recipe using the NEW UI first
+| If no recipe is found it will go Old school and do a set of combines
+| these macros take into account the SALVAGE function and react accordingly
+| 
+|
+| A special thanks to A_Druid_00 for advising on some streamlining modifications
+| and to Override for his Tradeskill Code that has been around for so long 
+| and is the inspiration for this code
+|
+| Some of the code was pulled from other macros and modified and manipulated 
+| to do the tasks set forth.
+|
+| This code is designed for Abysmal Sea
+|
+| *** FOR THIS CODE TO WORK ***
+| You need to Stand behind Snokin Breaksteel
+| You need to be in the first person view
+| You need to ensure that when you click the tradeskill container the NEW UI comes up first
+| the 5 FILES need to be in the macro\common folder (see includes below)
+
+
+#include common/sell.inc
+#include common/buy.inc
+#include common/packs.inc
+#include common/cleanpacks.inc
+#include common/CommonSubs.inc
+
+
+Sub Main
+    /declare OldSkill int outer ${Me.Skill[Blacksmithing]}
+    /declare SkillMaxWanted int outer
+    /declare PackCode string outer 
+    /declare Component[10] string outer
+    /declare i int outer
+    /declare MerchantNameA string Outer
+    /declare MerchantNameB string Outer
+    /declare MerchantNameC string Outer
+    /declare CombItemName string outer
+    /declare ItemTo string outer
+    /declare EndingVar int outer
+    /declare DelayMult int outer
+    /declare Container string outer
+    /declare Checkrecipe string outer
+    /declare NewUI int outer
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+| Customize these settings if you want
+|                    
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    /varset MerchantNameA Snokin Breaksteel
+    /varset MerchantNameB Cevroy Sharpaxe
+    /varset MerchantNameC Dray Cuves
+    /varset SkillMaxWanted 189
+    /varset DelayMult 1
+    /declare Filename string outer Smithing.ini
+
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+| Call Read INI for locations array
+|                    
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    /call ReadINIA ${Filename} "Abysmal Sea" 
+    /if (!${Defined[LocArray]}) { 
+       /echo No Loc Array Created...
+       /endmacro 
+    } 
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+| Begin 
+|
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    :start
+
+|--- Check Current Skill against Skill wanted 
+    /echo Blacksmithing is at ${Me.Skill[Blacksmithing]}
+
+    /if (${Me.Skill[Blacksmithing]}>=${SkillMaxWanted}) {
+      /echo Blacksmithing is at ${SkillMaxWanted}. Quiting!
+      /endmacro
+    }
+  
+   /if (${FindItemCount[=Leather Padding]}<5) {
+    /echo you have less than 5 Leather Padding .. TIME TO FARM
+    /endMacro
+    }
+
+    /if (${FindItemCount[=Medium quality folded sheet metal]}<15) {
+    /varset CombItemName MQFSM
+    /varset ItemTo Medium Quality Folded Sheet Metal
+    /call ReadIni "${CombItemName}"
+    /target "${MerchantNameA}"
+
+    /nomodkey /click right target
+
+    /delay 5s ${Window[MerchantWnd].Open}
+
+    /call OpenPacks
+
+    /call Buy "${Component[2]}" 30
+
+    /nomodkey /notify MerchantWnd MW_Done_Button LeftMouseUp
+
+      } ELSE {
+    /if (${Me.Skill[Blacksmithing]}<=162) {
+    /echo start making FPV
+    /varset CombItemName FPV
+    /varset ItemTo Fine Plate Visor
+    }
+
+    /if (${Me.Skill[Blacksmithing]}>=163 && ${Me.Skill[Blacksmithing]}<=178) {
+    /echo start making FPH
+    /varset CombItemName FPH
+    /varset ItemTo Fine Plate Helm
+    }
+    /if (${Me.Skill[Blacksmithing]}>=179 && ${Me.Skill[Blacksmithing]}<189) {
+    /echo start making FPB
+    /varset CombItemName FPB
+    /varset ItemTo Fine Plate Breastplate
+    }
+}
+
+    /call ReadIni "${CombItemName}"
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+| Buy Components
+|
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    /varset EndingVar 1
+    /varset NewUI 1
+
+    /echo Moving to ${MerchantNameB}
+
+    /call Movement 1 4 2
+
+    /if (!${CombItemName.Equal[MQFSM]}) {
+
+    /target "${MerchantNameB}"
+   
+    /delay 5s ${Target.ID}==${Spawn[${MerchantNameB}].ID}
+
+    /nomodkey /click right target
+
+    /delay 5s ${Window[MerchantWnd].Open}
+
+    /call Buy "${Component[4]}" 10
+
+    /nomodkey /notify MerchantWnd MW_Done_Button LeftMouseUp
+
+    }
+
+    /echo Moving to ${MerchantNameC}
+
+    /call Movement 5 11 9
+
+    /target "${MerchantNameC}"
+
+    /delay 5s ${Target.ID}==${Spawn[${MerchantNameC}].ID}
+
+    /nomodkey /click right target
+
+    /delay 5s ${Window[MerchantWnd].Open}
+
+    /call Buy "${Component[3]}" 40
+
+    /nomodkey /notify MerchantWnd MW_Done_Button LeftMouseUp
+
+    /call ClosePacks
+
+    /echo Moving to the Forge
+
+    /call Movement 12 17 14
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+| MAKE Items
+|
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+      
+      /nomodkey /itemtarget forge notarget 
+      /face item nolook 
+      /click left item 
+
+/doevents 
+/delay 3s ${Window[TradeskillWnd].Open} 
+/if (!${Window[TradeskillWnd].Open}) /nomodkey /click left Item 
+/delay 3s ${Window[TradeskillWnd].Open} 
+
+      /call ChooseRecipe
+      /call ClosePacks
+
+    /echo Moving to ${MerchantNameA}
+    /echo Selling off and starting over
+    /call Movement 22 22 0
+    /call Movement 18 21 20
+
+    /if (${CombItemName.NotEqual[MQFSM]}) {
+
+    /target ${MerchantNameA}
+   
+    /delay 5s ${Target.ID}==${Spawn[${MerchantNameA}].ID}
+
+    /nomodkey /click right target
+
+/delay 5s ${Window[MerchantWnd].Open} 
+
+    /call OpenPacks
+
+
+
+    /call Sell "${ItemTo}"
+
+    /call Sell "${Component[4]}"
+
+    }
+
+    /nomodkey /notify MerchantWnd MW_Done_Button LeftMouseUp
+
+    /call ClosePacks
+
+    /doevents
+
+    /goto :start
+
+    /return
+
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+|Sub Event Skill up
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+Sub Event_Skillup
+
+      /if (${Me.Skill[Blacksmithing]}>${OldSkill}) {
+        /echo Your Blacksmithing Went Up!! It's now ${Me.Skill[Blacksmithing]}!
+        /varset OldSkill ${Me.Skill[Blacksmithing]}
+/return
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+|Sub Event No Longer Advance
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Sub Event_Advance
+    /if (${CombItemName.NotEqual[MQFSM]}) /varset EndingVar 2
+/return 

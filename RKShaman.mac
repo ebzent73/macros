@@ -1,0 +1,228 @@
+#Event HOT_Landed_Self "#*#Your body becomes completely serene.#*#"
+#Event HOT_Landed "#1#'s body becomes completely serene."
+#Event HOT_Worn_off_Self "#*#The serenity fades.#*#"
+#Event HOT_Worn_off "Your Halcyon Shear spell has worn off of #1#."
+
+#include RKBase.inc
+#include RKPetBase.inc
+#include RKHealerBase.inc
+#include RKCasterBase.inc
+
+
+Sub Main
+	/call Init_RKBase
+	/call Init_RKPetBase
+	/call AddToArray "CombatActionSubs" "CheckRecourse"	
+	/call Init_RKHealerBase
+	/call AddToArray "CombatActionSubs" "PriorityCombatActions"
+	/call AddToArray "CombatActionSubs" "DoCannibalization"	
+	/call AddToArray "CombatActionSubs" "ShamanCombatActions"
+	/call Init_RKCasterBase
+	
+	/declare CannibalizationSpellName string outer Tribal Pact
+	/declare CannibalizationSpellThreshold int outer 90
+	/declare CannibalizationAAThreshold string outer 70
+
+| *** VARIABLE DECLARATIONS
+
+	/varset SpellMemSlot 10
+	|/varset ForageMode TRUE
+	/declare ShrinkMode bool outer TRUE
+	
+	/varset PetSpellName Olesira's Faithful Rk. II
+	
+	/varset EmergencyHealSpell Reckless Regeneration Rk. II
+	/varset EmergencyHealThreshold 90
+	
+	/varset HealSpell Krasir's Mending Rk. II
+	/varset GroupHeal Krasir's Recourse Rk. II
+
+	|/varset HoTSpell Halcyon Bluster Rk. II
+	|/varset EmergencyGroupHeal Historian's Intervention Rk. II
+
+	/call AddToArray "InvisModeSubs" "GroupInvis"
+	
+	/varset MercBurnThreshold 100
+	
+	/varset TankHoTThreshold 95
+	/varset TankHealThreshold 85
+	
+	/varset SingleTargetHoTThreshold 0
+	/varset SingleTargetHealThreshold 85
+	
+	/varset GroupHealThreshold 95
+	/varset EmergencyGroupHealThreshold 80
+	
+	/varset TargetHpEngagePercentage 100
+	/varset UpperAggroThreshold 100
+
+	/varset InCombatStickToCommander TRUE
+
+	|/call AddToArray "DetrimentalSpells" "Glacial Gift Rk. II"
+	/call AddToArray "DetrimentalSpells" "Serpentil's Venom Rk. II"
+	/call AddToArray "DetrimentalSpells" "Sephry's Malady"
+	/call AddToArray "DetrimentalSpells" "Reefmaw's Bite Rk. II"
+	
+	/call AddToArray "CombatSelfBuffs" "Talisman of the Leopard Rk. II"
+	/call AddToArray "CombatSelfBuffs" "Pack of Olesira"
+	/call AddToArray "CombatSelfBuffs" "Shear of Renewal Rk. II"
+	
+	/call AddToArray "DefensiveActionSubs" "Defensives"		
+	/call AddToArray "PreTargetAcquisitionCombatActionSubs" "CheckWolf"
+	/call AddToArray "PreTargetAcquisitionCombatActionSubs" "CheckCheetah"
+	/call AddToArray "NonCombatSubs" "ShamanNonCombatSubs"
+	/call AddToArray "NonCombatSubs" "DoCannibalization"
+	/call AddToArray "NonCombatSubs" "CheckCheetah"		
+	
+	/call AddToArray "BurnCombatActionSubs" "ShamanBurn"
+
+	/call AddToArray "CombatTankBuffs" "Sluggishness Rk. II"
+
+	/call AddToArray "CombatSelfBuffs" "Talisman of the Faithful Rk. II"
+	
+	/call AddToArrayWithUniqueName "NonCombatSelfBuffs" "Talisman of the Doomscale Rk. II" "Mammoth's Force III"
+	/call AddToArrayWithUniqueName "NonCombatSelfBuffs" "Talisman of the Doomscale Rk. II" "Preeminent Foresight III"
+	/call AddToArrayWithUniqueName "NonCombatSelfBuffs" "Talisman of the Doomscale Rk. II" "Doomscale Focusing Rk. II"
+	/call AddToArrayWithUniqueName "NonCombatSelfBuffs" "Talisman of the Doomscale Rk. II" "Spirit of Dedication Rk. II"
+	
+	|/call AddToArrayWithUniqueName "CombatSelfBuffs" "Talisman of the Doomscale Rk. II" "Mammoth's Force III"
+	|/call AddToArrayWithUniqueName "CombatSelfBuffs" "Talisman of the Doomscale Rk. II" "Preeminent Foresight III"
+	|/call AddToArrayWithUniqueName "CombatSelfBuffs" "Talisman of the Doomscale Rk. II" "Doomscale Focusing Rk. II"
+	|/call AddToArrayWithUniqueName "CombatSelfBuffs" "Talisman of the Doomscale Rk. II" "Spirit of Dedication Rk. II"
+	
+	/echo Done initializing shaman macro!
+
+| *** INITIALIZATION
+	/echo Starting Box Commander - Shaman Macro
+
+| *** MAIN LOOP
+:loop
+	/call Tick
+	/goto :loop
+/return
+
+Sub GroupInvis
+	/if (!${Me.Invis}) /call RKAACast "Group Silent Presence"
+/return FALSE
+
+Sub PriorityCombatActions
+	/if (!${Target.ID}) /return FALSE
+	/if (!${Target.Type.Equal[NPC]}) /return FALSE
+	/if (!${Bool[${Target.Slowed}]}) /call RKDebuffCast "Regenerating Counterbias" "Regenerating Counterbias Slow" ${CurrentTargetId}	
+	/if (${Spawn[id ${TankId}].Distance} > 100) /call RKAACast "Spirit Leap" ${TankId}
+	/call RKItemCast "Circle of Power I Effect" "Willowcrush's Branch"
+	
+/return FALSE
+
+Sub ShamanCombatActions
+	/if (${DebugMode}) /echo Shaman Combat Actions
+
+	/if (${Target.ID} == ${Me.ID}) /return FALSE
+	/cast item "Crafted Talisman of Fates"
+	
+	/if (${Me.XTarget} > 1 && ${Target.Type.Equal[NPC]} && ${Target.PctHPs} < 99) {
+		/call RKAACast "Wind of Malosinete" ${CurrentTargetId}
+		|/if (${Me.AltAbilityReady[Wind of Malosinete]}) /return TRUE
+	}
+
+	/if (${Me.XTarget} > 1 && ${Me.AltAbilityReady[Tigir's Insect Swarm]}) {
+		/call RKAACast "Tigir's Insect Swarm" ${CurrentTargetId}
+		/return TRUE
+	}
+	
+	/if (${Me.SpellReady[Ferocious Growth Rk. II]}) {
+		/call RKCast "Ferocious Growth Rk. II" ${TankId}
+		|/return TRUE
+	}
+
+	/if (!${Bool[${Target.Malod}]}) {
+		/call RKAACast "Malosinete" ${CurrentTargetId}
+	}
+	
+	/call RKAACast "Spirit Call" ${CurrentTargetId}
+	/call RKAACast "Languid Bite" ${CurrentTargetId}
+	/if (!${Me.Buff[${Me.AltAbility[Preincarnation].Spell.Name}].ID}) /call RKAACast "Preincarnation" ${CurrentTargetId}
+
+	/call RKAACast "Dampen Resistance" ${CurrentTargetId}
+	/call RKAACast "Crippling Apparition" ${CurrentTargetId}
+	/call RKAACast "Fundament: Second Spire of the Ancestors" ${CurrentTargetId}
+	/call RKAACast "Spirit Guardian" ${TankId}
+	/call RKAACast "Spiritual Blessing" ${CurrentTargetId}	
+/return FALSE
+
+Sub Defensives
+	/if (${Me.PctHPs} < 90) {
+		/call RKAACast "Ancestral Guard"
+		/if (${Macro.Return}) /return TRUE
+	}
+
+	/if (${Me.PctHPs} < 70) {
+		/call RKAACast "Armor of Ancestral Spirits"
+		/if (${Macro.Return}) /return TRUE
+	}
+
+	/if (${Me.PctHPs} < 70) {
+		/call RKAACast "Armor of Ancestral Spirits"
+		/if (${Macro.Return}) /return TRUE
+	}
+	
+/return FALSE
+
+Sub ShamanBurn
+	/call RKAACast "Fleeting Spirit" ${CurrentTargetId}
+	/call RKAACast "Crippling Spirit" ${CurrentTargetId}
+	/call RKAACast "Call of the Ancients"
+	/call RKAACast "Focus of Arcanum"
+	/call RKAACast "Rapid Bear"
+	/call RKAACast "Union of Spirits" ${TankId}
+	/call RKAACast "Ancestral Aid"
+/return FALSE
+
+Sub ShamanNonCombatSubs
+	/if (${Me.Moving}) /return TRUE
+/return FALSE
+
+Sub CheckCheetah
+	/if (${DebugMode}) /echo CheckCheetah
+	/if (${Me.Buff[Communion of the Cheetah].ID} && ${Me.Buff[Communion of the Cheetah].Duration} > 45000) /return FALSE
+	/declare wasInvis bool local ${Me.Invis}
+	/call RKAACast "Communion of the Cheetah" ${CurrentTargetId}
+	/if (${wasInvis}) {
+		/call RKAACast "Silent Presence" ${CurrentTargetId}
+	}
+/return FALSE
+
+Sub CheckRecourse
+	/if (${DebugMode}) /echo Check Recourse
+	/if (${Me.GemTimer[${Me.Gem[Krasir's Recourse Rk. II]}]} != 0) /return FALSE
+	
+	|still have last tick of Recourse
+	/if (${Bool[${Me.Song[Krasir's Forbearance II]}]}) /return FALSE 
+
+	/call RKCast "Krasir's Recourse Rk. II" ${CurrentTargetId}
+/return TRUE
+
+Sub CheckWolf
+	/if (!${Me.Buff[Group Pact of the Wolf].ID}) {
+		/call RKAACast "Group Pact of the Wolf"
+		/if (${ShrinkMode} && ${Me.Height} > 2) {
+			/delay 1s
+			/call RKAACast "Group Shrink"
+		}
+	}
+/return FALSE
+
+Sub DoCannibalization
+	/if (${Me.Moving}) /return FALSE
+	/if (${Me.PctMana} < ${CannibalizationAAThreshold}) {
+		/call RKAACast "Cannibalization"
+		/if (${Macro.Return}) /return TRUE
+	}
+	
+	/if (${Me.PctMana} < ${CannibalizationSpellThreshold}) {
+		/if (${Me.SpellReady[${CannibalizationSpellName}]}) {
+			/call RKCast "${CannibalizationSpellName}" ${CurrentTargetId}
+			/if (${Macro.Return}) /return TRUE
+		}
+	}
+/return FALSE

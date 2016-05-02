@@ -1,0 +1,45 @@
+#include RKBase.inc
+#include RKCasterBase.inc
+
+Sub Main
+	/call Init_RKBase
+	/call Init_RKCasterBase
+
+| *** VARIABLE DECLARATIONS
+
+	/varset MaxTargetDistance 5000
+	/varset TargetHpEngagePercentage 100
+	/varset UpperAggroThreshold 90
+	/varset MercBurnThreshold 80
+	
+	/call AddToArray "DetrimentalSpells" "My Favorite Nuke Rk. II"
+	/call AddToArray "DetrimentalSpells" "My Favorite Dot"
+	
+	/call AddToArray "PreTargetAcquisitionCombatActionSubs" "CheckAura"
+	/call AddToArray "CombatActionSubs" "CasterCombat"
+	
+	/echo Done initializing macro!
+
+| *** INITIALIZATION
+	/echo Starting Box Commander - Caster Macro
+
+| *** MAIN LOOP
+:loop
+	/call Tick
+	/goto :loop
+/return
+
+Sub CheckAura
+	|/if (!${Bool[${Me.Aura[My Aura]}]}) {
+	|	/echo Applying aura
+	|	/call RKDisc "My Aura"
+	|	/delay 10s ${Bool[${Me.Aura[My Aura]}]}
+	|	/return TRUE
+	|}
+	
+/return FALSE
+
+Sub CasterCombat
+	
+
+/return FALSE

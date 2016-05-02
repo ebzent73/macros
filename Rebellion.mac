@@ -45,19 +45,19 @@ Sub ArrowRoom
 /popup Moving to Arrow Room
 
 /moveto loc -271, -119
-/delay 2s
+/delay 30s ${MoveTo.Stopped}
 /moveto loc -327, -121
-/delay 2s
+/delay 30s ${MoveTo.Stopped}
 /moveto loc -372, -158
-/delay 2s
+/delay 30s ${MoveTo.Stopped}
 /moveto loc -387, -322
-/delay 6s
+/delay 30s ${MoveTo.Stopped}
 /moveto loc -414, -362
-/delay 2s
+/delay 30s ${MoveTo.Stopped}
 /moveto loc -449, -371
-/delay 2s
+/delay 30s ${MoveTo.Stopped}
 /moveto loc -537, -387
-/delay 3s
+/delay 30s ${MoveTo.Stopped}
 /popup We have arrived at the Arrow Room!
 
 /return
@@ -65,7 +65,7 @@ Sub ArrowRoom
 Sub Barrels
 
 /moveto loc -502, -410
-/delay 2s
+/delay 30s ${MoveTo.Stopped}
 /tar barrel
 /delay 1s
 /open
@@ -85,11 +85,11 @@ Sub Barrels
 /nomodkey /notify "LootWnd" LW_DoneButton leftmouseup
 
 /moveto loc -529, -514
-/delay 5s
+/delay 30s ${MoveTo.Stopped}
 /moveto loc -529, -624
-/delay 4s
+/delay 30s ${MoveTo.Stopped}
 /moveto loc -566, -610
-/delay 2s
+/delay 30s ${MoveTo.Stopped}
 /tar barrel
 /delay 1s
 /open
@@ -109,7 +109,7 @@ Sub Barrels
 /nomodkey /notify "LootWnd" LW_DoneButton leftmouseup
 
 /moveto loc -565, -709
-/delay 4s
+/delay 30s ${MoveTo.Stopped}
 /tar barrel
 /delay 1s
 /open
@@ -129,7 +129,7 @@ Sub Barrels
 /nomodkey /notify "LootWnd" LW_DoneButton leftmouseup
 
 /moveto loc -547, -686
-/delay 2s
+/delay 30s ${MoveTo.Stopped}
 /tar barrel
 /delay 1s
 /open
@@ -155,23 +155,23 @@ Sub Return
 /popup That should do it!
 
 /moveto loc -523, -657
-/delay 2s
+/delay 30s ${MoveTo.Stopped}
 /moveto loc -521, -574
-/delay 3s
+/delay 30s ${MoveTo.Stopped}
 /moveto loc -527, -381
-/delay 6s
+/delay 30s ${MoveTo.Stopped}
 /moveto loc -447, -371
-/delay 4s
+/delay 30s ${MoveTo.Stopped}
 /moveto loc -407, -352
-/delay 2s
+/delay 30s ${MoveTo.Stopped}
 /moveto loc -391, -328
-/delay 2s
+/delay 30s ${MoveTo.Stopped}
 /moveto loc -377, -281
-/delay 3s
+/delay 30s ${MoveTo.Stopped}
 /moveto loc -377, -167
-/delay 4s
+/delay 30s ${MoveTo.Stopped}
 /moveto loc -324, -122
-/delay 3s
+/delay 30s ${MoveTo.Stopped}
 /tar Rahtiz
 /delay 1s
 /stick 5
@@ -180,10 +180,10 @@ Sub Return
 
 /if (!${FindItem[CLASS 1 Wood Point Arrow].ID}) {
 /popup Dang! We didnt get an arrow!
-/popup Going to check the barrels again in 60 seconds
-/delay 30s
-/popup 30 seconds until we check again...
-/delay 30s
+/popup Going to check the barrels again in 20 seconds
+/delay 10s
+/popup 10 seconds until we check again...
+/delay 10s
 /popup Checking now!
 /goto :Recheck
 }
@@ -232,10 +232,7 @@ Sub VendorArea
 
 /popup We have arrived! Go ahead and sell/bank
 /delay 2s
-/popup Oh yeah... Since you are running this
-/popup then we'll just go ahead and delete
-/popup your Crescent Reach Guild Summons!
-
+/popup Oh yeah... Since you are running this then we'll just go ahead and delete your Crescent Reach Guild Summons!
 /itemnotify ${FindItem[=Crescent Reach Guild Summons].InvSlot} leftmouseup
 /delay 1s
 /destroy

@@ -1,0 +1,158 @@
+#Event HOT_Landed_Self "#*#hot landed self message#*#"
+#Event HOT_Landed "#1#'s hot landed message"
+#Event HOT_Worn_off_Self "#*#hot wore off self message#*#"
+#Event HOT_Worn_off "hot wore off message #1#."
+#Event SnareImmune "#*#Your target is immune to changes in its run speed."
+
+#include RKBase.inc
+#include RKCasterBase.inc
+#include RKHealerBase.inc
+
+Sub Main
+	/call Init_RKBase
+	/call AddToArray "CombatActionSubs" "DruidCombat"
+	/call Init_RKCasterBase
+	/call Init_RKHealerBase
+
+| *** VARIABLE DECLARATIONS
+
+	/varset InCombatStickToCommander TRUE
+	/declare ShouldSnare bool outer TRUE	
+
+	/varset TargetHpEngagePercentage 100
+	/varset UpperAggroThreshold 100
+	/varset SpellMemSlot 10
+
+	/varset HealSpell Panavida Rk. II
+	/varset TankHealThreshold 60
+	/varset SingleTargetHealThreshold 60
+	
+	/varset EmergencyHealSpell Resurgence Rk. II
+	/varset EmergencyHealThreshold 50
+	
+	/varset GroupHeal Lunassuage
+	/varset GroupHealThreshold 70
+	
+	/varset EmergencyGroupHeal Survival of the Fortuitous
+	/varset EmergencyGroupHealThreshold 0
+	
+	/call AddToArray "InvisModeSubs" "CastGroupInvis"
+	/call AddToArray "NonCombatSubs" "DruidNonCombat"
+	/call AddToArray "PreTargetAcquisitionCombatActionSubs" "CheckCheetah"
+	/call AddToArray "DefensiveActionSubs" "ExecuteDefensiveActions"
+	/call AddToArray "BurnCombatActionSubs" "DruidBurnActions"
+	
+	/call AddToArray "CombatTankBuffs" "Pellicle of the Reptile Rk. II"
+	|/call AddToArray "CombatTankBuffs" "Daggerthorn Rk. II"
+
+	/call AddToArray "DetrimentalSpells" "Nature's Fiery Wrath Rk. II"	
+	/call AddToArray "DetrimentalSpells" "Sporali Storm Rk. II"		
+	/call AddToArray "DetrimentalSpells" "Remote Moonflame Rk. II"		
+	/call AddToArray "DetrimentalSpells" "Summer Sunfire Rk. II"	
+	/call AddToArray "DetrimentalSpells" "Argent Thornmaw Rk. II"
+	/call AddToArray "DetrimentalSpells" "Sunfire Blessing Rk. II"	
+
+	/call AddToArray "DetrimentalSpells" "Typhoon of the Stormborn"
+	/call AddToArray "DetrimentalSpells" "Lustrous Frost"
+	/call AddToArray "DetrimentalSpells" "Nature's Withering Wrath"
+	
+	/call AddToArray "NonCombatSelfBuffs" "Talisman of the Faithful Rk. II"
+	/call AddToArray "NonCombatSelfBuffs" "Legacy of Daggerspurs Rk. II"	
+	/call AddToArray "NonCombatSelfBuffs" "Mask of the Bosquetender"
+	/call AddToArray "NonCombatSelfBuffs" "Spikethistle Coat"
+	
+| *** INITIALIZATION
+	/echo Starting Box Commander - Druid Macro
+| *** MAIN LOOP
+:loop
+	/call Tick
+	/goto :loop
+/return
+
+Sub DruidNonCombat
+	/if (!${Me.Buff[Flight of Eagles].ID}) /call RKAACast "Flight of Eagles"
+	/if (!${Me.Aura.Equal[Wildspark Aura]}) /call RKBuff "Wildspark Aura" ${CurrentTargetId}
+/return FALSE
+
+Sub DruidCombat
+	/if (${Me.Casting.ID} || ${Me.Moving}) /return FALSE
+
+	/if (${SnareMode} && ${ShouldSnare} && !${Target.Buff[Entrap].ID}) /call RKAACast "Entrap"
+
+	/if (${Me.XTarget} > 1) {
+		/call RKCast "Glacial Pillar Rk. II" ${CurrentTargetId}
+		/if (${Macro.Return}) /return TRUE
+	}
+	
+	/if (${Target.PctHPs} < 20) /return FALSE
+	/if (!${Target.Buff[Fixation of Ro I].ID}) /call RKAACast "Blessing of Ro" ${CurrentTargetId}
+
+	/call RKAACast "Storm Strike" ${CurrentTargetId}
+	
+	/if (${Target.PctHPs} < 50) /return FALSE
+	
+	/call RKAACast "Peaceful Spirit of the Wood" ${CurrentTargetId}
+	/call RKAACast "Wrath of the Wild" ${TankId}
+	/if (!${Bool[${Me.Buff[Improved Twincast III]}]}) /call RKCast "Twincast" ${CurrentTargetId}	
+/return FALSE
+
+Sub DruidBurnActions
+	/if (!${Me.Buff[Twincast].ID}) /call RKAACast "Improved Twincast"
+
+	/call RKAACast "Swarm of Fireflies" ${TankId}
+	/call RKAACast "Peaceful Convergence of Spirits" ${TankId}
+	/call RKAACast "Spirit of the Bear" ${TankId}
+
+	/if (!${Me.Buff[Spirit of the Black Wolf V].ID}) {
+		/call RKAACast "Group Spirit of the Black Wolf"
+		/if (${Macro.Return}) /return TRUE
+	}
+	
+	/if (!${Me.Buff[Group Spirit of the Black Wolf II].ID}) {
+		/if (${Me.Mount.ID}) {
+			/dismount
+			/delay 1s
+		}
+		/call RKAACast "Spirit of the Black Wolf"
+		/if (${Macro.Return}) /return TRUE		
+	}
+	
+	/call RKAACast "Season's Wrath" ${CurrentTargetId}
+	/call RKAACast "Focus of Arcanum"	
+
+	|/call RKAACast "Fundament: First Spire of Nature"
+	/alt act 1491
+
+	/call RKAACast "Nature's Fury"	
+	/call RKAACast "Nature's Guardian"		
+	/call RKAACast "Spirit of the Bear" ${TankId}
+/return FALSE
+
+Sub CheckCheetah
+	/if (${DebugMode}) /echo CheckCheetah
+	/if (${Me.Buff[Communion of the Cheetah].ID} && ${Me.Buff[Communion of the Cheetah].Duration} > 8) /return FALSE
+	/call RKAACast "Communion of the Cheetah" ${CurrentTargetId}
+	/delay 5
+	/call RKAACast "Innate Camouflage"
+/return FALSE
+	
+Sub ExecuteDefensiveActions
+	/if (${CurrentGroupHealthPercentage} != 0 && ${CurrentGroupHealthPercentage} < 30) /call RKAACast "Exodus"
+	/if (${Me.PctHPs} < 15) /call RKAACast "Exodus"
+	/if (${Me.PctHPs} < 50) /call RKAACast "Veil of the Underbrush"
+	/if (${Me.PctHPs} < 70) /call RKAACast "Protection of Direwood"
+	/if (${Me.PctHPs} < 90) /call RKAACast "Wrath of the Wild" ${CurrentTargetId}
+/return FALSE
+	
+Sub CastGroupInvis
+	/if (!${Me.Buff[Shared Camouflage].ID}) /call RKAACast "Shared Camouflage"
+	/if (${DebugMode}) /echo Group Invis
+/return FALSE	
+	
+Sub ResetSnareMode
+	/if (${SnareMode}) /varset ShouldSnare TRUE
+/return FALSE
+
+Sub Event_SnareImmune
+	/varset ShouldSnare FALSE
+/return

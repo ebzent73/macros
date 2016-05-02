@@ -1,0 +1,109 @@
+#Event HOT_Landed_Self "#*#Your body becomes completely serene.#*#"
+#Event HOT_Landed "#1#'s body becomes completely serene."
+#Event HOT_Worn_off_Self "#*#The serenity fades.#*#"
+#Event HOT_Worn_off "Your Halcyon Whisper Rk. II spell has worn off of #1#."
+
+#include RKBase.inc
+#include RKCasterBase.inc
+#include RKPetBase.inc
+|#include RKMeleeBase.inc
+#include RKHealerBase.inc
+
+Sub Main
+	/call Init_RKBase
+	/call Init_RKCasterBase
+	/call Init_RKHealerBase
+	/call Init_RKPetBase
+	
+	/declare CannibalizationSpellName string outer "Ancestral Obligation"
+	/declare CannibalizationSpellThreshold int outer 90
+	/declare CannibalizationAAThreshold string outer 50
+
+| *** VARIABLE DECLARATIONS
+
+	/varset HealSpell Dannal's Mending
+	/varset HoTSpell Halcyon Whisper
+	/varset GroupHeal Shadow of Renewal
+	/varset EmergencyGroupHeal Antecedent's Intervention
+
+	/varset PetSpellName "Aina's Faithful"
+
+	/call AddToArray "DetrimentalSpells" "Malosinete"
+	/call AddDetrimentalSpellWithUniqueDebuffName "Healing Counterbias" "Healing Counterbias Slow"
+	/call AddToArray "DetrimentalSpells" "Nectar of the Slitheren"
+	/call AddToArray "DetrimentalSpells" "Blood of Jaled'Dar"
+
+	/call AddToArray "GiftSpells" "Shadow of Renewal"
+	/call AddToArray "CombatSelfBuffs" "Talisman of the Lynx"
+
+	|/call AddToArray "PreTargetAcquisitionCombatActionSubs" "CheckWolf"
+	/call AddToArray "PreTargetAcquisitionCombatActionSubs" "CheckCheetah"
+	/call AddToArray "PreTargetAcquisitionCombatActionSubs" "DoCannibalization"
+
+	/call AddToArray "BurnCombatActionSubs" "ExecuteShamanBurnCombatActions"
+	/call AddToArray "CombatActionSubs" "ExecuteShamanCombatActions"
+
+	/call AddToArray "NonCombatSelfBuffs" "Talisman of Celerity"
+	/call AddToArray "NonCombatSelfBuffs" "Talisman of the Resolute"	
+
+	/varset TankHoTThreshold 90
+	/varset TankHealThreshold 80
+	/varset MercBurnThreshold 101
+
+	/varset SingleTargetHoTThreshold 80
+	/varset SingleTargetHealThreshold 75
+
+	/varset GroupHealThreshold 95
+	/varset EmergencyGroupHealThreshold 90
+
+	/echo Done initializing shaman macro!
+
+| *** INITIALIZATION
+	/echo Starting Box Commander - Foodloop Macro
+
+| *** MAIN LOOP
+:loop
+	/call Tick
+	/goto :loop
+/return
+
+Sub ExecuteShamanCombatActions
+	/call RKAACast "Spirit Call"
+	|/cast item "Crafted Talisman of Fates"
+/return FALSE
+
+Sub ExecuteShamanBurnCombatActions
+	/call RKAACast "Fundament: Third Spire of the Ancestors"
+/return FALSE
+
+Sub ShamanNonCombatSubs
+/return FALSE
+
+Sub CheckCheetah
+	/if (${DebugMode}) /echo CheckCheetah
+	/if (${Me.Buff[Communion of the Cheetah].ID} && ${Me.Buff[Communion of the Cheetah].Duration} > 8) /return FALSE
+	/call RKAACast "Communion of the Cheetah"
+	/delay 5
+	/call RKAACast "Silent Presence"
+/return FALSE
+
+Sub CheckWolf
+	|/return FALSE
+	/if (!${Me.Buff[Group Pact of the Wolf].ID}) {
+		/call RKAACast "Group Pact of the Wolf"
+		/delay 1s
+		/call RKAACast "Group Shrink"
+	}
+/return FALSE
+
+Sub DoCannibalization
+	/if (${Me.PctMana} < ${CannibalizationAAThreshold}) {
+		/call RKAACast "Cannibalization"
+		/return ${Macro.Return}
+	}
+
+	/if (${Me.PctMana} < ${CannibalizationSpellThreshold}) {
+		/call RKCast "${CannibalizationSpellName}" ${Me.ID}
+		/return ${Macro.Return}
+	}
+/return FALSE

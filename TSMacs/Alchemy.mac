@@ -1,0 +1,285 @@
+| Alchemy.mac version 2.0
+|
+| Written by Armysoldier
+|
+| March 5 2006
+|
+| Modifications:
+|
+| 26 APR 06: Call to read locs was missing... added it
+|
+| 2 APR 06: REworked to new recipies 
+|
+| THIS MACRO DOES NOT DESTROY OR SELL OFF YOU End result potions
+|
+| I suggest to reduce cost of ALCHEMY 
+|             1. FARM or buy DEEP ORC meat - and make Deep Orc Essence - 195 TRIV - cost 1G 2S 5C per combine
+|             2. to go from 210 - 300 - FORAGE RED CUPS and COLLECT DEEP WATER INK 
+|                  DISTILATE of _______ VIII - 255 TRIV - Cost 14p 1G 5S 1C per combine w/ RED CUPS
+|                  DISTILATE of _______ IX - 302 TRIV - COST From under 1PP - 2PP per combine w/ DEEP WATER INK
+|
+|
+| 26 MAR 2006: moved 2 subs and event declarations to CommonSubs.inc
+|
+| This new line of tradeskill macros uses the NEW UI and the OLD UI for TS containers
+| 
+| The Macro will attempt to find the recipe using the NEW UI first
+| If no recipe is found it will go Old school and do a set of combines
+| these macros take into account the SALVAGE function and react accordingly
+| 
+|
+| A special thanks to A_Druid_00 for advising on some streamlining modifications
+| and to Override for his Tradeskill Code that has been around for so long 
+| and is the inspiration for this code
+|
+| Some of the code was pulled from other macros and modified and manipulated 
+| to do the tasks set forth.
+|
+| This code is designed for Abysmal Sea
+|
+| *** FOR THIS CODE TO WORK ***
+| You need to Stand BETWEEN Lita Hegeway @ loc 122,-50 
+|                           AND Jorlan Hegeway in Abysmal Sea
+| You need to be in the first person view
+| You need to ensure that when you click the tradeskill container the NEW UI comes up first
+| the 5 FILES need to be in the macro\common folder (see includes below)
+| A Medicine Bag needs to be in slot 8 of your packs
+|
+| 
+|
+|Inventory
+| _______
+|| 1 | 5 |
+||___|___|
+|| 2 | 6 | 
+||___|___|
+|| 3 | 7 |
+||___|___|
+|| 4 | 8 |
+||___|___|
+|
+
+
+#include common/sell.inc
+#include common/buy.inc
+#include common/packs.inc
+#include common/cleanpacks.inc
+#include common/CommonSubs.inc
+
+
+Sub Main
+    /declare OldSkill int outer ${Me.Skill[Alchemy]}
+    /declare SkillMaxWanted int outer
+    /declare PackCode string outer 
+    /declare Component[10] string outer
+    /declare i int outer
+    /declare MerchantNameA string Outer
+    /declare MerchantNameB string Outer
+    /declare MerchantNameC string Outer
+    /declare CombItemName string outer
+    /declare ItemTo string outer
+    /declare EndingVar int outer
+    /declare DelayMult int outer
+    /declare Container string outer
+    /declare Checkrecipe string outer
+    /declare NewUI int outer
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+| Customize these settings if you want
+|                    
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    /varset SkillMaxWanted 210 
+    /varset DelayMult 1
+    /declare Filename string outer Alchemy.ini
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+| Call Read INI for locations array
+|                    
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    /call ReadINIA ${Filename} "Abysmal Sea" 
+    /if (!${Defined[LocArray]}) { 
+       /echo No Loc Array Created...
+       /endmacro 
+    } 
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+| Begin 
+|
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    :start
+
+|--- Check Current Skill against Skill wanted 
+    /echo Alchemy is at ${Me.Skill[Alchemy]}
+
+    /if (${Me.Skill[Alchemy]}>=${SkillMaxWanted}) {
+      /echo Alchemy is at ${SkillMaxWanted}. Quiting!
+      /endmacro
+    }
+
+    /if (${Me.Skill[Alchemy]}<83) {
+          /varset MerchantNameA Sara Hegeway
+          /varset MerchantNameB Jensine Hegeway
+      }
+    /if (${Me.Skill[Alchemy]}>=84 && ${Me.Skill[Alchemy]}<136) {
+          /varset MerchantNameA Jensine Hegeway
+          /varset MerchantNameB Maren Hegeway
+      }
+    /if (${Me.Skill[Alchemy]}>=136 && ${Me.Skill[Alchemy]}<211) {
+          /varset MerchantNameA Jorlan Hegeway
+          /varset MerchantNameB Lita Hegeway
+          /varset MerchantNameC Oline Hegeway
+      }
+
+    /if (${Me.Skill[Alchemy]}<55) {
+    /varset CombItemName DI2
+    /varset ItemTo Distillate of Immunization II
+    }
+    /if (${Me.Skill[Alchemy]}>=55 && ${Me.Skill[ALchemy]}<84) {
+    /varset CombItemName DI3
+    /varset ItemTo Distillate of Immunization III
+    }
+    /if (${Me.Skill[Alchemy]}>=84 && ${Me.Skill[Alchemy]}<101) {
+    /varset CombItemName WOLF2
+    /varset ItemTo Philter of the Wolf II
+    }
+    /if (${Me.Skill[Alchemy]}>=101 && ${Me.Skill[Alchemy]}<136) {
+    /varset CombItemName WOLF3
+    /varset ItemTo Philter of the Wolf III
+    }
+    /if (${Me.Skill[Alchemy]}>=136 && ${Me.Skill[Alchemy]}<179) {
+    /varset CombItemName DS6
+    /varset ItemTo Distillate of Skinspikes VI
+    }
+    /if (${Me.Skill[Alchemy]}>=179 && ${Me.Skill[Alchemy]}<211) {
+    /varset CombItemName WOLF5
+    /varset ItemTo Philter of the Wolf 5
+    }
+   
+    /call ReadIni ${CombItemName}
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+| Buy Components
+|
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    /varset EndingVar 1
+    /varset NewUI 1
+
+    /if (${Me.Skill[Alchemy]}>=136 && ${Me.Skill[Alchemy]}<211) /call Movement 3 3 0
+
+    /target ${MerchantNameA}
+
+    /nomodkey /click right target
+
+    /delay 5s ${Window[MerchantWnd].Open}
+
+    /call OpenPacks
+
+    /call Buy "${Component[2]}" 20
+
+    /if (${Me.Skill[Alchemy]}<136) /call Buy "${Component[1]}" 20
+
+    /if (${Me.Skill[Alchemy]}<84) /call Buy "${Component[3]}" 60
+
+    /if (${Me.Skill[Alchemy]}>=136 && ${Me.Skill[Alchemy]}<211) /call Buy "${Component[3]}" 20
+
+    /if (${Me.Skill[Alchemy]}<136) /call Movement 3 3 0
+
+    /if (${Me.Skill[Alchemy]}>=136 && ${Me.Skill[Alchemy]}<211) /call Movement 1 1 0
+
+    /target ${MerchantNameB}
+
+    /nomodkey /click right target
+
+    /delay 5s ${Window[MerchantWnd].Open}
+
+    /call Buy "${Component[4]}" 20
+
+    /if (${Me.Skill[Alchemy]}>=84 && ${Me.Skill[Alchemy]}<211) /call Buy "${Component[5]}" 40
+
+    /if (${Me.Skill[Alchemy]}>=84 && ${Me.Skill[Alchemy]}<136) /call Buy "${Component[3]}" 20
+
+    /call Movement 3 3 0
+
+    /if (${Me.Skill[Alchemy]}>=136 && ${Me.Skill[Alchemy]}<211) {
+
+           /call Movement 4 4 0
+
+           /target ${MerchantNameC}
+
+           /nomodkey /click right target
+
+           /delay 5s ${Window[MerchantWnd].Open}
+
+           /call Buy "${Component[1]}" 20
+
+           /call Movement 1 1 0
+
+           }
+
+    /nomodkey /notify MerchantWnd MW_Done_Button LeftMouseUp
+
+    /call ClosePacks
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+| MAKE Items
+|
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+      /nomodkey /itemnotify pack8 rightmouseup
+      /doevents
+      /delay 3s ${Window[TradeskillWnd].Open} 
+      /if (!${Window[TradeskillWnd].Open}) /nomodkey /click left Item 
+      /delay 3s ${Window[TradeskillWnd].Open} 
+      /call ChooseRecipe
+      /call ClosePacks
+
+    /target ${MerchantNameA}
+   
+    /delay 5s ${Target.ID}==${Spawn[${MerchantNameA}].ID}
+
+    /nomodkey /click right target
+
+/delay 5s ${Window[MerchantWnd].Open} 
+
+    /call OpenPacks
+
+    /call Sell "${Component[1]}"
+
+    /call Sell "${Component[2]}"
+
+    /call Sell "${Component[3]}"
+
+    /call Sell "${Component[4]}"
+
+    /if (${Me.Skill[Alchemy]}>83) /call Sell "${Component[5]}"
+
+    /nomodkey /notify MerchantWnd MW_Done_Button LeftMouseUp
+
+    /call ClosePacks
+
+    /doevents
+
+    /goto :start
+
+    /return
+
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+|Sub Event Skill up
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+Sub Event_Skillup
+        /if (${Me.Skill[Alchemy]}>${OldSkill}) {
+        /echo Your Alchemy Went Up!! It's now ${Me.Skill[Alchemy]}!
+        /varset OldSkill ${Me.Skill[Alchemy]}
+/return
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+|Sub Event No Longer Advance 
+|used if there are some subcombines that need to be made in some TS
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Sub Event_Advance
+    /varset EndingVar 2
+/return 

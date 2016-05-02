@@ -1,0 +1,302 @@
+| Fletch.mac version 1.0
+|
+| Written by Armysoldier
+|
+| March 5 2006
+|
+| Modifications:
+|
+| 17 APR fixed a typo or two DOH
+|
+| 26 MAR 2006: moved 2 subs and event declarations to CommonSubs.inc
+|
+| This new line of tradeskill macros uses the NEW UI and the OLD UI for TS containers
+| 
+| The Macro will attempt to find the recipe using the NEW UI first
+| If no recipe is found it will go Old school and do a set of combines
+| these macros take into account the SALVAGE function and react accordingly
+| 
+|
+| A special thanks to A_Druid_00 for advising on some streamlining modifications
+| and to Override for his Tradeskill Code that has been around for so long 
+| and is the inspiration for this code
+|
+| Some of the code was pulled from other macros and modified and manipulated 
+| to do the tasks set forth.
+|
+| This code is designed for Abysmal Sea
+|
+| *** FOR THIS CODE TO WORK ***
+| You need to Stand behind Bansama Nysawi
+| You need to be in the first person view
+| You need to ensure that when you click the tradeskill container the NEW UI comes up first
+| the 5 FILES need to be in the macro\common folder (see includes below)
+| A Fletching Kit needs to be in slot 8 of your packs
+|
+|
+|Inventory
+| _______
+|| 1 | 5 |
+||___|___|
+|| 2 | 6 | 
+||___|___|
+|| 3 | 7 |
+||___|___|
+|| 4 | 8 |
+||___|___|
+|
+
+#include common/sell.inc
+#include common/buy.inc
+#include common/packs.inc
+#include common/cleanpacks.inc
+#include common/CommonSubs.inc
+
+
+Sub Main
+    /declare OldSkill int outer ${Me.Skill[fletching]}
+    /declare SkillMaxWanted int outer
+    /declare PackCode string outer 
+    /declare Component[10] string outer
+    /declare i int outer
+    /declare MerchantNameA string Outer
+    /declare CombItemName string outer
+    /declare ItemTo string outer
+    /declare EndingVar int outer
+    /declare DelayMult int outer
+    /declare Container string outer
+    /declare Checkrecipe string outer
+    /declare NewUI int outer
+
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+| Customize these settings if you want
+|                    
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    /varset MerchantNameA "Bansama Nysawi" 
+    /varset SkillMaxWanted 191 
+    /varset DelayMult 1
+    /declare Filename string outer fletching.ini
+
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+| Begin 
+|
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    :start
+
+|--- Check Current Skill against Skill wanted 
+    /echo fletching is at ${Me.Skill[fletching]}
+
+    /if (${Me.Skill[fletching]}>=${SkillMaxWanted}) {
+      /echo fletching is at ${SkillMaxWanted}. Quiting!
+      /endmacro
+    }
+    /if (${Me.Skill[Fletching]}>=255 && ${Me.Skill[Fletching]}<282) { 
+      /varset CombItemName "RSCB" 
+      /varset ItemTo "Rough Shadewood Compound Bow" 
+    }
+
+    /if (${Me.Skill[Fletching]}>=235 && ${Me.Skill[Fletching]}<255) { 
+      /varset CombItemName "RSRB" 
+      /varset ItemTo "Rough Shadewood Recurve Bow" 
+    } 
+
+    /if (${Me.Skill[Fletching]}>=215 && ${Me.Skill[Fletching]}<235) { 
+      /varset CombItemName "RDCB" 
+      /varset ItemTo "Rough Darkwood Compound Bow" 
+    } 
+
+    /if (${Me.Skill[Fletching]}>=202 && ${Me.Skill[Fletching]}<215) { 
+      /varset CombItemName "RDRB" 
+      /varset ItemTo "Rough Darkwood Recurve Bow" 
+    } 
+
+    /if (${Me.Skill[Fletching]}>=162 && ${Me.Skill[Fletching]}<202) { 
+      /varset CombItemName "FWCL" 
+      /varset ItemTo "CLASS 6 Wood Point Arrow" 
+    } 
+
+    /if (${Me.Skill[Fletching]}>=135 && ${Me.Skill[Fletching]}<162) { 
+      /varset CombItemName "FWBL" 
+      /varset ItemTo "CLASS 5 Wood Point Arrow" 
+    } 
+
+    /if (${Me.Skill[Fletching]}>=122 && ${Me.Skill[Fletching]}<135) { 
+      /varset CombItemName "FCRL" 
+      /varset ItemTo "CLASS 1 Ceramic Point Arrow" 
+    } 
+
+    /if (${Me.Skill[Fletching]}>=102 && ${Me.Skill[Fletching]}<122) { 
+      /varset CombItemName "FWWL" 
+      /varset ItemTo "CLASS 4 Wood Point Arrow" 
+    } 
+
+    /if (${Me.Skill[Fletching]}>=82 && ${Me.Skill[Fletching]}<102) { 
+      /varset CombItemName "HWSL" 
+      /varset ItemTo "CLASS 1 Wood Hooked Arrow" 
+    } 
+
+    /if (${Me.Skill[Fletching]}>=68 && ${Me.Skill[Fletching]}<82) { 
+      /varset CombItemName "FWSL" 
+      /varset ItemTo "CLASS 3 Wood Point Arrow" 
+    } 
+
+    /if (${Me.Skill[Fletching]}>=56 && ${Me.Skill[Fletching]}<68) { 
+      /varset CombItemName "FBRL" 
+      /varset ItemTo "CLASS 1 Bone Point Arrow" 
+    } 
+
+    /if (${Me.Skill[Fletching]}>=46 && ${Me.Skill[Fletching]}<56) { 
+      /varset CombItemName "FWRS" 
+      /varset ItemTo "CLASS 1 Wood Point Arrow (Small Groove)" 
+    } 
+
+    /if (${Me.Skill[Fletching]}>=36 && ${Me.Skill[Fletching]}<46) { 
+      /varset CombItemName "FWPL" 
+      /varset ItemTo "CLASS 2 Wood Point Arrow" 
+    } 
+
+    /if (${Me.Skill[Fletching]}>=16 && ${Me.Skill[Fletching]}<36) { 
+      /varset CombItemName "FWRM" 
+      /varset ItemTo "CLASS 1 Wood Point Arrow (Medium Groove)" 
+    } 
+
+    /if (${Me.Skill[Fletching]}>=0 && ${Me.Skill[Fletching]}<16) { 
+      /varset CombItemName "FWRL" 
+      /varset ItemTo "CLASS 1 Wood Point Arrow (Large Groove)" 
+    } 
+
+
+    /call ReadIni "${CombItemName}"
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+| Buy Components
+|
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    /varset EndingVar 1
+    /varset NewUI 1
+
+    /target ${MerchantNameA}
+
+    /nomodkey /click right target
+
+    /delay 5s ${Window[MerchantWnd].Open}
+
+    /call OpenPacks
+
+    /if (${Me.Skill[Fletching]}>=255 && ${Me.Skill[Fletching]}<282) { 
+ 
+    /call Buy "${Component[1]}" 10
+
+    /call Buy "${Component[2]}" 10
+
+    /call Buy "${Component[3]}" 20
+
+    } else /if (${Me.Skill[Fletching]}>=215 && ${Me.Skill[Fletching]}<235) { 
+ 
+    /call Buy "${Component[1]}" 10
+
+    /call Buy "${Component[2]}" 10
+
+    /call Buy "${Component[3]}" 20
+
+    } else /if (${Me.Skill[Fletching]}>=202) { 
+
+    /call Buy "${Component[1]}" 10
+
+    /call Buy "${Component[2]}" 10 
+
+    } else { 
+
+    /call Buy "${Component[1]}" 40
+
+    /call Buy "${Component[2]}" 40
+
+    /call Buy "${Component[3]}" 40
+
+    /call Buy "${Component[4]}" 40
+
+    }
+
+    /nomodkey /notify MerchantWnd MW_Done_Button LeftMouseUp
+
+    /call ClosePacks
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+| MAKE Items
+|
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+      
+      /nomodkey /itemnotify pack8 rightmouseup
+/doevents 
+/delay 3s ${Window[TradeskillWnd].Open} 
+/if (!${Window[TradeskillWnd].Open}) /nomodkey /click left Item 
+/delay 3s ${Window[TradeskillWnd].Open} 
+
+      /call ChooseRecipe
+      /call ClosePacks
+
+    /target ${MerchantNameA}
+   
+    /delay 5s ${Target.ID}==${Spawn[${MerchantNameA}].ID}
+
+    /nomodkey /click right target
+
+/delay 5s ${Window[MerchantWnd].Open} 
+
+    /call OpenPacks
+
+    /call Sell ${ItemTo}
+
+    /if (${Me.Skill[Fletching]}<=202) {
+
+    /if (${Me.Skill[Fletching]}<56) {
+           /varset ItemTo "CLASS 1 Wood Point Arrow" 
+
+           /call Sell ${ItemTo}
+           }
+
+    /call Sell "${Component[1]}"
+
+    /call Sell "${Component[2]}"
+
+    /call Sell "${Component[3]}"
+
+    /call Sell "${Component[4]}"
+    
+    }
+
+    /nomodkey /notify MerchantWnd MW_Done_Button LeftMouseUp
+
+    /call ClosePacks
+
+    /doevents
+
+    /goto :start
+
+    /return
+
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+|Sub Event Skill up
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+Sub Event_Skillup
+        /if (${Me.Skill[fletching]}>${OldSkill}) {
+        /echo Your fletching Went Up!! It's now ${Me.Skill[fletching]}!
+        /varset OldSkill ${Me.Skill[fletching]}
+/return
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+|Sub Event No Longer Advance 
+|used if there are some subcombines that need to be made in some TS
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Sub Event_Advance
+
+    /varset EndingVar 2
+
+/return

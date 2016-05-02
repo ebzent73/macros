@@ -1,0 +1,149 @@
+#Event SnareImmune "#*#Your target is immune to changes in its run speed."
+
+#include RKBase.inc
+#include RKMeleeBase.inc
+#include RKCasterBase.inc
+
+Sub Main
+	/call Init_RKBase
+	/call Init_RKMeleeBase
+	/call AddToArray "CombatActionSubs" "SKCombatActions"
+	/call Init_RKCasterBase
+	
+| *** VARIABLE DECLARATIONS
+
+	/varset StickFlags moveback loose
+	
+	/varset PullMode TRUE
+	
+	/varset KeepAgroOnAdds FALSE
+	/varset TargetHpEngagePercentage 100
+	/varset UpperAggroThreshold 101
+	/varset MercBurnThreshold 101
+
+	/declare SnareMode bool outer FALSE
+	/declare ShouldSnare bool outer TRUE	
+
+	
+	/call AddToArray "DefensiveActionSubs" "SKDefensives"		
+	/call AddToArray "NonCombatSubs" "SKNonCombat"
+	
+	/call AddToArray "InvisModeSubs" "SelfInvis"
+	
+	/call AddToArray "DetrimentalSpells" "Touch of Piqiorn Rk. II"
+	/call AddToArray "DetrimentalSpells" "Provocation for Power Rk. II"
+	/call AddToArray "DetrimentalSpells" "Insidious Audacity Rk. II"	
+	/call AddToArray "DetrimentalSpells" "Korum's Bite Rk. II"
+	/call AddToArray "DetrimentalSpells" "Perfidious Blight Rk. II"
+
+	/call AddToArray "GiftSpells" "Dire Allegation Rk. II"
+	
+	/call AddToArray "NonCombatSelfBuffs" "Drape of the Sepulcher Rk. II"
+	/call AddToArray "NonCombatSelfBuffs" "Shadow of the Shadeborne Rk. II"
+	/call AddToArray "NonCombatSelfBuffs" "Sholothian Horror Rk. II"	
+	/call AddToArray "NonCombatSelfBuffs" "Strength of the Bosquestalker Rk. II"
+	/call AddToArray "NonCombatSelfBuffs" "Call of Shadow Rk. II"	
+	|/call AddToArray "NonCombatSelfBuffs" "Ghoul Skin Rk. II"
+
+	/call AddToArray "BurnCombatActionSubs" "ExecuteBurnShadowKnightCombatActions"
+	/call AddToArray "XPEarnedSubs" "ResetSnareMode" 
+	
+	/echo Done initializing ShadowKnight macro!
+
+| *** MAIN LOOP
+
+:loop
+	/call Tick
+	/goto :loop
+/return
+
+Sub ResetSnareMode
+	/if (${SnareMode}) /varset ShouldSnare TRUE
+/return FALSE
+
+Sub SKNonCombat
+	/if (${Me.Moving}) /return FALSE
+	
+	/if (!${Me.Buff[Voice of Thule II].ID} && ${Me.AltAbilityReady[Voice of Thule]}) {
+		/target id ${Me.ID}
+		/delay 1s ${Target.ID} == ${Me.ID}
+		/call RKAACast "Voice of Thule"
+	}
+/return FALSE
+
+Sub ExecuteBurnShadowKnightCombatActions
+	/call RKAACast "Fundament: Third Spire of the Reavers"
+	/call RKAACast "Imbued Ferocity"
+	/call RKDisc "Undivided Acrimony RK. II"	
+	/call RKDisc "Sholothian Carapace RK. II"	
+	/call RKDisc "Crimson Blade RK. II"		
+	
+/return FALSE
+
+Sub SKCombatActions
+	/if (${Me.Casting.ID}) /return FALSE
+
+	/doability 1
+	/doability 2
+	
+	/if (${Me.PctHPs} < 80) {
+		/call RKCast "Dire Allegation Rk. II" ${CurrentTargetId}
+	}
+		
+	/if (${Me.SpellReady[Terror of Desalin Rk. II]}) {
+		/cast "Terror of Desalin Rk. II"
+		/delay 5
+	}
+	
+	/if (${Me.SpellReady[Terror of Rerekalen Rk. II]}) {
+		/cast "Terror of Rerekalen Rk. II"
+		/delay 5
+	}
+	
+	/cast item "Innoruuk's Dark Blessing"	
+	/call RKDisc "Renounce RK. II"
+	
+
+	/if (${Me.XTarget} > 1) {
+		/call RKAACast "Abhorrence Rk. II" ${CurrentTargetId}
+		
+		/call RKAACast "Explosion of Spite"
+		/call RKAACast "Explosion of Hatred"		
+	}
+	
+	
+	/if (${SnareMode} && ${ShouldSnare} && !${Target.Buff[Encroaching Darkness].ID}) /call RKAACast "Encroaching Darkness"
+	
+	/call RKDisc "Gouging Blade RK. II"	
+
+	/if (!${Me.Moving}) {
+		/call RKAACast "Vicious Bite of Chaos"
+		/call RKAACast "Chattering Bones"	
+	}
+
+/return FALSE
+
+Sub SelfInvis
+	/if (!${Me.Invis}) /call RKAACast "Cloak of Shadows"
+	/if (${DebugMode}) /echo SelfInvis - Cloak of shadows
+/return FALSE
+
+Sub SKDefensives
+	/if (${Me.PctHPs} < 10) {
+		/call RKAACast "Harmshield"	
+	}
+	
+	/if (${Me.Buff[Harmshield].ID}) /return FALSE
+
+	/if (${Me.PctHPs} < 20) /call RKDisc "Deflection Discipline"	
+	/if (${Bool[${Me.ActiveDisc}]} && ${${Me.ActiveDisc}.Equal[Deflection Discipline]}) /return FALSE
+	
+	/if (${Me.PctHPs} < 60) /call RKDisc "Recondite Mantle RK. II"
+
+	/if (${Me.PctHPs} < 80) /call RKDisc "Sholothian Carapace RK. II"
+	
+/return FALSE
+
+Sub Event_SnareImmune
+	/varset ShouldSnare FALSE
+/return

@@ -1,0 +1,1608 @@
+|** Warrior Pull/Assist/Kill Macro v1.0 by nils Updated Jan 24 2008 **|
+| updated by botlove 8/20/2010
+|Version 1.1 ?
+
+
+#Turbo 40
+#event ExcludeMob      "#*# excludemob #1#"
+#event MobDead         "#*#You have slain#*#"
+#event MobDead         "#*#has been slain by#*#"
+#event NewPathFile     "#*# newpathfile #1#"
+#event GotHit          "#*#hits YOU for#*#"
+#event GotHit          "#*#slashes YOU for#*#"
+#event GotHit          "#*#crushes YOU for#*#"
+#event GotHit          "#*#bashes YOU for#*#"
+#event GotHit          "#*#kicks YOU for#*#"
+#event GotHit          "#*#smashes YOU for#*#"
+#event GotHit          "#*#mauls YOU for#*#"
+#event GotHit          "#*#gores YOU for#*#"
+#event GotHit          "#*#pierces YOU for#*#"
+#event GotHit          "#*#kicks YOU for#*#"
+#event GotHit          "#*#bashes YOU for#*#"
+#event Invited         "#*#invites you to join a group.#*#"
+#event Invited         "#*#To join the group, click on the 'FOLLOW' option, or 'DISBAND' to cancel#*#"
+#event DamageMelee     "You #*# for #1# points of damage#*#"
+#event DamageMelee     "|${Me.Pet.DisplayName}| #*# for #1# points of damage#*#"
+#event DamageNonMelee  "|${Me.Name}| hit #*# for #1# points of non-melee damage#*#"
+#event NotStanding     "#*#You must be standing to attack!#*#"
+| #event NoSeeTarget     "#*#You cannot see your target.#*#"
+| #event NoSeeTarget     "#*#You can't hit them from here#*#"
+#event Outdoors        "#*#You can only cast this spell in the outdoors#*#"
+#event Outdoors        "#*#This spell does not work here#*#"
+#event Zoned           "You have entered#*#"
+#event Zoned           "LOADING, PLEASE WAIT..."
+#event ImDead          "#*#You have been slain by#*#"
+#event ImDead          "Returning to home point, please wait..."
+#event ImDead          "#*#Returning to Bind Location#*#"
+#event Enrageon        "#*#|${Target.CleanName}| has become ENRAGED#*#"
+#event Enrageoff       "#*#|${Target.CleanName}| is no longer enraged#*#"
+#event TooFarAway      "#*#Your target is too far away, get closer#*#"
+#event TooFarAway      "#*#|${Target.CleanName}| begins to cast the gate spell#*#"
+#event TogglePuller    "[MQ2] Toggling PullerMode"
+#event ToggleMT        "[MQ2] Setting new main tank to: #*#"
+#event SayZone         "#*# sayzone #1#"
+#event SetAnchor       "[MQ2] Setting Anchor"
+#event SetPullDistance "[MQ2] SetPullDistance #2#"
+#event SelfShrink      "#*#SelfShrink#*#"
+#event SwitchTarget    "#*# switchtarget #1#"
+#event ToggleVar       "[MQ2] ToggleVar #1#,#2#,#3#,#4#,#5#"
+#event ToggleString    "[MQ2] ToggleString #1#,#2#,#3#,#4#,#5#"
+#event DeTarget        "Try attacking someone other than yourself, it's more productive."
+| #event AutoFireOn      "Auto fire on."
+| #event AutoFireOff     "Auto fire off."
+#event EQBC            "<#1#> #2#"
+#event EQBC            "[#1#(msg)] #2#"
+|#event NoMatches       "#*#There were no matches for: (0-100) any#*#"
+
+#include advpath.inc
+#include Ninjadvloot.inc
+#include QuickBeg.inc
+#include Spell_Routines.inc
+
+#chat Chat
+#chat Tell
+
+Sub main
+  /declare Version string outer 1.0
+  /declare IniFile string outer ${Me.Name}_WarriorBot.ini
+  /declare LootINIFile string outer "${Me.Name}_loot.ini"
+  /call LoadIni "${Me.CleanName}_WarriorBot.ini" LOAD
+  /call SetupAdvLootVars
+  /call QuickBegDeclares
+  /if (${Version.NotEqual[${Ini[${Me.Name}_WarriorBot.ini,Misc,Version]}]}) /call SetAliases
+  /delay 1s
+  /if (!${Puller}) {
+    /if (!${Target.ID} || ${Target.Type.NotEqual[PC]} || ${Target.Type.Equal[Corpse]} || ${Target.Type.Equal[PET]} || ${Target.ID} == ${Me.ID}) {
+      /varset TankName ${DefaultMT}
+      /squelch /target ${TankName}
+      /varset TankID ${Target.ID}
+    } else {
+      /varset TankID ${Target.ID}
+      /varset TankName ${Target.CleanName}
+    }
+    /varset HomeX ${Me.X}
+    /varset HomeY ${Me.Y}
+    /varset Anchor TRUE
+    /echo ******************************
+    /echo Warrior.mac Initialized
+    /echo Assist Mode Activated
+    /echo ${TankName} is the Tank. ID: ${TankID}
+    /echo ******************************
+  }
+  /if (${Puller}) {
+    /if (${Defined[Param0]}) {
+      /varset PathFile ${Param0}
+    } else {
+      /varset PathFile ${Ini[${IniFile},Pathfiles,${Zone}]}
+    }
+    /if (${Defined[Param1]}) /varset CampRadius ${Param1}
+    /if (${Defined[Param2]}) /varset PullDistance ${Param2}
+    /if (${Defined[Param3]} && ${Defined[Param4]}) {
+      /varset HomeXLoc ${Param3}
+      /varset HomeYLoc ${Param4}
+      /varset HomeX ${Param3}
+      /varset HomeY ${Param4}
+      /varset Anchor TRUE
+    } else {
+    	/varset HomeXLoc ${Ini[${PathFile},PFLocs,0].Arg[2]}
+    	/varset HomeYLoc ${Ini[${PathFile},PFLocs,0].Arg[1]}
+    	/varset HomeX ${Ini[${PathFile},PFLocs,0].Arg[2]}
+      /varset HomeY ${Ini[${PathFile},PFLocs,0].Arg[1]}
+      /varset Anchor TRUE
+    }
+    /echo ******************************
+    /echo Warrior.mac Initialized
+    /echo Pulling Mode Activated
+    /echo ******************************
+    /call ReturnHome
+    /call InitAPFVars 1 15 20
+    /varset InitVars TRUE
+  }
+  :Main_Loop
+  /if (${GameState.Equal[CHARSELECT]}) /end
+  /delay 1
+  /doevents
+  /if (${BowPull} && ${SpellPull}) {
+  	/echo Both bow pulling and spell pulling are on
+  	/echo Turning off spell pulling
+  	/echo If you want spell pulling on 
+  	/echo Please turn off bow pulling before turning on spell pulling
+  	/spellpull
+  } 
+  /if (!${Puller} && ${Tank.ID}==${Me.ID}) {
+  	/if (${MoveHome}) /varset MoveHome FALSE
+  	/if (!${Following} && !${Puller}) /call MedTime
+    /if (${QBTimer}==0 && ${BegForBuffs} && !${Following}) {
+      /echo Checking buffs to beg
+      /call MeBegBuff
+      /call MeBegCure
+      /varset QBTimer 20s
+    }
+    /if (${AutoCombat}) {
+      /if (!${Engaged} && !${Paused} && ${NearestSpawn[1, NPC radius 60 zradius 60].ID}) /call KillTarget
+      /if (${Engaged} && ${TargetArray[4]} && !${Paused}) {
+        /if (${Me.Sitting}) /stand
+        /call KillTarget
+      }
+    }
+  }
+  /if (!${Puller} && ${Tank.ID}!=${Me.ID}) {
+  	/if (!${Following} && !${Puller}) /call MedTime
+    /if (${QBTimer}==0 && ${BegForBuffs} && !${Following}) {
+      /call MeBegBuff
+      /call MeBegCure
+      /varset QBTimer 20s
+    }
+    /if (!${Engaged} && !${Paused} && ${NearestSpawn[1, NPC radius ${AssistDistance} zradius ${AssistDistance}].ID}) /call AssistTank
+    /if (${PreEngaged} && ${TargetArray[4]} && !${Paused} && ${Target.PctHPs}<=${AssistAt} && ${Target.Type.Equal[NPC]}) {
+      /if (${Me.Sitting}) /stand
+      /call KillTarget2
+    }
+  }
+  /if (${Puller}) {
+  	/if (!${MoveHome}) /varset MoveHome TRUE
+    /if (!${Engaged} && !${Paused} && ${NearestSpawn[1, NPC radius 60 zradius 60].ID}) /call KillTarget
+    /if (${Engaged} && ${TargetArray[4]} && !${Paused}) {
+      /if (${Me.Sitting}) /stand
+      /call KillTarget
+      }
+    /call ReturnHome
+    /call MedTime
+| ggggg somewhere in here botlove wants to eliminate obvious bot walk when no mobs are in range sometiems it will say There were no matches for: (0-100) any and then try to movetotarget and tagtarget and then return home looks terrible
+    /if (${Target.ID} && (${Target.Type.Equal[PC]} || ${Target.ID}==${Me.ID})) /squelch /target clear
+    /if (!${Puller} || ${DeathFlag}) /goto :Main_Loop
+    /call PullMob
+    /if (${Target.ID}) {
+       /keypress forward
+       /delay 2
+       /call KillTarget
+       }
+  }
+  /call ReadyForNext
+  /call ResetVars
+  /goto :Main_Loop
+/return
+
+Sub PullMob
+  /varset Pulling TRUE
+  /delay 1
+  :Pull_Loop
+  /call AdvPathPoll
+  /call GetTarget
+  /if (${Target.ID} && ${Target.Distance} < ${PullDistance}) {
+    /call TagTarget
+  } else /if (${Target.Distance} > ${PullDistance} && ${Target.Distance} <  ${CampRadius}) {
+    /call MoveToTarget
+  }
+  /if (${Tagged} && ${Math.Distance[${HomeYLoc},${HomeXLoc}]} > 25) {
+    /call ReturnHome
+    /return
+  } else /if (${Tagged}) {
+    /return
+  }
+  /if (${PathingFlag}==0 && ${RoamingPulls}) /call StartPullPath
+  /goto :Pull_Loop
+/return
+
+Sub StartPullPath
+  /delay 3
+  /if (${Math.Distance[${HomeYLoc},${HomeXLoc}]} < 50) /call PlayFunction "${PathFile} 1 nf pp noz"
+/return
+
+Sub ReturnHome
+  /if (!${AutoCombat} || !${MoveHome} || ${Following} || (${Math.Distance[${HomeYLoc},${HomeXLoc}]}<20)) /return
+  /if (${RoamingPulls} && ${PathingFlag}==1) {
+    /call AdvPathPoll
+    /if (${PathingFlag}==1) {
+      /echo stop
+      /doevents
+      /call AdvPathPoll
+      /call PlayFunction "${PathFile} 1 cr nopp noz"
+    }
+    :LoopTilThere
+    /if (${PathingFlag}==1) {
+      /call AdvPathPoll
+      /delay 1
+      /doevents
+      /goto :LoopTilThere
+    }
+    /return
+  }
+  :MoveHome
+  /doevents
+  /face fast nolook loc ${HomeYLoc},${HomeXLoc}
+  /if (${Math.Distance[${HomeYLoc},${HomeXLoc}]}>10) /keypress forward hold
+  /if (${Math.Distance[${HomeYLoc},${HomeXLoc}]}>20) /call AreWeStuck
+  /if (${Math.Distance[${HomeYLoc},${HomeXLoc}]}<10) {
+    /keypress forward
+    /keypress back
+    /return
+  }
+  /goto :MoveHome
+/return
+
+Sub ReturnHome2
+  /if (!${AutoCombat} || !${MoveHome} || ${Following} || (${Math.Distance[${HomeYLoc},${HomeXLoc}]}<20)) /return
+  /if (${Math.Distance[${HomeY},${HomeX}]}<20) {
+    /keypress forward
+    /keypress back
+    /keypress left
+    /keypress right
+    /delay 2
+    /return
+  }
+  :MoveHome2
+  /doevents
+  /face fast nolook loc ${HomeY},${HomeX}
+  /if (${Math.Distance[${HomeY},${HomeX}]}>20) {
+    /if (${Me.Sitting}) /stand
+    /keypress forward hold
+  }
+  /if (${Math.Distance[${HomeYLoc},${HomeXLoc}]}>20) /call AreWeStuck
+  /if (${Math.Distance[${HomeY},${HomeX}]}<25) {
+    /keypress forward
+    /keypress back
+    /keypress left
+    /keypress right
+    /return
+  }
+  /goto :MoveHome2
+/return
+
+Sub GetTarget(int TRadius)
+  /declare s int local
+  /declare i int local 1
+  /for i 1 to 4
+    /varset s ${NearestSpawn[${i},npc radius ${CampRadius}].ID}
+    /if (${ExcludeList.Find[${Spawn[${s}]}].Name}) {
+      /echo target excluded
+      /next i
+    }
+    /if (${Spawn[${s}].Type.Equal[Corpse]} || !${Spawn[${s}].LineOfSight} || ${Math.Distance[${Me.Z}:${Spawn[${s}].Z}]} >${MaxZ} || ${Math.Distance[${Me.Z}:${Spawn[${s}].Z}]}<${MinZ}) {
+      /next i
+    }
+    /if (${s} && ${Spawn[${s}].Distance} < ${CampRadius} && ${Spawn[${s}].LineOfSight} && ${Math.Distance[${Me.Z}:${Spawn[${s}].Z}]} < ${MaxZ} && ${Math.Distance[${Me.Z}:${Spawn[${s}].Z}]} > ${MinZ} && !${Spawn[${s}].Type.Equal[Corpse]}) {
+      /delay 1
+      /squelch /target id ${s}
+      /if (${Verbose}) /echo ${Target.CleanName} Level ${Target.Level} has been aquired at a distance of ${Target.Distance}
+      /if (${Verbose}) /bc Incoming with ${Target.CleanName}
+      /return
+    }
+  /next i
+/return
+
+Sub MoveToTarget
+  /declare px int local ${Me.X}
+  /declare py int local ${Me.Y}
+  /if (!${Target.ID}) /return
+  /if (${Target.Distance} < ${PullDistance} ) /return
+  :Moving
+  /doevents
+  /face fast nolook
+  /keypress forward hold
+  /call AreWeStuck
+  /if (${Target.Distance} >= ${PullDistance}) /goto :Moving
+  /keypress forward
+  /keypress back
+  /call TagTarget
+  :Moving2
+  /doevents
+  /face fast nolook loc ${py},${px}
+  /if (${Math.Distance[${py},${px}]}>10) /keypress forward hold
+  /call AreWeStuck
+  /if (${Math.Distance[${py},${px}]}<10) /goto :DoneMoving2
+  /goto :Moving2
+  :DoneMoving2
+/return
+
+Sub AreWeStuck
+  /if (!${Following} && !${Puller} && !${Me.Combat} && ${Stick.Status.Equal[ON]}) /squelch /stick off
+  /if (!${Following} && !${Puller} && !${Me.Combat} && ${Stick.Status.Equal[ON]}) /squelch /stick off
+  /doevents
+  /varset StuckXLoc ${Me.X}
+  /varset StuckYLoc ${Me.Y}
+  /delay 2
+  /if (${StuckXLoc}==${Me.X} && ${StuckYLoc}==${Me.Y}) {
+    /vtell ${DefaultMT} 7
+    /call MoveAround
+  }
+/return
+
+Sub MoveAround
+  /if (${Stick.Status.Equal[ON]}) /squelch /stick pause
+  /keypress forward
+  /keypress back hold
+  /delay 7
+  /keypress back
+  /if (${Math.Rand[2]}) {
+    /keypress strafe_right hold
+  } else {
+    /keypress strafe_left hold
+  }
+  /delay 3
+  /keypress strafe_right
+  /keypress strafe_left
+  /if (${Stick.Status.Equal[PAUSED]}) /squelch /stick unpause
+/return
+
+Sub TagTarget
+  /doevents
+  /if (${Target.Distance}>=${PullDistance}) {
+    /call ResetVars
+    /return
+  }
+  /face fast nolook
+  /delay 5
+  :TagCheck
+  /if (${BowPull} && ${FindItemCount[Hunter's Barbs]}>1) /ranged
+  /if (${SpellPull} && !${Me.TargetOfTarget.Name.Equal[${Me}]}) {
+    /if (!${Select[${PullSpellGem},alt,comb,item]}) /goto :SpellPullDone
+    /if (${Me.State.NotEqual[FEIGN]}) {
+      /if (${Stick.Status.Equal[ON]}) /squelch /stick pause
+      /if (${PullSpellGem.Equal[comb]} && ${Me.Endurance}>20) {
+        /disc ${PullSpell}
+        /delay 5
+        /goto :SpellPullDone
+      }
+      /if (${PullSpellGem.Equal[item]} && !${FindItem[${PullSpell}].TimerReady}) {
+        /call Cast "${PullSpell}" ${PullSpellGem} 2s
+        /goto :SpellPullDone
+      }
+      /if (${PullSpellGem.Equal[alt]} && ${Me.AltAbilityReady[${PullSpell}]}) {
+       /call Cast "${PullSpell}" ${PullSpellGem} 2s 
+       /goto :SpellPullDone
+      }
+    }
+  }
+  :SpellPullDone
+  /if (${Target.ID} && ${Target.Distance} <= 20) {
+    /echo Smacking ${Target.CleanName}!
+    /squelch /attack on
+    /delay 1s
+    /squelch /attack off
+  }
+  /delay 2
+  /if (${Me.TargetOfTarget.Name.Equal[${Me}]}) {
+  	/varset Tagged TRUE
+    /varset RunHome TRUE
+    /delay 3
+    /return
+  }
+  /if (${UseTargetLock} && !${Me.TargetOfTarget.Name.Equal[${Me}]} && !${Tagged} && !${RunHome}) {
+    /call MoveAround
+    /delay 3
+    :goto TagCheck
+  }
+  /varset Tagged TRUE
+  /varset RunHome TRUE
+  /delay 3
+/return
+
+Sub AssistTank
+  /if (${TankID}!=${Me.ID}) /squelch /assist ${TankName}
+  /if (${Target.ID} && ${Target.PctHPs}<=${AssistAt} && ${Target.Distance}<${AssistDistance} && !${Target.Type.Equal[PC]} && !${Target.Type.Equal[Corpse]} && !${Target.Type.Equal[PET]} && !${ExcludeList.Find[${Spawn[${Target.ID}]}].Name}) {
+    /face fast nolook
+    /varset TargetArray[1] ${Target.CleanName}
+    /varset TargetArray[2] ${Target.Level}
+    /varset TargetArray[3] ${Target.Name}
+    /varset TargetArray[4] ${Target.ID}
+    /if (${Me.Sitting}) /stand
+    /varset PreEngaged TRUE
+  }
+/return
+
+Sub KillTarget
+  /if (!${Target.ID} || ${ExcludeList.Find[${Spawn[${Target.ID}]}].Name}) {
+    /return
+  }
+  /if (${Target.ID} && ${Target.Type.Equal[NPC]}) {
+    /face fast nolook
+    /varset TargetArray[1] ${Target.CleanName}
+    /varset TargetArray[2] ${Target.Level}
+    /varset TargetArray[3] ${Target.Name}
+    /varset TargetArray[4] ${Target.ID}
+    /if (${Target.Distance}>=500) /squelch /target clear
+  }
+  /declare counter int local 0
+  /declare RangeFire local FALSE
+  /varset RunHome FALSE
+  :WaitForMob
+  /if (${AutoArchery} && !${RangeFire} && ${Target.ID}!=${NearestSpawn[npc named].ID} && ${Target.Distance}>80 && ${Target.Distance}<340 && ${Target.LineOfSight}) {
+    /if (${Stick.Status.Equal[ON]}) /squelch /stick off
+    /keypress forward
+    /keypress back
+    /autofire
+    /varset RangeFire TRUE
+    /doevents
+  }
+  /if (${AutoArchery} && ${RangeFire} && ${Target.Distance}<80) {
+    /autofire off
+    /varset RangeFire FALSE
+    /varset Pulling FALSE
+    /doevents
+  }
+  /if (${Target.Distance}>40 ) {
+    /delay 5
+    /varcalc counter ${counter}+5
+    /if (${counter}>100) /goto :Combat
+    /goto :WaitForMob
+  }
+  :Combat
+  /if (${SpawnCount[npc radius 40 zradius 30]}>2 && ${Me.AltAbility[Area Taunt]} && ${Me.AltAbilityReady[Area Taunt]}) /call Cast "Area Taunt" alt
+  /if (${Pulling}) /varset Pulling FALSE
+  /if (${Target.ID} && ${Target.Type.Equal[NPC]}) {
+    /face fast nolook
+    /varset TargetArray[1] ${Target.CleanName}
+    /varset TargetArray[2] ${Target.Level}
+    /varset TargetArray[3] ${Target.Name}
+    /varset TargetArray[4] ${Target.ID}
+    /if (${Me.Sitting}) /stand
+    /varset Engaged TRUE
+    /varset HandToHand TRUE
+    /if (${Target.Distance}>11) /squelch /stick 15 moveback
+    /delay 5
+    /if (${HoldAgro}) {
+       /if (!${Me.TargetOfTarget.Name.Equal[${Me}]} && ${Target.Distance} < 20) /doability "Taunt"
+        }
+        /if (!${Me.TargetOfTarget.Name.Equal[${Me}]} && ${Me.TargetOfTarget.ID} && ${Target.PctHPs}>5 && ${Target.PctHPs}<98) /call DoIncite
+        /if (!${Berated}) /call DoIncite
+    }
+    /if (${Me.PctHPs}>=20) /attack on
+  }
+  /if (${Target.ID} && ${Target.Type.Equal[NPC]} && ${Target.ID}==${TargetArray[4]} && ${Target.LineOfSight} && ${Target.ID}==${NearestSpawn[npc named].ID} && ${Target.PctHPs}<98) {
+  	/if (${FindItem[Kreljnok's Sword of Eternal Power].InvSlot} && !${FindItem[Kreljnok's Sword of Eternal Power].Timer}) {
+  		/call Cast "Kreljnok's Sword of Eternal Power" item 1s
+  	} else /if (${FindItem[Raging Sword of Eternal Power].InvSlot} && !${FindItem[Raging Sword of Eternal Power].Timer}) {
+  		/call Cast "Raging Sword of Eternal Power" item 1s
+    } else /if (${FindItem[Champion's Sword of Eternal Power].InvSlot} && !${FindItem[Champion's Sword of Eternal Power].Timer}) {
+    	/call Cast "Champion's Sword of Eternal Power" item 1s
+    }
+  }
+  /if (${QBTimer}==0 && ${BegForBuffs} && !${Following}) {
+    /call MeBegBuff
+    /call MeBegCure
+    /varset QBTimer 20s
+  }
+  /if (${Me.Feigning}) {
+    /stand
+    /if (!${Target.ID} || ${Target.ID}!=${TargetArray[4]}) /squelch /target ${TargetArray[4]}
+    /delay 1
+    /attack on
+    /if (!${HandToHand}) /varset HandToHand TRUE
+    /if (${Target.Distance}>11) /squelch /stick 15 moveback
+  }
+  /if (${Target.Distance}>200) {
+    /squelch /target clear
+    /varset Engaged FALSE
+    /varset HandToHand FALSE
+    /return
+  }
+  /if (${Target.ID} && ${Target.Type.Equal[NPC]} && ${Target.ID}==${TargetArray[4]}) {
+    /if (!${Me.Combat} && ${Target.Distance} < ${Target.MaxRangeTo}) /attack on
+    /if (${Target.Distance}>11) /squelch /stick 15 moveback
+    /if (${Target.Distance}<50 && (${Me.PctHPs}<=80 || ${Target.Name.Left[1].Equal[#]})) /call DoDefensiveDisc
+    /if (!${ShieldTimer} && ${Me.PctHPs} > 40) /call DoShielding
+| removed "${Me.TargetOfTarget.Name.Equal[${Me}]} && "  from beginning of following if statement xxxxxx   CAN BE REENABLED IF HOTT leader AA available! xxxxxxxxxxxx 
+    /if ( ${HoldAgro} && ${Math.Distance[${HomeY},${HomeX}]}>${PullBackDistance} && ${Target.PctHPs}>40 && ${Target.PctHPs}<95) {
+      /delay 5
+      /if (${Stick.Status.Equal[ON]}) /squelch /stick off
+      /squelch /attack off
+	/delay 2
+      /call ReturnHome2
+      /if (${Target.ID}) /face fast nolook
+      /delay 4s
+      /if (${Stick.Status.Equal[PAUSED]}) /squelch /stick on
+      /squelch /attack on
+    }
+  }
+  /if (!${Target.ID} || ${Target.Type.Equal[Corpse]}) {
+    /delay 3
+    /attack off
+    /delay 3
+    /if (${Stick.Status.Equal[ON]}) /squelch /stick off
+    /varset HandToHand FALSE
+    /varset Engaged FALSE
+    /varset Berated FALSE
+    /call CheckForAdd
+    /if (${Target.ID} && ${Target.Type.Equal[NPC]}) /call KillTarget
+    /doevents MobDead
+    /return
+  }
+  /doevents NotStanding
+  /goto :Combat
+/return
+
+Sub KillTarget2
+  /if (!${Target.ID} || ${ExcludeList.Find[${Spawn[${Target.ID}]}].Name}) {
+    /return
+  }
+|  /declare RangeFire local FALSE
+  /declare AssistTimer timer local 0
+  /declare counter int local 0
+  :WaitForMob2
+  /if (${Target.Distance}>60) {
+    /delay 5
+    /varcalc counter ${counter}+5
+    /if (${counter}>100) /goto :Combat2
+    /goto :WaitForMob2
+  }
+  :Combat2
+  /if (${SpawnCount[npc radius 40 zradius 30]}>2 && ${Me.AltAbility[Area Taunt]} && ${Me.AltAbilityReady[Area Taunt]}) /call Cast "Area Taunt" alt
+  /if (${Paused} || !${PreEngaged}) /return
+  /if (!${AssistTimer}) {
+    /if (${Target.ID}!=${TargetArray[4]} && ${TankID}!=${Me.ID}) /squelch /assist ${TankName}
+    /if (${Target.ID}==${TargetArray[4]}) {
+      /face fast nolook
+      /varset AssistTimer 10s
+    }
+  }
+  /if (${Target.ID} && ${Target.Type.Equal[NPC]} && ${Target.ID}==${TargetArray[4]} && ${Target.LineOfSight} && ${Target.ID}==${NearestSpawn[npc named].ID} && ${Target.PctHPs}<98) {
+  	/if (${FindItem[Kreljnok's Sword of Eternal Power].InvSlot} && !${FindItem[Kreljnok's Sword of Eternal Power].Timer}) {
+  		/call Cast "Kreljnok's Sword of Eternal Power" item 1s
+  	} else /if (${FindItem[Raging Sword of Eternal Power].InvSlot} && !${FindItem[Raging Sword of Eternal Power].Timer}) {
+  		/call Cast "Raging Sword of Eternal Power" item 1s
+    } else /if (${FindItem[Champion's Sword of Eternal Power].InvSlot} && !${FindItem[Champion's Sword of Eternal Power].Timer}) {
+    	/call Cast "Champion's Sword of Eternal Power" item 1s
+    }
+  }
+  /if (${Me.Feigning}) {
+    /stand
+    /if (!${Target.ID} || ${Target.ID}!=${TargetArray[4]}) /squelch /target ${TargetArray[4]}
+    /delay 1
+    /attack on
+    /if (!${HandToHand}) /varset HandToHand TRUE
+    /if (${Target.Distance}>11) /squelch /stick 15 moveback
+  }
+  /if (${Target.ID}==${TargetArray[4]}) /face fast nolook
+  /if (!${AutoArchery} && ${HoldAgro} && ${Target.Distance}<50 && ${Target.Distance}>11) /squelch /stick 15 moveback
+  /if (!${AutoArchery} && !${HoldAgro} && ${Target.Distance}<50 && ${Target.Distance}>11) /squelch /stick 10 !front
+  /delay 5
+  /if (${HoldAgro}) {
+    /if (!${Me.TargetOfTarget.Name.Equal[${Me}]} && ${Target.Distance} < 20 && ${Me.AbilityReady[Taunt]}) /doability "Taunt"
+    /if (!${Me.TargetOfTarget.Name.Equal[${Me}]} && ${Me.TargetOfTarget.ID} && ${Target.PctHPs}>5 && ${Target.PctHPs}<99) /call DoIncite
+    /if (!${Berated} ) /call DoIncite
+  }
+  /if (!${AutoArchery} && ${Target.Distance}<${AssistDistance} && ${Target.PctHPs}<=${AssistAt} && !${HandToHand}) {
+    /if (${Target.ID}!=${TargetArray[4]} && ${TankID}!=${Me.ID}) /squelch /assist ${TankName}
+    /if (${Target.ID}==${TargetArray[4]}) {
+      /face fast nolook
+      /if (${Target.Distance} > 11 && ${HoldAgro}) /squelch /stick 15 moveback
+      /if (${Target.Distance} > 11 && !${HoldAgro}) /squelch /stick 10 !front
+      /varset HandToHand TRUE
+      /squelch /attack on
+      /varset Engaged TRUE
+    }
+  }
+  /if (${Me.PctHPs}<=30) /call DoFurtitude
+  /if (!${ShieldTimer} && ${Me.PctHPs} > 40) /call DoShielding
+  /if (${Me.TargetOfTarget.Name.Equal[${Me}]} && ${HoldAgro} && ${Math.Distance[${HomeY},${HomeX}]}>${PullBackDistance} && ${Target.PctHPs}>40 && ${Target.PctHPs}<95) {
+    /delay 5
+    /if (${Stick.Status.Equal[ON]}) /squelch /stick off
+    /call ReturnHome2
+    /face fast nolook
+    /delay 2s
+    /if (${Stick.Status.Equal[PAUSED]}) /squelch /stick on
+  }
+  /if (!${AutoArchery} && ${Target.Distance}>11 && ${HoldAgro}) /squelch /stick 15 moveback
+  /if (!${AutoArchery} && ${Target.Distance}>11 && !${HoldAgro}) /squelch /stick 10 !front
+  /if (${QBTimer}==0 && ${BegForBuffs} && !${Following}) {
+    /call MeBegBuff
+    /call MeBegCure
+    /varset QBTimer 20s
+  }
+  /if (!${Target.ID} || ${Target.Type.Equal[Corpse]}) {
+    /varset PreEngaged FALSE
+    /varset Engaged FALSE
+    /varset Berated FALSE
+    /delay 1
+    /if (${Stick.Status.Equal[ON]}) /squelch /stick off
+    /squelch /attack off
+|    /varset RangeFire FALSE
+    /varset HandToHand FALSE
+    /delay 3
+    /doevents MobDead
+    /return
+  }
+  /delay 1
+  /doevents
+  /goto :Combat2
+/return
+
+Sub DoIncite
+
+    /if (${Me.PctEndurance} > 30 && ${Target.Distance} < 50 && !${Pulling}) {
+        /squelch /face nolook fast
+	  /delay 1
+        /if (${Me.CombatAbilityReady[${Provoke}]}) {
+	     /disc ${Provoke}
+           /echo You begin yelling obsceneties at ${Target.CleanName}!!!
+	     /goto :incite_done
+           }
+        /if (${Me.CombatAbilityReady[${Provoke2}]}) {
+           /disc ${Provoke2}
+           /echo You begin yelling obsceneties at ${Target.CleanName}!!!
+	     /goto :incite_done
+           }
+        /if (${Me.AltAbilityReady[${AAAnger}]}) {
+	     /call Cast "${AAAnger}" alt
+           /echo You begin yelling obsceneties at ${Target.CleanName}!!!
+    	     /goto :incite_done
+           }
+        /if (${Me.AltAbilityReady[${AAAnger2}]}) {
+	     /call Cast "${AAAnger2}" alt
+           /echo You begin yelling obsceneties at ${Target.CleanName}!!!
+    	     /goto :incite_done
+           }
+        /if (${Me.AltAbilityReady[${AAAnger3}]}) {
+	     /call Cast "${AAAnger3}" alt
+           /echo You begin yelling obsceneties at ${Target.CleanName}!!!
+    	     /goto :incite_done
+           }
+        /if (${Spell[Furious Provocation].Stacks} && ${FindItem[Vitallium Earthwall Breastplate].TimerReady}<=0 && !${Me.Song[Furious Provocation].ID}) {
+           /casting "Vitallium Earthwall Breastplate"|item
+           /goto :incite_done
+           }
+        }
+   /return
+   :incite_done
+   /delay 1
+   /varset Berated TRUE
+   /return
+
+Sub DoDefensiveDisc
+| Use any clickie heal we have available below 50 percent health
+   /if (${Me.PctHPs}<=50 && ${FindItem["Battle-Marred Plate Breastplate"].ID} && !${FindItem["Battle-Marred Plate Breastplate"].TimerReady}) /call Cast "Battle-Marred Plate Breastplate" item
+
+|Use Field Armorer if target is named or my health is below 60 percent,  or fortitude is not ready and my health is below 80 percent
+   /if (${FATimer}==0 && (${Target.Name.Left[1].Equal[#]} || ${Me.PctHPs}<=60 || (!${Me.CombatAbilityReady[Fortitude Discipline]} && ${Me.PctHPs}<=75))) {
+      /disc Field Armorer
+      /echo ***** Field Armorer *****
+      /varset FATimer 30s
+   }
+
+| If target is named or health is below 40 percent use fortitude
+   /if (${Me.CombatAbilityReady["Fortitude Discipline"]} && (${Target.Name.Left[1].Equal[#]} || ${Me.PctHPs}<=40)) {
+      /disc Fortitude
+      /echo ***** Fortitude Discipline Activated *****
+      /if (${Verbose}) /g ***** Fortitude Discipline Activated *****
+   }
+
+|If Fortitude is spent already and target is named or health is below 50 percent use Final Stand
+   /if (${Me.CombatAbilityReady[Final Stand]} && !${Me.CombatAbilityReady[Fortitude Discipline]} && (${Target.Name.Left[1].Equal[#]} || ${Me.PctHPs}<=50)) {
+      /disc Final Stand
+      /echo ***** Final Stand Activated *****
+      /if (${Verbose}) /g ***** Final Stand Activated *****
+   }
+
+|If Fortitude and final stand are spent already and target is named or health is below 75 percent use Bracing Defense
+   /if (${Me.CombatAbilityReady[Bracing Defense]} && !${Me.CombatAbilityReady[Final Stand]} && !${Me.CombatAbilityReady[Fortitude Discipline]} && (${Target.Name.Left[1].Equal[#]} || ${Me.PctHPs}<=65)) {
+      /disc Bracing Defense
+      /echo ***** Bracing Defense Activated *****
+      /if (${Verbose}) /g ***** Bracing Defense Activated *****
+   }
+
+/return
+
+Sub DoShielding
+  /if (${Me.TargetOfTarget.PctHPs} < 30 && ${Me.TargetOfTarget.Type.Equal[pc]} && ${Me.PctHPs} > 50 && ${Me.TargetOfTarget.Distance} <= ${ShieldDistance} && ${Me.TargetOfTarget.ID} != ${Me.ID}) {
+    /shield ${Me.TargetOfTarget}
+    /varset ShieldTimer 300s
+    /if (${Verbose}) /${MyChannel} SHIELDING is now on ${Me.TargetOfTarget}
+    /return
+  }
+  /declare i int local 0
+  /for i 1 to ${Group}
+    /if (${Casters.Find[${Group.Member[${i}].Class}]} && ${Group.Member[${i}].PctHPs} < 60 && ${Group.Member[${i}].Distance} <= ${ShieldDistance}) {
+      /shield ${Group.Member[${i}]}
+      /varset ShieldTimer 300s
+      /if (${Verbose}) /${MyChannel} Now SHIELDING ${Group.Member[${i}]}!!
+      /return
+    }
+/return
+
+Sub ReadyForNext
+  /varset Closeness ${OriginalClose}
+  /if (${Window[TradeWnd].Open}) /notify TradeWnd TRDW_Trade_Button leftmouseup
+  /if (${Math.Distance[${HomeY},${HomeX}]}>30) /call ReturnHome2
+  /if (!${Me.Combat} && !${Me.Invis} && !${Me.Moving} && !${SpawnCount[npc radius 20 zradius 30]} && !${Me.Casting.ID} && !${Following}) /call MedTime
+  /if (${SelfBuffs} && !${SelfBuffTimer} && !${NearestSpawn[1, NPC radius 30 zradius 30].ID} && !${Me.Moving} && !${Following} && !${Me.Invis}) /call CheckBuffs
+  /if (!${NearestSpawn[1, NPC radius 80 zradius 80].ID} && !${Following} && ${MakeArrows} && ${FindItem[Hunter's Barbs].ID} && ${FindItemCount[Hunter's Barbs]}<101) /call MakeArrows
+  /if ((${Debuff.Snared} || ${Debuff.Rooted}) && ${Puller} && !${Pulling} && !${NearestSpawn[1, NPC radius 100 zradius 100].ID}) {
+    /if (${Debuff.Snared}) /${MyChannel} I am snared, holding pull's!!!
+    /if (${Debuff.Rooted}) /${MyChannel} I am rooted, holding pull's!!!
+    :ImSnared
+    /if (${QBTimer}==0 && ${BegForBuffs} && !${Following}) {
+      /call MeBegBuff
+      /call MeBegCure
+      /varset QBTimer 10s
+    }
+    /delay 5s
+    /doevents
+    /delay 1
+    /doevents Chat
+    /if (!${Debuff.Snared} && !${Debuff.Rooted}) /return
+    /goto :ImSnared
+  }
+/return
+
+Sub ResetVars
+  /if (!${Following} && !${Puller} && !${Me.Combat} && ${Stick.Status.Equal[ON]}) /squelch /stick off
+  /if (!${Following} && !${Puller} && !${Me.Combat} && ${Stick.Status.Equal[ON]}) /squelch /stick off
+  /if (${Zone.ID}!=${currentZone} || ${Window[RespawnWnd].Open}) /call Event_Zoned
+  /doevents
+  /delay 1
+  /squelch /attack off
+  /if (${Target.ID} && ${Target.Type.Equal[Corpse]}) /squelch /target clear
+  /if (${Engaged}) /varset Engaged FALSE
+  /if (${HoldAgro} && ${Berated}) /varset Berated FALSE
+  /if (${Puller}) {
+    /varset Tagged FALSE
+    /varset TRadius 0
+  }
+/return
+
+Sub MedTime
+  /if (${Cursor.Name.Equal[Wand of Elemental Transvergance]} || ${Cursor.Name.Equal[Rod of Mystical Transvergance]} || ${Cursor.Name.Equal[Summoned: Modulating Rod]}) /autoinventory
+  /if (${Me.PctEndurance}<46 && ${Me.CombatAbilityReady[${EnduranceRegen}]}) /disc ${EnduranceRegen}
+  /if (!${Puller}) {
+    /call ReturnHome2
+    /if (${Me.State.Equal[Stand]} && ${Me.PctEndurance}<45 && !${Me.Moving} && !${Me.Mount.ID} &&  !${NearestSpawn[1, NPC radius 30 zradius 30].ID}) /sit
+    /if (${Me.State.Equal[Sit]}) {
+      /if (${NearestSpawn[1, NPC radius 29 zradius 29].ID} || ${Me.PctEndurance}>86 || ${Following}) /stand
+    }
+  }
+  /if (${Puller}) {
+    /if (${Me.PctEndurance}<25 || ${Math.Distance[${HomeYLoc},${HomeXLoc}]}>50) /call ReturnHome
+    /if (${Me.PctEndurance}>25) /return 
+| added line above to speed up kills between med breaks xxxxxxxxxxxx
+    :Sit_Loop
+    /if (!${Me.Combat} && !${Me.Invis} && !${Me.Moving} && !${SpawnCount[npc radius 20 zradius 30]} && !${Me.Casting.ID} && !${Following}) {
+      /delay 15 !${Me.Moving}
+      /if (${SelfBuffs} && !${SelfBuffTimer}) /call CheckBuffs
+      /delay 15 !${Me.Moving}
+    }
+    /if (${QBTimer}==0 && ${BegForBuffs} && !${Following}) {
+      /call MeBegBuff
+      /call MeBegCure
+      /varset QBTimer 20s
+    }
+    /if (${Me.State.Equal[Stand]} && ${Me.PctEndurance}<95 && !${Me.Moving} && !${Me.Mount.ID} &&  !${NearestSpawn[1, NPC radius 80 zradius 80].ID}) /sit
+    /delay 1
+    /doevents
+    /if (${Me.PctEndurance}<95 && !${NearestSpawn[1, NPC radius 80 zradius 80].ID}) /goto :Sit_Loop
+    /if (${Target.ID} && ${Target.Type.Equal[PC]}) /squelch /target clear
+    /if (${Me.State.Equal[Sit]}) {
+      /if (${NearestSpawn[1, NPC radius 80 zradius 80].ID} || ${Me.PctEndurance}>95 || ${Following}) /stand
+    }
+  }
+/return
+
+Sub CheckForAdd
+  /declare s int local
+  /declare i int local
+  /for i 1 to 3
+    /varset s ${NearestSpawn[${i},npc].ID}
+    /if (${Spawn[${s}].Type.Equal[Corpse]} || !${Spawn[${s}].LineOfSight}) /next i
+    /if (${Spawn[${s}].Distance}<80 && ${Spawn[${s}].LineOfSight}) {
+      /squelch /target id ${s}
+      /goto :Got_Add
+    }
+  /next i
+  /return
+  :Got_Add
+  /if (!${Pulling}) /varset Engaged TRUE
+  /face fast nolook
+  /if (${Target.ID} && ${Target.Type.Equal[NPC]} && ${Math.Distance[${HomeY},${HomeX}]}<60) /squelch /stick 12 moveback
+/return
+
+Sub MakeArrows
+  /varset DeathFlag ${Math.Calc[!(${InvSlot[chest].Item.ID}>0)]}
+  /if (${DeathFlag} || ${Me.State.Equal[Hover]} || ${Me.State.Equal[Dead]}) /return
+  /if (!${FindItem[Bloody Ancille's Pouch].ID} || !${FindItem[Purified Crystal].ID} || ${FindItemCount[Hunter's Barbs]}<2) {
+    /varset MakeArrows FALSE
+    /varset PullDistance 15
+    /echo You either lost your Bloody Ancille's Pouch or you have run out of Purified Crystal's. Turning Make Arrows off!!!
+    /return
+  }
+  /if (${MakeArrows} && ${FindItemCount[Hunter's Barbs]}<101) {
+    /echo Holding pulls to make some arrows!!!
+    :Make_More_Arrows
+    /if (${FindItem[Bloody Ancille's Pouch].ID} && ${Me.FreeInventory} && ${FindItem[Purified Crystal].ID}) {
+      /call cast "Bloody Ancille's Pouch" item
+      /delay 6s !${Me.Casting.ID}
+      /if (${Cursor.ID}) /autoinventory
+      /delay 1s !${Cursor.ID}
+    }
+    /if (${FindItemCount[Hunter's Barbs]}>380 || !${FindItem[Purified Crystal].ID} || !${Me.FreeInventory}) /return
+    /if (${BegForBuffs}) /call MeBegBuff
+    /call MeBegCure
+    /goto :Make_More_Arrows
+  }
+/return
+
+Sub CheckBuffs
+  /declare i int local
+  /declare OldTarget int local ${Target.ID}
+  /if (${UseAura} && ${Me.Aura.ID}==NULL && ${Spell[${AuraBuff}].Stacks[20]}) {
+    /if (!${Select[${AuraBuffGem},alt,comb,item]}) /return
+    /if ((!${SitTimer} || ${Me.Mount.ID}) && ${Me.State.NotEqual[FEIGN]})  {
+     	/squelch /target id ${Me.ID}
+     	/delay 1s ${Target.ID}==${Me.ID}
+      /if (${AuraBuffGem.Equal[comb]} && ${Me.Endurance}>${AuraEndurance}) {
+        /disc ${AuraBuff}
+        /delay 5s !${Me.Aura.ID}==NULL
+        /delay 2s
+      }
+    }
+    /if (${Spawn[${OldTarget}].ID}) {
+      /if (${Target.ID}==${Me.ID}) /target id ${OldTarget}
+    } else {
+   	  /squelch /target clear
+   	}
+  }
+  /for i 1 to ${SelfBuffTotal}
+    /if (${Me.State.NotEqual[FEIGN]} && ${Me.Buff[${Spell[${SelfBuffID[${i}]}]}].Duration}<10 && ${Spell[${SelfBuffID[${i}]}].Stacks[25]} && ${Me.CountBuffs}<=${SelfBuffCount${i}} && (!${SitTimer} || ${SelfBuffGem${i}.Equal[item]} || (${SelfBuffGem${i}.Equal[alt]} && ${Me.AltAbilityReady[${SelfBuff${i}}]})) && (${Outdoors} || ${SelfBuffIndoors${i}})) {
+      /if (!${Select[${SelfBuffGem${i}},alt,comb,item]}) /return
+      /if (${Select[${Spell[${SelfBuffID[${i}]}].TargetType},pc,Single]}) {
+        /squelch /target id ${Me.ID}
+        /delay 1s ${Target.ID}==${Me.ID}
+      }
+      /call Cast "${SelfBuff${i}}" ${SelfBuffGem${i}} 5s
+      /delay 5s
+      /if (${Spawn[${OldTarget}].ID}) {
+        /if (${Target.ID}==${Me.ID}) /target id ${OldTarget}
+      } else {
+   	    /squelch /target clear
+      }
+      /return
+    }
+  /next i
+  /varset SelfBuffTimer ${SelfBuffRecheck}
+/return
+
+Sub DisplayDPS
+  /varcalc fightTotalTime (${MacroQuest.Running}-${fightStartTime})/1000
+  /varcalc totalMeleeDmg ${totalMeleeDmg}
+  /varcalc totalNonMeleeDmg ${totalNonMeleeDmg}/2
+  /echo Fight Duration: ${fightTotalTime} seconds
+  /echo Melee Damage: ${totalMeleeDmg}
+  /echo NonMelee Damage: ${totalNonMeleeDmg}
+  /echo --------------------------------------------
+  /echo Total Damage: ${Math.Calc[${totalMeleeDmg}+${totalNonMeleeDmg}]}
+  /echo DPS: ${Math.Calc[(${totalMeleeDmg}+${totalNonMeleeDmg})/${fightTotalTime}]}
+  /echo --------------------------------------------
+  /varset fightStartTime 0
+  /varset totalNonMeleeDmg 0
+  /varset totalMeleeDmg 0
+/return
+
+Sub SetAliases
+  /echo Version Mismatch Detected, Loading Aliases
+  /ini ${Me.Name}_WarriorBot.ini Misc LoadDate ${MacroQuest.BuildDate}
+  /ini ${Me.Name}_WarriorBot.ini Misc Version ${Version}
+  /squelch /alias /anchor          /echo Setting Anchor
+  /squelch /alias /pulldistance    /echo SetPullDistance
+  /squelch /alias /puller          /echo Toggling PullerMode
+  /squelch /alias /archery         /echo ToggleVar Auto Archery,AutoArchery,Settings,AutoArchery,
+  /squelch /alias /bowpull         /echo ToggleVar Using Bow Pulling,BowPull,Settings,BowPull,
+  /squelch /alias /spellpull       /echo ToggleVar Using Spell Pulling,SpellPull,Settings,SpellPull,
+  /squelch /alias /verbose         /echo ToggleVar Setting Announcements,Verbose,Settings,Verbose,
+  /squelch /alias /autoloot        /echo ToggleVar Auto Looting,useAutoLoot,Settings,useAutoLoot,
+  /squelch /alias /buffbeg         /echo ToggleVar Buff Begging,BegForBuffs,Settings,BegForBuffs,
+  /squelch /alias /usetaunt        /echo ToggleVar Setting Taunt,HoldAgro,Settings,HoldAgro,
+  /squelch /alias /autocombat      /echo ToggleVar Setting Auto Combat,AutoCombat,Settings,AutoCombat,
+  /squelch /alias /makearrows      /echo ToggleVar Setting Make Arrows,MakeArrows,Settings,MakeArrows,
+  /squelch /alias /movehome        /echo ToggleVar Setting Move Home,MoveHome,Settings,MoveHome,
+  /squelch /alias /useaura         /echo ToggleVar Setting Use Aura,UseAura,SelfBuffStuff,UseAura,
+  /squelch /alias /usedps          /echo ToggleVar Setting use Dps to,useDPS,Settings,useDPS,
+  /squelch /alias /pullback        /echo ToggleString Pull back to Camp Distance,PullBackDistance,Settings,PullBackDistance,
+  /squelch /alias /selfbuff        /echo ToggleVar Auto Self Buffing,SelfBuffs,SelfBuffStuff,SelfBuffs,
+  /squelch /alias /campradius      /echo ToggleString Camp Radius,CampRadius,Settings,CampRadius,
+  /squelch /alias /assistdistance  /echo ToggleString Assist Distance,AssistDistance,Settings,AssistDistance,
+  /squelch /alias /assistat        /echo ToggleString Assist At,AssistAt,Settings,AssistAt,
+  /squelch /alias /archerydistance /echo ToggleString Archery Distance,ArcheryDistance,Settings,ArcheryDistance,
+  /squelch /alias /targetlock      /echo ToggleVar Setting Target Lock,TargetLock,Settings,TargetLock,
+  /squelch /alias /toggleMT        /echo Setting new main tank to: ${TankName}
+/return
+
+Sub LoadVar(IniSection,IniVar,IniValue,MacroVar,IniFile,Function,VarType)
+  /declare IniString string local
+  /if (!${Defined[${MacroVar}]} && ${Defined[VarType]}) /declare ${MacroVar} ${VarType} outer
+  /if (${Function.Equal[LOAD]}) {
+    /varset IniString ${Ini[${IniFile},${IniSection},${IniVar},NOTFOUND]}
+    /varset ${MacroVar} ${IniString}
+  }
+  /if (${IniString.Equal["NOTFOUND"]} || ${Function.Equal[SAVE]}) {
+    /if (${IniString.Equal["NOTFOUND"]} && ${Function.Equal[LOAD]}) /varset ${MacroVar} ${IniValue}
+    /ini ${IniFile} ${IniSection} ${IniVar} "${${MacroVar}}"
+  }
+/return
+
+Sub LoadIni(IniFile,Function)
+  /declare i int local
+  /if (!${Defined[ExcludeList]})      /declare ExcludeList    string outer
+  /if (!${Defined[HomeXLoc]})         /declare HomeXLoc          int outer ${Me.X}
+  /if (!${Defined[HomeYLoc]})         /declare HomeYLoc          int outer ${Me.Y}
+  /if (!${Defined[TRadius]})          /declare TRadius           int outer 0
+  /if (!${Defined[HomeY]})            /declare HomeY             int outer 0
+  /if (!${Defined[HomeX]})            /declare HomeX             int outer 0
+  /if (!${Defined[StuckXLoc]})        /declare StuckXLoc       float outer 0.0
+  /if (!${Defined[StuckYLoc]})        /declare StuckYLoc       float outer 0.0
+  /if (!${Defined[totalMeleeDmg]})    /declare totalMeleeDmg     int outer
+  /if (!${Defined[totalNonMeleeDmg]}) /declare totalNonMeleeDmg  int outer
+  /if (!${Defined[fightStartTime]})   /declare fightStartTime  float outer
+  /if (!${Defined[fightTotalTime]})   /declare fightTotalTime  float outer
+  /if (!${Defined[Anchor]})           /declare Anchor           bool outer
+|  /if (!${Defined[AutoFireState]})    /declare AutoFireState    bool outer FALSE
+  /if (!${Defined[PreEngaged]})       /declare PreEngaged       bool outer FALSE
+  /if (!${Defined[Engaged]})          /declare Engaged          bool outer FALSE
+  /if (!${Defined[Berated]})          /declare Berated          bool outer FALSE
+  /if (!${Defined[HandToHand]})       /declare HandToHand       bool outer FALSE
+  /if (!${Defined[RunHome]})          /declare RunHome          bool outer FALSE
+  /if (!${Defined[Tagged]})           /declare Tagged           bool outer FALSE
+  /if (!${Defined[TargetArray]})      /declare TargetArray[4] string outer
+  /if (!${Defined[PathFile]})         /declare PathFile       string outer
+  /if (!${Defined[Pulling]})          /declare Pulling          bool outer FALSE
+  /if (!${Defined[Following]})        /declare Following        bool outer FALSE
+  /if (!${Defined[FollowGuy]})        /declare FollowGuy      string outer NULL
+  /if (!${Defined[Outside]})          /declare Outside          bool outer TRUE
+  /if (!${Defined[Paused]})           /declare Paused           bool outer FALSE
+  /if (!${Defined[JustZoned]})        /declare JustZoned        bool outer FALSE
+  /if (!${Defined[InitVars]})         /declare InitVars         bool outer FALSE
+  /if (!${Defined[ShieldTimer]})      /declare ShieldTimer     timer outer 0
+  /if (!${Defined[QBTimer]})          /declare QBTimer         timer outer 0
+  /if (!${Defined[SitTimer]})         /declare SitTimer        timer outer
+  /if (!${Defined[FATimer]})          /declare FATimer         timer outer
+  /if (!${Defined[noInvis]})          /declare noInvis           int outer 1
+  /if (!${Defined[Casters]})          /declare Casters        string outer Necromancer|Enchanter|Wizard|Magician|Cleric|Druid|Shaman
+  /if (!${Defined[TankName]})         /declare TankName       string outer ${Target}
+  /if (!${Defined[TankID]})           /declare TankID            int outer
+  /if (!${Defined[OriginalClose]})    /declare OriginalClose     int outer ${Closeness}
+  /if (!${Defined[Closeness]})        /declare Closeness         int outer 20
+  /if (!${Defined[currentZone]})      /declare currentZone       int outer
+  /if (!${Defined[DeathFlag]})        /declare DeathFlag        bool outer ${Math.Calc[!(${InvSlot[chest].Item.ID}>0)]}
+  /call LoadVar Settings MyChannel "Put your chat channel here" MyChannel "${IniFile}" ${Function} string
+  /call LoadVar Settings DefaultMT "Put your default MT here" DefaultMT "${IniFile}" ${Function} string
+  /call LoadVar Settings Provoke "Jeer Rk. II" Provoke "${IniFile}" ${Function} string
+  /call LoadVar Settings Provoke2 "Bazu Bluster" Provoke2 "${IniFile}" ${Function} string
+  /call LoadVar Settings AAAnger "Blast of Anger" AAAnger "${IniFile}" ${Function} string
+  /call LoadVar Settings AAAnger2 "Ageless Enmity" AAAnger2 "${IniFile}" ${Function} string
+  /call LoadVar Settings AAAnger3 "Projection of Fury" AAAnger3 "${IniFile}" ${Function} string
+  /call LoadVar Settings EnduranceRegen "Fourth Wind Rk. II" EnduranceRegen "${IniFile}" ${Function} string
+  /call LoadVar Settings Verbose TRUE Verbose "${IniFile}" ${Function} bool
+  /call LoadVar Settings BegForBuffs TRUE BegForBuffs "${IniFile}" ${Function} bool
+  /call LoadVar Settings CampRadius 220 CampRadius "${IniFile}" ${Function} int
+  /call LoadVar Settings Puller FALSE Puller "${IniFile}" ${Function} bool
+  /call LoadVar Settings PullDistance 150 PullDistance "${IniFile}" ${Function} int
+  /call LoadVar Settings HoldAgro TRUE HoldAgro "${IniFile}" ${Function} bool
+  /call LoadVar Settings AutoCombat FALSE AutoCombat "${IniFile}" ${Function} bool
+  /call LoadVar Settings MoveHome TRUE MoveHome "${IniFile}" ${Function} bool
+  /call LoadVar Settings MakeArrows TRUE MakeArrows "${IniFile}" ${Function} bool
+  /call LoadVar Settings MaxZ 100 MaxZ "${IniFile}" ${Function} int
+  /call LoadVar Settings MinZ -100 MinZ "${IniFile}" ${Function} int
+  /call LoadVar Settings RoamingPulls TRUE RoamingPulls "${IniFile}" ${Function} bool
+  /call LoadVar Settings AssistDistance 200 AssistDistance "${IniFile}" ${Function} int
+  /call LoadVar Settings AssistAt 99 AssistAt "${IniFile}" ${Function} int
+  /call LoadVar Settings ShieldDistance 25 ShieldDistance "${IniFile}" ${Function} int
+  /call LoadVar Settings AutoArchery FALSE AutoArchery "${IniFile}" ${Function} bool
+  /call LoadVar Settings ArcheryDistance 80 ArcheryDistance "${IniFile}" ${Function} int
+  /call LoadVar Settings useAutoLoot TRUE useAutoLoot "${IniFile}" ${Function} bool
+  /call LoadVar Settings useDPS FALSE useDPS "${iniName}" ${Function} bool
+  /call LoadVar Settings PullBackDistance 60 PullBackDistance "${IniFile}" ${Function} int
+  /call LoadVar Settings TargetLock FALSE TargetLock "${IniFile}" ${Function} bool
+  /call LoadVar Settings BowPull FALSE BowPull "${IniFile}" ${Function} bool
+  /call LoadVar Settings SpellPull FALSE SpellPull "${IniFile}" ${Function} bool
+  /call LoadVar Settings PullSpell "Name of item, aa or ability" PullSpell "${IniFile}" ${Function} string
+  /call LoadVar Settings PullSpellGem "item, alt or comb" PullSpellGem "${IniFile}" ${Function} string
+  /call LoadVar Settings ZoneDelay 10 ZoneDelay "${IniFile}" ${Function} int
+  /call LoadVar SelfBuffStuff SelfBuffTotal 1 SelfBuffTotal "${IniFile}" ${Function} int
+  /if (${SelfBuffTotal}) {
+    /if (!${Defined[SelfBuffID]}) /declare SelfBuffID[${SelfBuffTotal}] int outer
+    /if (!${Defined[SelfBuffTimer]}) /declare SelfBuffTimer timer outer
+    /call LoadVar SelfBuffStuff SelfBuffs TRUE SelfBuffs "${IniFile}" ${Function} bool
+    /call LoadVar SelfBuffStuff SelfBuffRecheck 10s SelfBuffRecheck "${IniFile}" ${Function} string
+    /call LoadVar SelfBuffStuff DoSelfShrink TRUE DoSelfShrink "${IniFile}" ${Function} bool
+    /call LoadVar SelfBuffStuff UseAura FALSE UseAura "${IniFile}" ${Function} bool
+    /call LoadVar SelfBuffStuff AuraBuff "Self Aura Spell or Combat Ability full name" AuraBuff "${IniFile}" ${Function} string
+    /call LoadVar SelfBuffStuff AuraBuffGem "gem# for spell, comb for combat ability" AuraBuffGem "${IniFile}" ${Function} string
+    /call LoadVar SelfBuffStuff AuraEndurance 200 AuraEndurance "${IniFile}" ${Function} int
+    /for i 1 to ${SelfBuffTotal}
+      /call LoadVar SelfBuffStuff SelfBuff${i} "Self Buff Item/Spell #${i}" SelfBuff${i} "${IniFile}" ${Function} string
+      /call LoadVar SelfBuffStuff SelfBuffIcon${i} "Self Buff #${i} Buff Icon" SelfBuffIcon${i} "${IniFile}" ${Function} string
+      /call LoadVar SelfBuffStuff SelfBuffGem${i} "Self Buff #${i} Gem or put item if an item" SelfBuffGem${i} "${IniFile}" ${Function} string
+      /call LoadVar SelfBuffStuff SelfBuffCount${i} 15 SelfBuffCount${i} "${IniFile}" ${Function} int
+      /call LoadVar SelfBuffStuff SelfBuffIndoors${i} 0 SelfBuffIndoors${i} "${IniFile}" ${Function} int
+      /if (${Select[${SelfBuffGem${i}},item,alt]}) {
+        /varset SelfBuffID[${i}] ${Spell[${SelfBuffIcon${i}}].ID}
+      }
+    /next i
+  }
+/return
+
+Sub Event_SelfShrink
+  /if (${Target.ID}) /declare OldTarget int local ${Target.ID}
+  /if (${DoSelfShrink}) {
+  	/squelch /target myself
+    /delay 6 ${Target.Name.Equal[${Me}]}
+    /if (${Target.Name.Equal[${Me}]}) {
+    	/if (${FindItem[Cobalt Bracer].ID}) {
+        /call Cast "Cobalt Bracer" item 8s
+        /delay 10
+        /call Cast "Cobalt Bracer" item 8s
+        /delay 10
+        /if (${Spawn[${OldTarget}].ID}) {
+          /if (${Target.ID}==${Me.ID}) /target id ${OldTarget}
+        } else {
+   	      /squelch /target clear
+   	    }
+      }
+    }
+  }
+/return
+
+Sub Event_GotHit
+  /if (${RunHome} || ${Engaged} || ${Pulling}) /return
+  /if (${Puller} && !${Engaged}) {
+    /call CheckForAdd
+    /if (${Target.ID} && ${Target.Type.Equal[NPC]}) {
+      /if (${Target.ID}!=${TargetArray[4]}) /squelch /target id ${TargetArray[4]}
+      /delay 1s ${Target.ID}==${TargetArray[4]}
+      /if (${Target.ID}==${TargetArray[4]} && ${Math.Distance[${HomeYLoc},${HomeXLoc}]}<80) {
+        /varset Engaged TRUE
+        /if (${Puller}) /call KillTarget
+      }
+    }
+  }
+/return
+
+Sub Event_Invited
+  /delay 5
+  /if (!${Me.Grouped}) /keypress invite_follow
+/return
+
+Sub Event_NotStanding
+  /if (${RunHome} || !${Engaged}) /return
+  /if (${Me.Feigning}) /stand
+  /if (${Puller} && ${Engaged} && !${AutoArchery}) {
+    /if (${Me.State.Equal[SIT]}) /stand
+  }
+  /if (${Pulling}) {
+    /call GetTarget
+    /return
+  }
+/return
+
+Sub Event_NoSeeTarget
+  /if (${Target.ID} && ${Target.Type.Equal[NPC]}) /face fast nolook
+  /if (${Stick.Status.Equal[ON]}) /squelch /stick pause
+  /if (${Engaged} && ${Me.Combat} && ${Target.Distance} < 40 && !${Pulling}) /moveto loc ${Spawn[Target.ID]}
+  /if (${Stick.Status.Equal[PAUSED]}) /squelch /stick unpause
+  /if (${Engaged} && ${Target.ID}) /return
+  /if (${Puller} && ${Pulling} && ${Target.ID} && ${Target.Distance} > 500) {
+   	/if (${Target.Type.Equal[NPC]}) /squelch /target clear
+   	/varset Tagged FALSE
+  }
+  /if (!${Puller} && ${Target.ID}) {
+    /if (${TankID}!=${Me.ID}) /assist ${TankName}
+    /if (${Target.ID} && ${Target.Type.Equal[NPC]}) /face fast nolook
+    /call MoveAround
+  }
+/return
+
+Sub Event_MobDead
+  /if (${Stick.Status.Equal[ON]}) /squelch /stick off
+  /squelch /attack off
+  /if (${HandToHand}) /varset HandToHand FALSE
+  /if (${Engaged}) /varset Engaged FALSE
+  /doevents TooFarAway flush
+  /doevents GotHit flush
+  /if (${useDPS}) /call DisplayDPS
+  /if (${Puller}) {
+    /call CheckForAdd
+    /if (${Target.ID} && ${Target.ID}==${TargetArray[4]} && ${Math.Distance[${HomeYLoc},${HomeXLoc}]}<80) {
+      /if (${Target.Distance} > 60) /call TagTarget
+      /call KillTarget
+      /return
+    }
+  }
+  /delay 3
+  /if (${useAutoLoot} && ${LootMobs} && !${Me.Moving} && ${ACState}<1 ) /call LootMobs
+  /doevents
+  /if (!${Puller}) {
+    /if (${PreEngaged}) /varset PreEngaged FALSE
+|    /if (${AutoFireState}) /varset AutoFireState FALSE
+    /delay 1
+    /keypress forward
+    /keypress back
+    /if (${Math.Distance[${HomeY},${HomeX}]}>20) /call ReturnHome2
+  }
+  /squelch /stick off
+  /if (${Target.ID}) /squelch /target clear
+/return
+
+Sub Event_TooFarAway
+  /if (${Target.Distance} > 50) /return
+  /if (${Me.AltAbility[Grappling Strike]} && ${Me.AltAbilityReady[Grappling Strike]}) /call Cast "Grappling Strike" alt
+  /varset Closeness ${Math.Calc[${Closeness}*0.8].Int}
+  /if (${Closeness}<20) /varset Closeness 20
+  /if (!${Pulling} && ${Target.ID} && ${Target.Type.Equal[NPC]} && ${Math.Distance[${HomeY},${HomeX}]}<20) /squelch /stick 15 moveback
+  /delay 1s
+  /doevents flush TooFarAway
+/return
+
+Sub Event_Outdoors
+  /varset Outside FALSE
+/return
+
+Sub Event_Zoned
+  /varset Anchor TRUE
+  /varset HomeX ${Me.X}
+  /varset HomeY ${Me.Y}
+  /varset HomeXLoc ${Me.X}
+  /varset HomeYLoc ${Me.Y}
+  /echo New Anchor Location: ${HomeX}, ${HomeY}
+  /varset currentZone ${Zone.ID}
+  /varset Outside TRUE
+  /varset ExcludeList ${Ini[${IniFile},"Excludes.${Zone.ShortName}","Exclude"]}
+  /if (${ExcludeList.Equal[NULL]}) {
+    /ini "${IniFile}" "Excludes.${Zone.ShortName}" "Exclude" "|"
+    /varset ExcludeList ${Ini[${IniFile},"Excludes.${Zone.ShortName}","Exclude"]}
+    /echo ExcludeList: ${ExcludeList}
+  } else {
+    /varset ExcludeList ${Ini[${IniFile},"Excludes.${Zone.ShortName}","Exclude"]}
+    /echo ExcludeList: ${ExcludeList}
+  }
+  /nomodkey /keypress home
+  /if (!${noInvis}) /varset noInvis 1
+  /if (!${JustZoned}) /varset JustZoned TRUE
+  /if (${Puller}) {
+    /varset Puller FALSE
+    /ini ${Me.Name}_WarriorBot.ini Settings Puller FALSE
+    /echo Auto Pulling Now OFF!
+    /delay 15s
+    /if (!${Target.ID} || ${Target.Type.NotEqual[PC]} || ${Target.Type.Equal[Corpse]} || ${Target.Type.Equal[PET]} || ${Target.ID} == ${Me.ID}) {
+      /varset TankName ${DefaultMT}
+      /target ${TankName}
+      /varset TankID ${Target.ID}
+    } else {
+      /varset TankID ${Target.ID}
+      /varset TankName ${Target.CleanName}
+    }
+    /echo Assist Mode Activated
+    /echo ${TankName} is the Tank. ID: ${TankID}
+  }
+  /varset DeathFlag ${Math.Calc[!(${InvSlot[chest].Item.ID}>0)]}
+  /if (${DeathFlag} || ${Me.State.Equal[Hover]} || ${Me.State.Equal[Dead]}) /call Event_ImDead
+  /squelch /target ${TankName}
+  /varset TankID ${Target.ID}
+  /if (${Following}) {
+   	:WaitForFollowGuy
+   	/delay 10
+   	/doevents
+   	/squelch /target pc ${FollowGuy}
+   	/if (!${Target.ID} || ${Target.ID}!=${Spawn[pc ${FollowGuy}].ID}) /goto :WaitForFollowGuy
+    /if (${Me.Underwater} || ${Me.Levitating}) {
+      /squelch /stick 10 hold uw
+    } else {
+      /squelch /stick 10 hold
+    }
+   	/if (${Verbose}) /${MyChannel} Following ${FollowGuy} GTG!
+  }
+  /doevents
+/return
+
+Sub Event_ImDead
+  /if (${Stick.Status.Equal[ON]}) /squelch /stick off
+  /keypress forward
+  /keypress back
+  /keypress Left
+  /keypress Right
+  /delay 2s
+  /varset Closeness ${OriginalClose}
+  /varset Following FALSE
+  /varset Outside TRUE
+  /varset Engaged FALSE
+  /call Wait4Rez
+  /delay 5s
+  :Zone_Loop
+  /if (!${JustZoned}) {
+    /doevents
+    /delay 2s
+    /goto :Zone_Loop
+  }
+  /varset JustZoned FALSE
+  /doevents
+/return
+
+Sub Wait4Rez
+  /echo Awaiting rez: auto-accepting, and looting my corpse
+  /consent group
+  /delay 25
+  /consent raid
+  /delay 25
+  /consent guild
+  :waitforrez
+  /if (${Window[TradeWnd].Open}) /nomodkey /notify TradeWnd TRDW_Trade_Button leftmouseup
+  /doevents EQBC
+  /delay 1
+  /doevents Chat
+  /doevents EQBC
+  /delay 10s ${Window[ConfirmationDialogBox].Open}
+  /if (!${Window[ConfirmationDialogBox].Open}) /goto :waitforrez
+  /nomodkey /notify ConfirmationDialogBox Yes_Button leftmouseup
+  /delay 2s
+  /if (${Window[RespawnWnd].Open}) {
+    /nomodkey /notify RespawnWnd RW_OptionsList listselect 2 
+    /delay 1s
+    /nomodkey /notify RespawnWnd RW_SelectButton leftmouseup
+    /delay 2s 
+  }
+  :waitforzone
+  /delay 5m ${Spawn[${Me}'s corpse].ID}
+  /delay 5s ${Spawn[${Me}'s corpse].Distance}<100
+  /if (${Spawn[${Me}'s corpse].ID}) /target mycorpse
+  /delay 5s ${Target.ID}==${Spawn[${Me}'s corpse].ID}
+  /if (${Target.CleanName.NotEqual[${Me}'s corpse]}) /goto :waitforzone
+  :corpsepull
+  /if (${Target.Distance}>100 || !${Spawn[${Me}'s corpse].ID}) /return
+  /delay 5s ${Target.Distance}<20
+  /loot
+  /delay 5s ${Me.State.Equal[BIND]}
+  /if (${Me.State.NotEqual[BIND]}) /goto :corpsepull
+  /declare loottotal int local
+  :lootlag
+  /varset loottotal ${Corpse.Items}
+  /delay 1s ${loottotal}!=${Corpse.Items}
+  /if (${loottotal}!=${Corpse.Items}) /goto :lootlag
+  /declare i int local
+  /for i 1 to ${loottotal}
+    :lootagain
+    /itemnotify loot${i} rightmouseup
+    /delay 10s !${Corpse.Item[${i}].ID}
+    /if (${Corpse.Item[${i}].ID}) /goto :lootagain
+  /next i
+  /nomodkey /notify LootWnd DoneButton leftmouseup
+/return
+
+Sub Event_ToggleString(Stuff,TempMessage,TempVar,IniSection,IniEntry,Line)
+  /if (${Defined[${TempVar}]}) {
+    /if (${Line.Length}) {
+      /varset ${TempVar} ${Line}
+      /ini "${Me.Name}_WarriorBot.ini" ${IniSection} ${IniEntry} "${${TempVar}}"
+    }
+    /echo ${TempMessage} to: ${${TempVar}}
+    /varset ${IniEntry} ${${TempVar}}
+  }
+/return
+
+Sub Event_ToggleVar(Stuff,TempMessage,TempVar,IniSection,IniEntry,Line)
+  /if (${Defined[${TempVar}]}) {
+    /if (!${Line.Length}) {
+      /if (${${TempVar}}) {
+        /varset ${TempVar} FALSE
+      } else {
+        /varset ${TempVar} TRUE
+      }
+    }
+    /if (${Line.Arg[1].Equal[ON]} || ${Line.Arg[1].Equal[TRUE]} || ${Line.Arg[1].Equal[1]}) /varset ${TempVar} TRUE
+    /if (${Line.Arg[1].Equal[OFF]} || ${Line.Arg[1].Equal[FALSE]} || ${Line.Arg[1].Equal[0]}) /varset ${TempVar} FALSE
+    /if (${${TempVar}}) /echo ${TempMessage} is now ON
+    /if (!${${TempVar}}) /echo ${TempMessage} is now OFF
+    /if (${IniSection.NotEqual[NULL]} && ${IniEntry.NotEqual[NULL]}) /ini "${Me.Name}_WarriorBot.ini" ${IniSection} ${IniEntry} ${${TempVar}}
+  }
+/return
+
+Sub Event_ToggleMT(string Line)
+  /if (${Line.Arg[2].Length}) {
+    /varset TankName ${Line.Arg[2]}
+    /squelch /target ${TankName}
+    /varset TankID ${Target.ID}
+    /echo New Tank: ${TankName} ID#${TankID}
+  }
+/return
+
+Sub Event_SetPullDistance(string Line)
+  /if (${Line.Arg[3].Length}) {
+    /varset PullDistance ${Line.Arg[3]}
+    /ini ${Me.Name}_WarriorBot.ini Settings PullDistance ${Line.Arg[3]}
+    /echo New Pull Distance: ${PullDistance}
+  }
+/return
+
+Sub Event_TogglePuller
+  /if (${Puller}) {
+    /varset Puller FALSE
+    /ini ${Me.Name}_WarriorBot.ini Settings Puller FALSE
+    /echo Auto Pulling Now OFF!
+    /delay 15s
+    /if (!${Target.ID} || ${Target.Type.NotEqual[PC]} || ${Target.Type.Equal[Corpse]} || ${Target.Type.Equal[PET]} || ${Target.ID} == ${Me.ID}) {
+      /varset TankName ${DefaultMT}
+      /target ${TankName}
+      /varset TankID ${Target.ID}
+    } else {
+      /varset TankID ${Target.ID}
+      /varset TankName ${Target.CleanName}
+    }
+    /echo Assist Mode Activated
+    /echo ${TankName} is the Tank. ID: ${TankID}
+    /return
+  }
+  /if (!${Puller}) {
+    /varset Puller TRUE
+    /ini ${Me.Name}_WarriorBot.ini Settings Puller TRUE
+    /echo Auto Pulling Now ON!
+    /delay 15s
+    /varset PathFile ${Ini[${IniFile},Pathfiles,${Zone}]}
+    /echo Path file is: ${PathFile}
+    /call ReturnHome
+    /squelch /target clear
+    /if (!${InitVars}) {
+      /call InitAPFVars 1 15 20
+      /varset InitVars TRUE
+    }
+  }
+  /if (!${Anchor}) {
+    /varset Anchor TRUE
+    /varset HomeX ${Me.X}
+    /varset HomeY ${Me.Y}
+    /varset HomeXLoc ${Me.X}
+    /varset HomeYLoc ${Me.Y}
+    /echo New Anchor Location: ${HomeX}, ${HomeY}
+  }
+/return
+
+Sub Event_SetAnchor
+  /if (${Following}) {
+    /echo Turning off following to set anchor.
+    /squelch /stick off
+    /varset FollowGuy NULL
+    /varset Following FALSE
+  }
+  /varset Anchor TRUE
+  /varset HomeX ${Me.X}
+  /varset HomeY ${Me.Y}
+  /varset HomeXLoc ${Me.X}
+  /varset HomeYLoc ${Me.Y}
+  /echo New Anchor Location: ${HomeX}, ${HomeY}
+/return
+
+Sub Event_Enrageon
+  /if (${HandToHand} && ${Target.PctHPs}<11 && ${Target.ID}==${TargetArray[4]}) /attack off
+/return
+
+Sub Event_Enrageoff
+  /if (!${Target.ID}||(${Target.ID}!=${TargetArray[4]} && ${TargetArray[4]})) {
+  	/squelch /target ${TargetArray[4]}
+  }
+  /if (${HandToHand} && ${Target.ID}==${TargetArray[4]}) /attack on
+/return
+
+|Sub Event_AutoFireOn
+|  /varset AutoFireState TRUE
+|/return
+
+|Sub Event_AutoFireOff
+|  /varset AutoFireState FALSE
+|/return
+
+Sub Event_DeTarget
+  /if (${Target.ID}!=${TargetArray[4]} && ${TargetArray[4]}) {
+  	/squelch /target ${TargetArray[4]}
+  } else {
+  	/squelch /target clear
+  }
+/return
+
+Sub Event_EQBC(EQBCSay,EQBCSender,EQBCCommand)
+  /if (${EQBCCommand.Left[1].Equal[/]}) {
+    /docommand ${EQBCCommand}
+  } else {
+    /call Event_Chat "EQBC" "${EQBCSender}" "${EQBCCommand}"
+  }
+/return
+
+Sub Event_Chat(string ChatType,string Sender,string ChatText)
+  /if ((!${ChatType.Equal[EQBC]})&&(!${ChatType.Equal[${MyChannel}]})&&(!${ChatType.Equal[TELL]})) /return
+  /if (!${Spawn[${Sender}].ID}) /return
+  /if (${ChatText.Equal[invisoff]}) {
+  	/if (${Me.Buff[Shared Camouflage].ID}) /nomodkey /notify BuffWindow Buff${Math.Calc[${Me.Buff[Shared Camouflage].ID}-1].Int} leftmouseup
+    /if (${Me.Buff[Sun Cloak].ID}) /nomodkey /notify BuffWindow Buff${Math.Calc[${Me.Buff[Sun Cloak].ID}-1].Int} leftmouseup
+    /if (${Me.Buff[Sunskin].ID}) /nomodkey /notify BuffWindow Buff${Math.Calc[${Me.Buff[Sunskin].ID}-1].Int} leftmouseup
+    /if (${Me.Buff[Fool the Fallen].ID}) /nomodkey /notify BuffWindow Buff${Math.Calc[${Me.Buff[Fool the Fallen].ID}-1].Int} leftmouseup
+  }
+  /if (${ChatText.Equal[pop infusion]} && ${Me.AltAbility[Infusion of the Faithful].ID} && ${Me.AltAbilityReady[Infusion of the Faithful]}) /call Cast "Infusion of the Faithful" alt
+  /if (${ChatText.Equal[levoff]}) {
+  	/If (${Me.Buff[Flight of Eagles].ID}) /nomodkey /notify BuffWindow Buff${Math.Calc[${Me.Buff[Flight of Eagles].ID}-1].Int} leftmouseup
+  	/If (${Me.Buff[Spirit of Eagle].ID}) /nomodkey /notify BuffWindow Buff${Math.Calc[${Me.Buff[Spirit of Eagle].ID}-1].Int} leftmouseup
+  	/If (${Me.Buff[Levitation].ID}) /nomodkey /notify BuffWindow Buff${Math.Calc[${Me.Buff[Levitation].ID}-1].Int} leftmouseup
+  	/If (${Me.Buff[Dead Man Floating].ID}) /nomodkey /notify BuffWindow Buff${Math.Calc[${Me.Buff[Dead Man Floating].ID}-1].Int} leftmouseup
+  }
+  /if (${ChatText.Equal[follow]} && ${Sender.NotEqual[${Me.CleanName}]}) {
+    /delay 5
+    /if (!${Spawn[${Sender}].ID}) {
+      /echo ${Sender}  is not in zone for me to follow!
+      /return
+    }
+    /varset FollowGuy ${Sender}
+    /if (${Verbose}) /${MyChannel} I am Following ${Sender}!!!
+    /if (${Me.Mount.ID}) /dismount
+    /target pc ${FollowGuy}
+    /delay 1s ${Target.Name.Equal[${FollowGuy}]}
+    /if ((!${Following}) && (${Target.Name.Equal[${FollowGuy}]})) {
+      /stand
+      /face fast nolook
+      /if (${Me.Underwater} || ${Me.Levitating}) {
+      	/squelch /stick 10 hold uw
+      } else {
+        /squelch /stick 10 hold
+      }
+      /varset Following TRUE
+      /if (!${Target.ID}) /varset Following FALSE
+      /delay 1
+      /doevents
+      /return
+    }
+  }
+  /if (${ChatText.Equal[follow stop]} && ${Sender.NotEqual[${Me.CleanName}]}) {
+    /if (!${Spawn[${Sender}].ID}) {
+      /return
+    }
+    /varset Following FALSE
+    /varset Anchor TRUE
+    /varset HomeX ${Me.X}
+    /varset HomeY ${Me.Y}
+    /varset HomeXLoc ${Me.X}
+    /varset HomeYLoc ${Me.Y}
+    /echo New Anchor Location: ${HomeX}, ${HomeY}
+    /if (${Stick.Status.Equal[ON]}) /squelch /stick off
+    /keypress forward
+    /keypress back
+    /keypress home
+    /if (${Verbose}) /${MyChannel} I Stopped Following ${Sender}!!!
+    /return
+  }
+  /if (${ChatText.Equal[clickzone]}) {
+  	/declare OldZoneID int local ${Zone.ID}
+  	/if (${Stick.Status.Equal[ON]}) /squelch /stick off
+  	:MoveToDoor
+  	/if (${OldZoneID}!=${Zone.ID}) /return
+  	/if (${Target.ID}) /squelch /target clear
+  	/squelch /doortarget
+  	/squelch /face fast door
+    /if (${DoorTarget.Distance}>12) {
+    	/nomodkey /keypress forward hold
+    	/delay 3
+    	/nomodkey /keypress forward
+    	/goto :MoveToDoor
+    } else /if (${DoorTarget.Distance}<7) {
+    	/nomodkey /keypress back hold
+    	/delay 1
+    	/nomodkey /keypress back
+    }
+    /delay 2
+    /nomodkey /keypress u hold
+    /delay 2
+    /nomodkey /keypress u
+    /delay 2
+    /nomodkey /keypress home
+    /delay 2
+    /nomodkey /keypress u hold
+    /delay 2
+    /nomodkey /keypress u
+    /delay 1s
+    /if (${OldZoneID}==${Zone.ID}) /goto :MoveToDoor
+  }
+  /if (${ChatText.Equal[clickdoor]}) {
+  	/if (${Stick.Status.Equal[ON]}) /squelch /stick off
+  	:MoveToClick
+  	/if (${Target.ID}) /squelch /target clear
+  	/squelch /doortarget
+  	/squelch /face fast door
+    /if (${DoorTarget.Distance}>12) {
+    	/nomodkey /keypress forward hold
+    	/delay 3
+    	/nomodkey /keypress forward
+    	/goto :MoveToClick
+    } else /if (${DoorTarget.Distance}<7) {
+    	/nomodkey /keypress back hold
+    	/delay 1
+    	/nomodkey /keypress back
+    }
+    /delay ${ZoneDelay}
+    /nomodkey /keypress u hold
+    /delay 2
+    /nomodkey /keypress u
+    /delay 2
+    /nomodkey /keypress home
+    /delay 2s
+    /doevents Zoned
+  }
+  /if (${ChatText.Equal[mana check]}) /${MyChannel} Warrior Endurance ${Me.PctEndurance}%
+  /if (${ChatText.Equal[leaveraid]} && ${Raid.Member[${Me.CleanName}].ID}) /raiddisband
+  /if (${ChatText.Equal[slowcamp]}) {
+    /if (${Me.Standing}) /sit
+    /camp desktop
+    /end
+  }
+/return
+
+Sub Event_SayZone(string Sender,string ZoneText)
+  /if (${Stick.Status.Equal[ON]}) /squelch /stick off
+  /squelch /face fast nolook
+  /squelch /assist ${Sender}
+  /if (${Target.ID}) /squelch /stick 10
+  /delay ${ZoneDelay}
+  /if (${ZoneText.Equal[hail]}) {
+  	/h
+  } else {
+    /say ${ZoneText}
+  }
+/return
+
+Sub Event_SwitchTarget(string Sender,string NewTarget)
+  /if (${Verbose}) /${MyChannel} Switching targets to ${NewTarget}
+  /if (${Spawn[${NewTarget}].ID}) /squelch /target ${NewTarget}
+  /if (${Target.ID} && ${Target.Type.Equal[NPC]}) {
+    /face fast nolook
+    /varset TargetArray[1] ${Target.CleanName}
+    /varset TargetArray[2] ${Target.Level}
+    /varset TargetArray[3] ${Target.Name}
+    /varset TargetArray[4] ${Target.ID}
+  }
+/return
+
+Sub Event_DamageMelee(string line,int damage)
+  /if (${useDPS}) {
+  	/varcalc totalMeleeDmg ${totalMeleeDmg}+${damage}
+    /if (!${fightStartTime}) /varset fightStartTime ${MacroQuest.Running}
+  }
+/return
+
+Sub Event_DamageNonMelee(string line,int damage)
+  /if (${useDPS}) {
+  	/varcalc totalNonMeleeDmg ${totalNonMeleeDmg}+${damage}
+    /if (!${fightStartTime}) /varset fightStartTime ${MacroQuest.Running}
+  }
+/return
+
+Sub Event_ExcludeMob(string line,string MobName)
+  /if (!${ExcludeList.Find[${MobName}]}) {
+  	/ini "${IniFile}" "Excludes.${Zone.ShortName}" "Exclude" "${MobName}|"
+  } else }
+    /ini "${IniFile}" "Excludes.${Zone.ShortName}" "Exclude" "${ExcludeList}${MobName}|"
+  }
+  /varset ExcludeList ${Ini[${IniFile},"Excludes.${Zone.ShortName}","Exclude"]}
+  /echo ExcludeList: ${ExcludeList}
+/return
+
+Sub Event_NewPathfile(string line,string NewPathFile)
+  /ini "${IniFile}" "Pathfiles" "${Zone}" "${NewPathFile}"
+  /varset PathFile ${Ini[${IniFile},Pathfiles,${Zone}]}
+  /echo New Path File: ${PathFile}
+/return
+
+|Sub Event_NoMatches
+|   /varset TargetArray[4]=0
+|   /squelch /target clear
+|/return
+

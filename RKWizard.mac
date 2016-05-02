@@ -1,0 +1,121 @@
+#include RKBase.inc
+#include RKCasterBase.inc
+
+Sub Event_SpellWoreOff
+	/call ClearMezzedMobArrays
+/return
+
+Sub Main
+	/call Init_RKBase
+	/call Init_RKCasterBase
+
+
+
+| *** VARIABLE DECLARATIONS
+
+	/varset TargetHpEngagePercentage 98
+	/varset UpperAggroThreshold 80
+	
+	/varset SpellMemSlot 11
+	
+	/declare ElementMode int outer 1 | 0 = magic, 1 = fire, 2 = ice
+	
+	/varset MercBurnThreshold 101
+
+	/varset InCombatStickToCommander TRUE
+
+	/call AddToArray "InvisModeSubs" "GroupInvis"
+	
+	/call AddToArray "BurnCombatActionSubs" "WizardBurnActions"
+	/call AddToArray "CombatActionSubs" "WizardCombatActions"
+	/call AddToArray "DefensiveActionSubs" "WizardDefensiveActions"		
+	/call AddToArray "NonCombatSubs" "WizardNonCombatSubs"
+
+
+	/call AddToArray "DetrimentalSpells" "Flame Vortex Rk. II"				
+	/call AddToArray "DetrimentalSpells" "Ethereal Inferno"
+	/call AddToArray "DetrimentalSpells" "Flashblaze"
+	/call AddToArray "DetrimentalSpells" "Wildspark Barrage Rk. II"		
+	/call AddToArray "DetrimentalSpells" "Cloudburst Storm Rk. II"
+
+	
+
+	/call AddToArray "NonCombatSelfBuffs" "Shield of Dreams Rk. II"	
+
+	/echo Done initializing macro!
+	
+| *** INITIALIZATION
+	/echo Starting Box Commander - Wizard Macro
+
+| *** MAIN LOOP
+:loop
+	/call Tick
+	/goto :loop
+/return
+
+
+Sub WizardBurnActions
+	/call RKAACast "Silent Casting"
+	/call RKAACast "Sustained Devastation"
+	/call RKAACast "Fury of Ro"
+	/call RKAACast "Improved Twincast"
+/return FALSE
+
+
+Sub WizardCombatActions
+	|/if (!${Me.Pet.ID}) /call RKCast "Daveron's Pyroblade"
+
+	/if (${Me.XTarget} > 1) {
+		/call RKCast "Glacial Pillar Rk. II" ${CurrentTargetId}
+		/if (${Macro.Return}) /return TRUE
+	}
+	
+	/call RKCast "Twincast" ${CurrentTargetId}
+	/if (${Macro.Return}) /return TRUE
+
+	/call RKAACast "Call of Xuzl"
+	/if (!${Me.Moving}) /call RKAACast "Force of Will"	
+	
+	/call RKAACast "Focus of Arcanum"
+	/call RKAACast "First Spire of Arcanum"
+	
+	/if (${Me.PctAggro} > 95) {
+		/call RKAACast "Mind Crash"
+		/if (${Macro.Return}) /return TRUE
+	}
+	
+	/if (${Me.PctAggro} > 50) {
+		/call RKAACast "Concussive Intuition"
+	}
+
+	/if (${Me.PctAggro} > 70) {
+		/call RKCast "Concussive Burst Rk. II"
+	}
+	
+	/if (!${Bool[${Target.Snared}]}) /call RKAACast "Atol's Shackles" ${CurrentTargetId}
+	
+	
+/return FALSE
+
+Sub WizardDefensiveActions
+	/if (${Me.PctHPs} < 75) /call RKAACast "Dimensional Instability"
+/return FALSE
+
+Sub WizardNonCombatSubs
+
+	/if (!${Me.Buff[${Me.AltAbility[Pyromancy].Spell.Name}].ID}) {
+		/call RKAACast "Pyromancy" ${CurrentTargetId}	
+		/echo Need pyromancy
+	}
+
+	/if (${Me.PctMana} < 70) {
+		/call RKCast "Soothing Harvest Rk. II" ${CurrentTargetId}
+		/call RKAACast "Harvest of Druzzil" ${CurrentTargetId}
+	}	
+
+/return FALSE
+
+
+	/if (!${Me.Invis} && !${Me.Moving}) /call RKAACast "Group Perfected Invisibility"
+Sub GroupInvis
+/return FALSE

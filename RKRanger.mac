@@ -1,0 +1,176 @@
+#Event SnareImmune "#*#Your target is immune to changes in its run speed."
+
+#include RKBase.inc
+#include RKMeleeBase.inc
+#include RKCasterBase.inc
+#include RKHealerBase.inc
+#include RKCrowdControlBase.inc
+
+Sub Main
+	/call Init_RKBase
+	/call Init_RKMeleeBase
+	/call Init_RKHealerBase
+	|/call AddToArray "CombatActionSubs" "CheckMeleeDistance"
+	/call Init_RKCrowdControlBase
+	/call Init_RKCasterBase
+		
+| *** VARIABLE DECLARATIONS
+
+	/varset SpellMemSlot 11
+	|/varset ForageMode TRUE
+	
+	/varset StickFlags behind
+	
+	/varset CharmMode FALSE
+	/varset CCMode FALSE
+	/varset SingleTargetMez Flusterbolt
+	/varset SingleTargetMez2 Blusterbolt Rk. II
+	/varset MezSub RangerCC
+	/varset SingleTargetMezLevelCap 120
+
+	/declare SnareMode bool outer TRUE
+	/declare ShouldSnare bool outer TRUE	
+
+	/varset KeepAgroOnAdds FALSE
+	/varset MaxTargetDistance 5000
+
+	/if (${Group.MainTank.ID} == ${Me.ID}) {
+		/varset TargetHpEngagePercentage 100
+		/varset UpperAggroThreshold 100
+	} else {
+		/varset TargetHpEngagePercentage 99
+		/varset UpperAggroThreshold 99	
+	}
+
+	/varset HealSpell Kromtus Balm Rk. II
+	/varset EmergencyHealSpell Desperate Drenching	
+	/varset TankHealThreshold 80
+	/varset SingleTargetHealThreshold 80
+	/varset GroupHealThreshold 0
+		
+	/call AddToArray "CombatActionSubs" "ExecuteRangerCombatActions"
+	/call AddToArray "DefensiveActionSubs" "ExecuteDefensiveActions"		
+	/call AddToArray "NonCombatSubs" "RangerNonCombatSubs"
+	
+	/call AddToArray "InvisModeSubs" "PeriodicGroupInvis"
+	
+	/call AddToArray "DetrimentalSpells" "Forecasted Shots Rk. II"
+	/call AddToArray "DetrimentalSpells" "Focused Rain of Arrows Rk. II"
+	/call AddToArray "DetrimentalSpells" "Swarm of Vespines Rk. II"
+	|/call AddToArray "DetrimentalSpells" "Blisterbeetle Swarm"
+	/call AddToArray "DetrimentalSpells" "Wildfire Boon Rk. II"
+	/call AddToArray "DetrimentalSpells" "Vileoak Ash Rk. II"
+	/call AddToArray "DetrimentalSpells" "Bitter Wind Rk. II"
+	|/call AddToArray "DetrimentalSpells" "Summer's Gale Rk. II"	
+	
+	/call AddToArray "GiftSpells" "Summer's Gale Rk. II"
+	
+	/call AddToArray "NonCombatSelfBuffs" "Deafening Edges"
+
+	|/call AddToArray "NonCombatSelfBuffs" "Devastating Impact Rk. II"	
+
+	|/call AddToArray "NonCombatPartyBuffs" "Strength of the Bosquestalker Rk. II"
+	|/call AddToArray "NonCombatPartyBuffs" "Shout of the Predator Rk. II"	
+	|/call AddToArray "NonCombatPartyBuffs" "Shared Cloak of Spurs Rk. II"
+
+	/call AddToArrayWithUniqueName "NonCombatSelfBuffs" "Bosquetender's Unity Rk. II" "Inspired by the Hunt Rk. II"
+	/call AddToArrayWithUniqueName "NonCombatSelfBuffs" "Bosquetender's Unity Rk. II" "Protection of the Bosque Rk. II"
+	/call AddToArrayWithUniqueName "NonCombatSelfBuffs" "Bosquetender's Unity Rk. II" "Eyes of the Howler Rk. II"
+	/call AddToArrayWithUniqueName "NonCombatSelfBuffs" "Bosquetender's Unity Rk. II" "Spurcoat Rk. II"
+	
+	/call AddToArray "BurnCombatActionSubs" "ExecuteBurnRangerCombatActions"
+	/call AddToArray "XPEarnedSubs" "ResetSnareMode" 
+	
+	/echo Done initializing ranger macro!
+
+| *** MAIN LOOP
+
+:loop
+	/call Tick
+	/goto :loop
+/return
+
+Sub RangerCC(ccTargetId)
+	/if (${Me.SpellReady[FlusterBolt]}) /call RKCast "Flusterbolt" ${ccTargetId}
+	/if (${Me.SpellReady[Blusterbolt Rk. II]}) /call RKCast "Blusterbolt Rk. II" ${ccTargetId}	
+	/if (${Spawn[id ${ccTargetId}].Distance} > 100) {
+		/call RKAACast "Grasp of Sylvan Spirits" ${ccTargetId}
+	}
+
+	
+/return FALSE
+
+Sub ResetSnareMode
+	/if (${SnareMode}) /varset ShouldSnare TRUE
+/return FALSE
+
+Sub CheckMeleeDistance
+	/if (${Spawn[${RKCommander} pc].ID} == ${Me.ID} && ${Target.Distance} > ${MaxMeleeDistance}) /return TRUE
+/return FALSE
+
+Sub RangerNonCombatSubs
+/return FALSE
+
+Sub ExecuteBurnRangerCombatActions
+	/call RKAACast "Fundament: Third Spire of the Pathfinders"
+	/call RKAACast "Auspice of the Hunter"
+	/call RKAACast "Group Guardian of the Forest"
+	/call RKAACast "Imbued Ferocity"
+	
+	/call RKDisc "Bosquestalker's Discipline Rk. II"
+	/call RKDisc "Warder's Wrath"
+	
+/return FALSE
+
+Sub ExecuteRangerCombatActions
+	/doability 1
+	/doability 2
+
+	|/if (${Me.Casting.ID}) /return FALSE
+
+	/if (${Target.Distance} > 30 && !${Me.AutoFire}) /autofire
+	
+	
+	/if (!${Me.Moving}) {
+		/call RKDisc "Focused Storm of Blades Rk. II"
+		/if (${Target.Distance} < 20) {
+			/if (${Me.ID} == ${TankId}) {
+				/call RKDisc "Enraging Heel Kicks Rk. II"	
+			} else {
+				/call RKDisc "Jolting Heel Kicks Rk. II"	
+			}
+		}
+		
+		/if (${SnareMode} && ${ShouldSnare} && !${Target.Buff[Entrap].ID} && ${Target.Distance} < 30) /call RKAACast "Entrap"
+	}
+	
+	/if (${Target.PctHPs} < 50) /return FALSE
+	
+	/call RKAACast "Scout's Mastery of Fire"
+	/call RKAACast "Glacial Arrow"	
+	/call RKAACast "Volatile Arrow"
+	/call RKAACast "Outrider's Accuracy"
+	/call RKAACast "Outrider's Attack"
+	/call RKAACast "Pack Hunt"
+	/call RKDisc "Reflexive Bladespurs Rk. II"
+	/call RKItemCast "Natural Attunement" "Frightweave Coat of the Warden"	
+
+/return FALSE
+
+Sub PeriodicGroupInvis
+	/if (!${Me.Invis}) /call RKAACast "Shared Camouflage"
+	/if (${DebugMode}) /echo Group Invis
+/return FALSE
+
+Sub ExecuteDefensiveActions
+	/if (${Me.PctHPs} < 50) /call RKDisc "Weapon Shield Discipline"
+	/if (${Bool[${Macro.Return}]} && ${Macro.Return}) /return TRUE	
+
+	|/if (${Me.PctHPs} < 70) /call RKAACast "Guardian of the Forest"
+	|/if (${Bool[${Macro.Return}]} && ${Macro.Return}) /return TRUE	
+	
+/return FALSE
+
+Sub Event_SnareImmune
+	/varset ShouldSnare FALSE
+/return

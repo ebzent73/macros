@@ -1,0 +1,169 @@
+#include RKBase.inc
+#include RKMeleeBase.inc
+#include RKCasterBase.inc
+|#include RKCrowdControlBase.inc
+
+Sub Main
+	/call Init_RKBase
+	/call Init_RKMeleeBase
+	/call Init_RKCasterBase
+	|/call AddToArray "CombatActionSubs" "CheckMeleeDistance"
+	|/call Init_RKCrowdControlBase
+		
+| *** VARIABLE DECLARATIONS
+
+	/varset CharmMode FALSE
+	/varset CCMode FALSE
+	/varset SingleTargetMez Blinding Burst Rk. II
+	/varset MezSub RogueCC
+	/varset SingleTargetMezLevelCap 105
+	/varset StickFlags behind
+		
+	/varset MaxTargetDistance 5000
+		
+	/varset TargetHpEngagePercentage 99
+	/varset UpperAggroThreshold 99
+	
+	/call AddToArray "CombatAbilities" "Backstab"
+	/call AddToArray "CombatAbilities" "Disarm"
+	/call AddToArray "CombatAbilities" "Intimidation"
+	
+	/call AddToArray "CombatDiscs" "Arcwork Discipline Rk. II"
+	/call AddToArray "CombatDiscs" "Wide-Eyed Mark Rk. II"
+	/call AddToArray "CombatDiscs" "Pinpoint Liabilities"	
+	/call AddToArray "CombatDiscs" "Reefcrawler Blade Rk. II"
+	/call AddToArray "CombatDiscs" "Assault"
+	/call AddToArray "CombatDiscs" "Hack Rk. II"
+	/call AddToArray "CombatDiscs" "Kinesthetics Discipline"	
+	/call AddToArray "CombatDiscs" "Delusion"
+	/call AddToArray "CombatDiscs" "Jugular Hack Rk. II"
+	/call AddToArray "CombatDiscs" "Surprise Attack Rk. II"	
+	/call AddToArray "CombatDiscs" "Fatal Aim Discipline"
+		
+	/call AddToArray "InvisModeSubs" "HideAndSneak"
+	/call AddToArray "NonCombatSubs" "RogueNonCombatSubs"
+	/call AddToArray "DefensiveActionSubs" "RogueDefensives"		
+	/call AddToArray "CombatActionSubs" "RogueCombat"
+	/call AddToArray "BurnCombatActionSubs" "RogueBurn"
+
+	/call AddToArray "CombatDiscs" "Hidden Blade Rk. II"
+	
+	/echo Done initializing Rogue macro!
+
+| *** MAIN LOOP
+
+:loop
+	/call Tick
+	/goto :loop
+/return
+
+Sub RogueCC(ccTargetId)
+	/if (${Me.SpellReady[Smokescreen]}) /call RKCast "Smokescreen" ${ccTargetId}
+
+	/call RKAACast "Smokescreen" ${ccTargetId}
+	
+	/if (${Me.CombatAbilityReady[Blinding Spark]}) {
+		/call RKDisc "Blinding Spark" ${ccTargetId}
+	}
+/return FALSE
+
+Sub CheckMeleeDistance
+	/doability "Backstab"
+	/if (${Spawn[${RKCommander} pc].ID} == ${Me.ID} && ${Target.Distance} > ${MaxMeleeDistance}) /return TRUE
+/return FALSE
+
+Sub RogueNonCombatSubs
+	/if (!${Me.Invis}) {
+		/doability "Hide"
+		/doability "Sneak"
+	} else {
+		|/call RKDisc "Daggerlunge"
+	}
+	
+	/if (${Me.PctEndurance} < 25) {
+		/if (${Me.CombatAbilityReady[Breather Rk. II]}) {
+			/if (${Bool[${Me.ActiveDisc}]}) {
+				/stopdisc
+				/delay 1s
+			}
+			/call RKDisc "Breather Rk. II"
+		}
+	}
+
+	|/if (!${Target.ID} || !${Target.Type.Equal[NPC]}) /return FALSE
+	
+/return FALSE
+
+Sub RogueBurn
+	/call RKDisc "Frenzied Stabbing Discipline"
+	/call RKDisc "Eradicator's Discipline"
+	/call RKAACast "Fundament: Third Spire of the Rake"
+
+	/call RKAACast "Envenomed Blades"
+	/call RKAACast "Rogue's Fury"
+
+	/call RKDisc "Shrouding Speed Discipline"
+	/call RKDisc "Weapon Covenant"
+/return FALSE
+
+Sub RogueCombat
+	/doability "Backstab"
+	/declare i int local 0
+	/declare poisonFound bool local FALSE
+	/for i 1 to 42
+		/if (${Me.Buff[${i}].Name.Left[26].Equal[Bite of the Shissar Poison]}) {
+			/varset poisonFound TRUE
+		}
+	/next i
+
+	/if (!${poisonFound}) /cast item "Consigned Bite of the Shissar XVIII"
+	/if (!${Me.Buff[Bite of the Shissar].ID} && !${Bool[${Me.Hasted}]}) /cast item "Distillate of Alacrity X"
+	/if (${Target.PctHPs} > 50) /call RKAACast "Absorbing Agent" ${CurrentTargetId}
+
+	/call RKDisc "${If[${Me.Invis},Barrage Rk. II,Daggergash]}"
+	
+	/if (!${Me.Song[Thief's Eyes].ID}) /call RKDisc "Thief's Eyes"
+	
+	/if (${Me.XTarget} > 2 && ${Target.PctHPs} < 80) {
+		/call RKAACast "Rake's Rampage" ${CurrentTargetId}
+		/if (${Macro.Return}) /i say AE Burn!		
+		/call RKAACast "Rogue's Fury" ${CurrentTargetId}
+		/call RKDisc "Frenzied Stabbing Discipline"
+	}
+	
+	
+	/doability "Disarm"
+	/doability "Intimidation"
+	
+	/call RKAACast "Dirty Fighting" ${CurrentTargetId}
+	/call RKAACast "Ligament Slice" ${CurrentTargetId}
+	/call RKAACast "Twisted Shank" ${CurrentTargetId}
+
+	/if (${Target.PctHPs} < 30) /return FALSE
+	
+	/call RKItemSlotCast chest
+	/call RKItemSlotCast legs
+	/if (${Bool[${Cursor}]} && ${Cursor.Name.Left[9].Equal[Consigned]}) {
+		/i say pulled ${Cursor} out of my pants
+		/autoinv
+	}
+/return FALSE
+
+Sub HideAndSneak
+	/if (!${Me.Invis}) {
+		/doability "Hide"
+		/doability "Sneak"
+	}
+	/if (${DebugMode}) /echo Self invis - I'm a rogue
+/return FALSE
+
+Sub RogueDefensives
+	/if (${Me.PctHPs} < 30) /call RKDisc "Nimble Discipline"
+	/if (${Bool[${Macro.Return}]} && ${Macro.Return}) /return TRUE	
+	
+	/if (${Me.PctHPs} < 50) /call RKDisc "Wild Escape"
+	
+	/if (${Me.PctHPs} < 60) /call RKAACast "Tumble" ${CurrentTargetId}
+	
+	/if (${Me.PctHPs} < 80) /call RKDisc "Healing Will Discipline"
+/return FALSE

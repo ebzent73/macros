@@ -1,0 +1,192 @@
+| Fishing.mac version 1.0
+|
+| Written by Armysoldier
+|
+| March 5 2006
+|
+| Modifications:
+|
+| Some of the code was pulled from other macros and modified and manipulated 
+| to do the tasks set forth.
+|
+| This code is designed for Abysmal Sea
+|
+| *** FOR THIS CODE TO WORK ***
+| You need to Stand infront of Duath Untez (ACROSS HALL FROM BANKERS)
+| You need to be in the first person view
+| the 5 FILES need to be in the macro\common folder (see includes below)
+
+
+
+#event BrokenPole "#*#You can't fish without a fishing pole#*#"
+#Event BrokenPole "#*#You need to put your fishing pole#*#"
+#event NoBait "#*#You can't fish without fishing bait#*#"
+#event End "#*#can not afford#*#"
+#Event Skillup "#*#become better at#*#"
+#Event Holding "#*#can't fish while holding#*#"
+
+#include common/sell.inc
+#include common/buy.inc
+#include common/packs.inc
+#include common/cleanpacks.inc
+#include common/CommonSubs.inc
+
+
+Sub Main
+    /declare OldSkill int outer
+    /declare SkillMaxWanted int outer
+    /declare i int outer
+    /declare MerchantNameA string Outer
+    /declare DelayMult int outer
+    /varset OldSkill ${Me.Skill[Fishing]}
+    /declare EndingVar int outer 1
+
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+| Customize these settings if you want
+|                    
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    /varset MerchantNameA "Duath Untez" 
+    /varset SkillMaxWanted 200 
+    /varset DelayMult 1
+    /declare Filename string outer Fishing.ini
+
+
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+| Call Read INI for locations array
+|                    
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    /call ReadINIA ${Filename} "Abysmal Sea" 
+    /if (!${Defined[LocArray]}) { 
+       /echo No Loc Array Created...
+       /endmacro 
+    } 
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+| Begin 
+|
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    :start
+
+|--- Check Current Skill against Skill wanted 
+    /echo Fishing is at ${Me.Skill[Fishing]}
+
+    /if (${Me.Skill[Fishing]}>=${SkillMaxWanted}) {
+      /echo Fishing is at ${SkillMaxWanted}. Quiting!
+      /endmacro
+    }
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+| Buy Components
+|
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:start
+    /target ${MerchantNameA}
+
+    /nomodkey /click right target
+
+    /delay 5s ${Window[MerchantWnd].Open}
+
+    /call OpenPacks
+
+    /delay ${Math.Calc[${DelayMult}*1]}s
+
+    /call Buy "Fishing Bait" 100
+
+    /if (${FindItemCount[=Fisherman's Companion]}<1) /call Buy "Fishing Pole" 5
+
+    /nomodkey /notify MerchantWnd MW_Done_Button LeftMouseUp
+
+    /call ClosePacks
+
+    /echo Moving to the Beer Spot
+
+    /call Movement 2 14 6
+    /face loc 512,190
+
+    :fish
+    /doability Fishing
+    /delay 75
+    /if (${Me.AbilityReady["Fishing"]}) {
+	/if (${Cursor.ID}) {
+		/if (${Cursor.Name.Equal[Tattered Cloth Sandal]}) {
+			/destroy
+			/delay 1s
+		} else {
+		/if (${Cursor.Name.Equal[Rusty Dagger]}) {
+			/destroy
+			/delay 1s
+		} else {
+		/echo Caught ${Cursor.Name}
+            	/call ClearCursor
+		}
+	}
+       }
+     }
+    /doevents
+    /if (${EndingVar}==1) /goto :fish
+/goto :start
+/return
+    
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+|Sub Event Broken Pole
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+
+Sub Event_BrokenPole
+   /if (${FindItemCount[=Fishing Pole]}>0) {
+   /call OpenPacks
+    /delay ${Math.Calc[${DelayMult}*1]}s
+   /nomodkey /ctrl /itemnotify ${FindItem[=Fishing Pole].InvSlot} leftmouseup
+   /delay ${Math.Calc[${DelayMult}*2]}s
+      /Call ClearCursor
+   /call ClosePacks
+   /return
+   } Else {
+   /if (${FindItemCount[=Fisherman's Companion]}>0) {    
+   /nomodkey /ctrl /itemnotify ${FindItem[=Fisherman's Companion].InvSlot} Rightmouseup
+   /delay ${Math.Calc[${DelayMult}*10]}s
+      /Call ClearCursor
+   /return
+   } Else {
+   /echo Need to buy fishing poles
+   /echo Moving to Duath
+   /call Movement 15 26 22
+   /varset EndingVar 2
+   /return
+   }
+}
+/return
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+|Sub Event Time to buy more bait
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+Sub Event_NoBait
+   /echo Need to buy bait
+   /echo moving to Duath
+   /call Movement 15 26 22
+   /varset EndingVar 2
+   /return
+/return
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+|Sub Event Skill up
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+Sub Event_Skillup
+        /if (${Me.Skill[Fishing]}>${OldSkill}) {
+        /echo Your Fishing Went Up!! It's now ${Me.Skill[Fishing]}!
+        /varset OldSkill ${Me.Skill[Fishing]}
+        }
+/return
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+|Sub Event Holding something
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+Sub Event_Holding
+      /Call ClearCursor
+/return

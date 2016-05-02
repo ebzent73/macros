@@ -1,0 +1,137 @@
+Sub Main
+/declare set_UseBaitDispenser bool outer TRUE
+/declare op_GotLootArray      int outer 0
+/declare op_LoopCounter       int outer 0
+/declare op_GotDestroyArray   bool outer FALSE
+/declare op_ExitMacro         bool outer FALSE
+/declare op_GotFishComp       bool outer FALSE
+/declare BaitCounter2 int outer 0
+/declare BaitCompare2 int outer 0
+
+	/call PopulateDispenser
+	:MakeBaitLooploop
+	/call MakeBait
+	| Loop if there is more bait material
+	/for op_LoopCounter 1 to 7
+	  /if (${InvSlot[pack${op_LoopCounter}].Item.Container}) {
+	    /for BaitCounter2 1 to ${InvSlot[pack${op_LoopCounter}].Item.Container}
+	      /for BaitCompare2 1 to ${Bait_LootArray.Size}
+	      	  /if (${InvSlot[pack${op_LoopCounter}].Item.Item[${BaitCounter2}].Name.Equal[${Bait_LootArray[${BaitCompare2}]}]}) /goto :MakeBaitLooploop
+	      /next BaitCompare2
+	    /next BaitCounter2
+	       
+	    } else {
+	      /for BaitCompare2 1 to ${Bait_LootArray.Size}
+	        /if (${InvSlot[pack${op_LoopCounter}].Item.Name.Equal[${Bait_LootArray[${BaitCompare2}]}]}) /goto :MakeBaitLooploop
+	      /next BaitCompare2 
+	      }
+	     
+	/next op_LoopCounter
+	/if (${op_ExitMacro.Equal[FALSE]}) /end
+	/goto :MakeBaitLooploop
+	
+
+| ---------------------------------------------------------------------------
+| SUB: Populate Anizok's Bait Dispenser array
+| ---------------------------------------------------------------------------
+Sub PopulateDispenser
+
+/echo Attempting to Read [Bait] Section from HyperFish.ini
+
+/if (${Ini["HyperFish.ini","Bait",Loot1,NULL].Equal[NULL]}) {
+  /echo [Bait] section missing from HyperFish.ini. Turning off Bait Dispenser
+  /varset set_UseBaitDispenser FALSE     
+  /return
+}
+
+| Build Bait loot array
+/declare nValues     int local  1
+/declare nArray      int local  0
+
+:BaitCount
+/if (${Ini["HyperFish.ini","Bait",Loot${nValues},NULL].Equal[NULL]}) {
+   /varcalc nValues ${nValues}-1
+   /goto :MakeArray
+}
+/varcalc nValues ${nValues}+1
+/goto :BaitCount
+
+
+:MakeArray
+/echo I found ${nValues} different items I can make bait with
+  /if (!${nValues}) {
+  /echo Something is wrong with your [bait] section
+  /varset set_UseBaitDispenser FALSE
+  /return
+}
+
+/declare Bait_LootArray[${nValues}]  string outer
+
+/for nArray 1 to ${nValues}
+  /varset Bait_LootArray[${nArray}] ${Ini["HyperFish.ini","Bait",Loot${nArray}]}
+/next nArray
+
+/delay 1s
+
+/return
+
+
+| ---------------------------------------------------------------------------
+| SUB: MakeBait
+| ---------------------------------------------------------------------------
+Sub MakeBait
+/declare BaitCounter int local 0
+/declare BaitCompare int local 0
+
+
+| Open Anizok's Bait Dispenser in slot 8
+/echo Opening bait Dispenser
+/if (!${Window[Pack8].Open}) /nomodkey /itemnotify pack8 rightmouseup
+/delay 3s ${Window[Pack8].Open}
+
+| Dig around and try and find a fish we can make bait out of
+/for op_LoopCounter 1 to 7
+  /if (${InvSlot[pack${op_LoopCounter}].Item.Container}) {
+    /for BaitCounter 1 to ${InvSlot[pack${op_LoopCounter}].Item.Container}
+      /for BaitCompare 1 to ${Bait_LootArray.Size}
+      /if (${InvSlot[pack${op_LoopCounter}].Item.Item[${BaitCounter}].Name.Equal[${Bait_LootArray[${BaitCompare}]}]}) {
+|        /echo WE GOT A CANDIDATE in pack${op_LoopCounter} slot ${BaitCounter}
+         /if (!${Window[pack${op_LoopCounter}].Open}) /nomodkey /itemnotify pack${op_LoopCounter} rightmouseup
+         /delay 3s ${Window[pack${op_LoopCounter}].Open}
+         /delay 5
+         /nomodkey /ctrlkey /itemnotify in pack${op_LoopCounter} ${BaitCounter} leftmouseup
+         /delay 5
+         /goto :ExitBaitLoops
+       }
+      /next BaitCompare
+    /next BaitCounter
+       
+    } else {
+      /for BaitCompare 1 to ${Bait_LootArray.Size}
+        /if (${InvSlot[pack${op_LoopCounter}].Item.Name.Equal[${Bait_LootArray[${BaitCompare}]}]}) {
+|          /echo WE GOT A CANDIDATE in slot ${op_LoopCounter}
+          /nomodkey /ctrlkey /itemnotify pack${op_LoopCounter} leftmouseup
+          /delay 5
+          /goto :ExitBaitLoops
+        }
+      /next BaitCompare 
+      }
+     
+/next op_LoopCounter
+
+/echo We're out of Fishing Bait
+/varset op_ExitMacro TRUE
+/return
+
+:ExitBaitLoops
+
+| Make the Bait
+/echo Making some bait.
+/nomodkey /itemnotify in pack8 1 leftmouseup
+/delay 5
+/combine pack8
+/delay 5
+/autoinventory
+/delay 5
+/autoinventory
+/return

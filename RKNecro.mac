@@ -1,0 +1,86 @@
+#include RKBase.inc
+#include RKCasterBase.inc
+#include RKPetBase.inc
+
+Sub Main
+	/call Init_RKBase
+	/call Init_RKPetBase
+	/call AddToArray "CombatActionSubs" "ExecutePriorityCombatActions"
+	/call AddToArray "CombatActionSubs" "ExecuteNecroCombatActions"
+	/call Init_RKCasterBase
+
+	
+| *** VARIABLE DECLARATIONS
+
+	/declare SlowMode bool outer TRUE
+
+	/varset TargetHpEngagePercentage 100
+	
+	/call AddToArray "DetrimentalSpells" "Coruscate Bones Rk. II"
+	
+	/call AddToArray "DetrimentalSpells" "Brimtav's Flashblaze Rk. II"
+	/call AddToArray "DetrimentalSpells" "Prox's Swift Sickness Rk. II"
+	/call AddToArray "DetrimentalSpells" "Hral's Swift Lifedraw Rk. II"
+	/call AddToArray "DetrimentalSpells" "Pyre of Hazarak Rk. II"
+	/call AddToArray "DetrimentalSpells" "Pyre of Nos Rk. II"
+	/call AddToArray "DetrimentalSpells" "Ignite Potential Rk. II"
+	/call AddToArray "DetrimentalSpells" "Doom Rk. II"
+	/call AddToArray "DetrimentalSpells" "Necrotizing Wounds Rk. II"
+	
+	/call AddToArray "PetBuffs" "Sigil of the Preternatural Rk. II"
+
+	/call AddToArray "NonCombatSelfBuffs" "Shadowside Rk. II"
+		
+	/call AddToArray "BurnCombatActionSubs" "ExecuteBurnNecroCombatActions"
+	/call AddToArray "DefensiveActionSubs" "ExecuteDefensiveActions"
+	/call AddToArray "NonCombatSubs" "NecroNonCombatSubs"
+
+	/varset SpellMemSlot 12
+	
+	/echo Done initializing necromancer macro!
+
+| *** MAIN LOOP
+
+:loop
+	/call Tick
+	/goto :loop
+/return
+
+Sub ExecuteNecroCombatActions
+	/call RKAACast "Reluctant Benevolence"
+	/call RKAACast "Wake the Dead"
+	/call RKAACast "Rise of Bones"
+	/call RKAACast "Swarm of Decay"
+/return FALSE
+
+Sub ExecuteBurnNecroCombatActions
+	/call RKAACast "First Spire"
+/return FALSE
+
+Sub ExecutePriorityCombatActions
+	/face fast nolook
+	/if (${Me.State.Equal[FEIGN]}) /stand
+	/if (${Me.PctMana} < 60) /call RKAACast "Death Bloom"
+	/if (!${Me.State.Equal[FEIGN]} && ${Me.PctAggro} >= 85) /call RKAACast "Improved Death Peace"
+	
+	/if (${SlowMode}) {
+		/if (!${Target.Buff[Death's Malaise].ID} && ${Target.Buff[Smoldering Bones].ID}) {
+			/call RKAACast "Death's Malaise"
+			/return TRUE
+		}
+	}
+	/if (!${Target.Buff[Encroaching Darkness].ID}) /call RKAACast "Encroaching Darkness"
+	
+/return FALSE
+
+Sub NecroNonCombatSubs
+	|any actions which should be done in combat mode, but not while fighting
+/return FALSE
+
+Sub ExecuteDefensiveActions
+	/if (${Me.PctHPs} < 15) /call RKAACast "Harm Shield"
+	/if (${Bool[${Macro.Return}]} && ${Macro.Return}) /return TRUE	
+	
+	/if (${Me.PctHPs} < 30) /call RKAACast "Death's Effigy"
+	/if (${Bool[${Macro.Return}]} && ${Macro.Return}) /return TRUE	
+/return FALSE

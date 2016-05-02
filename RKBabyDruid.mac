@@ -1,0 +1,74 @@
+#Event HOT_Landed_Self "#*#hot landed self message#*#"
+#Event HOT_Landed "#1#'s hot landed message"
+#Event HOT_Worn_off_Self "#*#hot wore off self message#*#"
+#Event HOT_Worn_off "hot wore off message #1#."
+#Event SnareImmune "#*#Your target is immune to changes in its run speed."
+
+#include RKBase.inc
+#include RKHealerBase.inc
+#include RKCasterBase.inc
+#include RKPetBase.inc
+
+Sub Main
+	/call Init_RKBase
+	/call Init_RKPetBase
+	/call Init_RKCasterBase
+	/call Init_RKHealerBase
+
+| *** VARIABLE DECLARATIONS
+
+	/declare ShouldSnare bool outer TRUE	
+
+	/varset TargetHpEngagePercentage 100
+	/varset UpperAggroThreshold 100
+	/varset SpellMemSlot 8
+	
+	/varset HealSpell Nature's Infusion
+	
+	/varset SingleTargetHealThreshold 50
+	/varset TankHealThreshold 50
+	
+	|/varset GroupHealThreshold 0
+	|/varset EmergencyGroupHealThreshold 0
+	/varset MercBurnThreshold 101
+
+	/call AddToArray "DetrimentalSpells" "Hand of Ro"
+	|/call AddToArray "DetrimentalSpells" "Immolation of Ro"
+	|/call AddToArray "DetrimentalSpells" "Swarming Death"		
+	/call AddToArray "DetrimentalSpells" "Summer's Flame"
+	
+	/call AddToArray "GiftSpells" "Blank Rk. II"
+
+	/call AddToArray "NonCombatSelfBuffs" "Protection of Seasons"
+	/call AddToArray "NonCombatSelfBuffs" "Mask of the Forest"
+	/call AddToArray "NonCombatSelfBuffs" "Aura of the Grove"
+	/call AddToArray "NonCombatSelfBuffs" "Blessing of Replenishment"
+	/call AddToArray "NonCombatSelfBuffs" "Flight of Eagles"
+	/call AddToArray "NonCombatSelfBuffs" "Brackencoat"		
+	/call AddToArray "NonCombatSelfBuffs" "Legacy of Bracken"			
+	/call AddToArray "NonCombatSelfBuffs" "Blessing of the Nine"	
+
+	/call AddToArray "CombatActionSubs" "ExecuteRangerCombatActions"
+	/call AddToArray "XPEarnedSubs" "ResetSnareMode" 
+	/echo Done initializing macro!
+
+| *** INITIALIZATION
+	/echo Starting Box Commander - Baby Druid Macro
+
+| *** MAIN LOOP
+:loop
+	/call Tick
+	/goto :loop
+/return
+
+Sub ExecuteRangerCombatActions
+	/if (${ShouldSnare}) /call RKDebuffCast "Mire Thorns" "Mire Thorns" ${CurrentTargetId}
+/return FALSE
+
+Sub ResetSnareMode
+	/if (${SnareMode}) /varset ShouldSnare TRUE
+/return FALSE
+
+Sub Event_SnareImmune
+	/varset ShouldSnare FALSE
+/return

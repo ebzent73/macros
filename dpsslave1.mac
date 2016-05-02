@@ -22,7 +22,7 @@
 #event Exp "You gain#*#experience#*#"
 #event Main_Tank "#*#Main tank is #1#"
 #event Have_Released "#*#Bind Location#*#"
-#event Caststun "#*# begins to cast a spell#*#"
+|#event Caststun "#*# begins to cast a spell#*#"
 
 Sub Main
 /declare myHP int outer 70
@@ -36,7 +36,7 @@ Sub Main
 /declare healAt int outer 50
 /declare FindNamed bool outer FALSE
 /declare nukeDelay timer outer ${If[${Select[${Me.Class.ShortName},PAL,SHD,BST,BRD,RNG]},8s,1s]}
-/declare healCombat bool outer ${If[${Select[${Me.Class.ShortName},DRU,CLR,SHM]},TRUE,FALSE]}
+/declare healCombat bool outer ${If[${Select[${Me.Class.ShortName},DRU,CLR,SHM,PAL]},TRUE,FALSE]}
 /declare melee bool outer ${If[(${Select[${Me.Class.ShortName},BER,MNK,ROG,WAR,PAL,SHD,BST,BRD,RNG]}||${Me.Level}<20),TRUE,FALSE]}
 /declare AmMelee int outer ${Param0}
 /declare PrctExp float outer
@@ -66,9 +66,18 @@ Sub Main
       /if (${UnderAttack.Equal[FALSE]}) {
     	  /if (${Me.Class.PetClass}) /call Pet
     	  /call buff
+    	  /if ((${Me.Class.ShortName.Equal[DRU]}||${Me.Class.ShortName.Equal[RNG]}) && ${Me.AbilityReady[Forage]}) {
+    	        /if (${Me.State.NotEqual[STAND]}) {
+    	           /stand
+    	           /delay 2s ${Me.State.NotEqual[STAND]}
+    	        }
+    	        /doability forage
+    	        /delay 2s
+    	        /if (${Cursor.ID}) /call HandleItem
+    	  }
     	  /doevents
     	  /if (${Me.Class.ShortName.Equal[SHM]} && !${Me.Moving} && !${Me.Invis} && ${Me.PctMana}<80 && ${Me.PctHPs}>30) {
-    		  /g casting canni
+    		  /echo casting canni
     		  /casting "${Me.Gem[8]}" gem8 -maxtries|3
     	  }
     	  /call CheckMana
@@ -78,6 +87,30 @@ Sub Main
       /goto :MainLoop
 /return
 
+sub HandleItem
+
+   /declare ItemSetting int local
+   /declare NotFound int local
+   /declare ItemsHave int local
+   /varset NotFound -1
+   :LootIt
+   /varset ItemSetting ${Ini[dpsforage.ini,ItemList,${Cursor.Name},${NotFound}]}
+   /if (${ItemSetting}==${NotFound}) {
+	  /ini "dpsforage.ini" "ItemList" "${Cursor.Name}" "${DefaultMaxSave}"
+	  /varset ItemSetting ${DefaultMaxSave}
+   }
+   /varset ItemsHave ${FindItemCount[=${Cursor}]}
+   /if (${ItemSetting}>${ItemsHave}) {
+	  /echo Keep [${Cursor}]
+	  /autoinventory
+   } else {
+	  /destroy
+   }
+   /delay 2s
+   /if (${Cursor.ID}) /goto :LootIt
+
+/return		
+		
 Sub Logging
    |/gsay Guys I got to log.
    |/delay 2s
@@ -98,55 +131,55 @@ Sub Healcheck
 /return
 		
 Sub HealGroup
-/echo ${Group.Member[0].Name} ${Group.Member[0].PctHPs}% /\ ${Group.Member[1].Name} ${Group.Member[1].PctHPs}% /\ ${Group.Member[2].Name} ${Group.Member[2].PctHPs}% /\ ${Group.Member[3].Name} ${Group.Member[3].PctHPs}% /\ ${Group.Member[4].Name} ${Group.Member[4].PctHPs}% /\ ${Group.Member[5].Name} ${Group.Member[5].PctHPs}% /
-/if ((${If[${Group.Member[0].PctHPs}>0 && ${Group.Member[0].PctHPs}<${healAt}]}) || (${If[${Group.Member[1].PctHPs}>0 && ${Group.Member[1].PctHPs}<${healAt}]}) || (${If[${Group.Member[2].PctHPs}>0 && ${Group.Member[2].PctHPs}<${healAt}]}) || (${If[${Group.Member[3].PctHPs}>0 && ${Group.Member[3].PctHPs}<${healAt}]}) || (${If[${Group.Member[4].PctHPs}>0 && ${Group.Member[4].PctHPs}<${healAt}]}) || (${If[${Group.Member[5].PctHPs}>0 && ${Group.Member[5].PctHPs}<${healAt}]})) {
 /declare ihg int local
 /declare xhg int local
+/echo ${Group.Member[0].Name} ${Group.Member[0].PctHPs}% /\ ${Group.Member[1].Name} ${Group.Member[1].PctHPs}% /\ ${Group.Member[2].Name} ${Group.Member[2].PctHPs}% /\ ${Group.Member[3].Name} ${Group.Member[3].PctHPs}% /\ ${Group.Member[4].Name} ${Group.Member[4].PctHPs}% /\ ${Group.Member[5].Name} ${Group.Member[5].PctHPs}% /
+/if ((${If[${Group.Member[0].PctHPs}>0 && ${Group.Member[0].PctHPs}<${healAt}]}) || (${If[${Group.Member[1].PctHPs}>0 && ${Group.Member[1].PctHPs}<${healAt}]}) || (${If[${Group.Member[2].PctHPs}>0 && ${Group.Member[2].PctHPs}<${healAt}]}) || (${If[${Group.Member[3].PctHPs}>0 && ${Group.Member[3].PctHPs}<${healAt}]}) || (${If[${Group.Member[4].PctHPs}>0 && ${Group.Member[4].PctHPs}<${healAt}]}) || (${If[${Group.Member[5].PctHPs}>0 && ${Group.Member[5].PctHPs}<${healAt}]})) {
 /for xhg 0 to ${Group}
    /if (${Group.Member[${xhg}].PctHPs}>0 && ${Group.Member[${xhg}].PctHPs}<${healAt}) {
       /for ihg 1 to 12
-         /if (${Me.CurrentMana}>${Me.Gem[${ihg}].Mana} && ${Me.Gem[${ihg}].Category.Equal[Heals]} && (${Me.Gem[${ihg}].Subcategory.Equal[Quick Heals]} && ${Group.Member[${xhg}].PctHPs}<35) && !${Me.GemTimer[${ihg}]} && ${Me.Gem[${ihg}].TargetType.NotEqual[self]}) {
+         /if (${Me.CurrentMana}>${Me.Gem[${ihg}].Mana} && ${Me.Gem[${ihg}].Category.Equal[Heals]} && (${Me.Gem[${ihg}].Subcategory.Equal[Quick Heals]} && ${Group.Member[${xhg}].PctHPs}<75) && !${Me.GemTimer[${ihg}]} q) {
             /delay 10s !${Me.Casting.ID}
             /declare temphg int local ${Target.ID}
             /squelch /tar id ${Group.Member[${xhg}].ID}
             /delay 1s ${Target.ID}==${Group.Member[${xhg}].ID}
-            /g casting {Me.Gem[${ihg}]} on ${Group.Member[${xhg}].Name}
+            /echo casting {Me.Gem[${ihg}]} on ${Group.Member[${xhg}].Name}
             /casting "${Me.Gem[${ihg}]}" gem${ihg} -maxtries|3
             /delay 10s !${Me.Casting.ID}
          }
-      	 /if (${Me.CurrentMana}>${Me.Gem[${ihg}].Mana} && ${Me.Gem[${ihg}].Category.Equal[Heals]} && (${Me.Gem[${ihg}].Subcategory.Equal[Heals]}} && ${Group.Member[${xhg}].PctHPs}<65) && !${Me.GemTimer[${ihg}]} && ${Me.Gem[${ihg}].TargetType.NotEqual[self]}) {
+      	 /if (${Me.CurrentMana}>${Me.Gem[${ihg}].Mana} && ${Me.Gem[${ihg}].Category.Equal[Heals]} && (${Me.Gem[${ihg}].Subcategory.Equal[Heals]}} && ${Group.Member[${xhg}].PctHPs}<50) && !${Me.GemTimer[${ihg}]}) {
 			  /delay 10s !${Me.Casting.ID}
 			  /declare temphg int local ${Target.ID}
 			  /squelch /tar id ${Group.Member[${xhg}].ID}
 			  /delay 1s ${Target.ID}==${Group.Member[${xhg}].ID}
-			  /g casting {Me.Gem[${ihg}]} on ${Group.Member[${xhg}].Name}
+			  /echo casting {Me.Gem[${ihg}]} on ${Group.Member[${xhg}].Name}
 			  /casting "${Me.Gem[${ihg}]}" gem${ihg} -maxtries|3
 			  /delay 10s !${Me.Casting.ID}
          }
-         /if (!${bufftimer${ihg}_${xhg}} && ${Me.CurrentMana}>${Me.Gem[${ihg}].Mana} && ${Me.Gem[${ihg}].Category.Equal[Heals]} && (${Me.Gem[${ihg}].Subcategory.Equal[Delayed]}||${Me.Gem[${ihg}].Subcategory.Equal[Duration Heals]}) && !${Me.GemTimer[${ihg}]} && ${Me.Gem[${ihg}].TargetType.NotEqual[self]}) {
-            /delay 10s !${Me.Casting.ID}
-            /declare temphg int local ${Target.ID}
-            /squelch /tar id ${Group.Member[${xhg}].ID}
-            /delay 1s ${Target.ID}==${Group.Member[${xhg}].ID}
-            /g casting {Me.Gem[${ihg}]} on ${Group.Member[${xhg}].Name}
-            /casting "${Me.Gem[${ihg}]}" gem${ihg} -maxtries|3
-            /delay 10s !${Me.Casting.ID}
-            /delay 1s
-            /if (${Cast.Result.Equal["CAST_SUCCESS"]}) {
-               /if (${Me.Gem[${ihg}].TargetType.Equal[single]})  {
-                  /if (!${Defined[bufftimer${ihg}_${xhg}]}) /declare bufftimer${ihg}_${xhg} timer outer
-                  /varset bufftimer${ihg}_${xhg} ${Math.Calc[${Me.Gem[${ihg}].Duration.TotalSeconds}+6]}s
-               }
-            
-               /if (${Me.Gem[${ihg}].TargetType.Find[group]})  {
-                  /declare zhg int local
-                  /for zhg 0 to ${Group}
-                     /if (!${Defined[bufftimer${ihg}_${zhg}]}) /declare bufftimer${ihg}_${zhg} timer outer
-                     /varset bufftimer${ihg}_${zhg} ${Me.Gem[${ihg}].Duration.TotalSeconds}s
-                  /next zhg
-               }
-            }
-         }
+|         /if (!${bufftimer${ihg}_${xhg}} && ${Me.CurrentMana}>${Me.Gem[${ihg}].Mana} && ${Me.Gem[${ihg}].Category.Equal[Heals]} && (${Me.Gem[${ihg}].Subcategory.Equal[Delayed]}||${Me.Gem[${ihg}].Subcategory.Equal[Duration Heals]}) && !${Me.GemTimer[${ihg}]}) {
+|            /delay 10s !${Me.Casting.ID}
+|            /declare temphg int local ${Target.ID}
+|            /squelch /tar id ${Group.Member[${xhg}].ID}
+|            /delay 1s ${Target.ID}==${Group.Member[${xhg}].ID}
+|            /echo casting {Me.Gem[${ihg}]} on ${Group.Member[${xhg}].Name}
+|            /casting "${Me.Gem[${ihg}]}" gem${ihg} -maxtries|3
+|            /delay 10s !${Me.Casting.ID}
+|            /delay 1s
+|            /if (${Cast.Result.Equal["CAST_SUCCESS"]}) {
+|               /if (${Me.Gem[${ihg}].TargetType.Equal[single]})  {
+|                  /if (!${Defined[bufftimer${ihg}_${xhg}]}) /declare bufftimer${ihg}_${xhg} timer outer
+|                  /varset bufftimer${ihg}_${xhg} ${Math.Calc[${Me.Gem[${ihg}].Duration.TotalSeconds}+6]}s
+|               }
+|            
+|               /if (${Me.Gem[${ihg}].TargetType.Find[group]})  {
+|                  /declare zhg int local
+|                  /for zhg 0 to ${Group}
+|                     /if (!${Defined[bufftimer${ihg}_${zhg}]}) /declare bufftimer${ihg}_${zhg} timer outer
+|                     /varset bufftimer${ihg}_${zhg} ${Me.Gem[${ihg}].Duration.TotalSeconds}s
+|                  /next zhg
+|               }
+|            }
+|         }
       /next ihg
    }
 /next xhg 
@@ -173,43 +206,59 @@ Sub HealSelf
 /return
 
 Sub Buff
-	/declare i int local
-	/for i 1 to 12
-		/if (${Me.CurrentMana}>${Me.Gem[${i}].Mana} && ${Me.Gem[${i}].SpellType.Equal[beneficial]} && ${Me.Gem[${i}].Duration.TotalSeconds}>300 && !${Me.Gem[${i}].TargetType.Equal[pet]} && !${Me.Gem[${i}].TargetType.Equal[self]} && !${Select[${Me.Gem[${i}].Subcategory},Misc,Invisibility,Undead,Invulnerability]}) {
-			|/echo bufftimer if (!${Defined[bufftimer_${Me.Name}_${i}]} || ${bufftimer_${Me.Name}_${i}}<10)
-			/if (!${Defined[bufftimer_${Me.Name}_${i}]} || ${bufftimer_${Me.Name}_${i}}<10) {
-				/squelch /tar ${Group.MainTank}
-				/casting "${Me.Gem[${i}]}" gem${i} -maxtries|3
-				/delay 10s !${Me.Casting.ID}
-				/delay 2s
-				/if (${Cast.Result.Equal["CAST_SUCCESS"]}) {
-					/if (!${Defined[bufftimer_${Me.Name}_${i}]}) /declare bufftimer_${Me.Name}_${i} timer outer
-					/varset bufftimer_${Me.Name}_${i} ${Me.Gem[${i}].Duration.TotalSeconds}s
-					/echo setting ${Me.Gem[${i}]} timer, ${Me.Gem[${i}].Duration.TotalSeconds}s
-					/g setting ${Me.Gem[${i}]} timer, ${Me.Gem[${i}].Duration.TotalSeconds}s
-				}		
+	/if (${Me.Invis}) /return
+	/declare ibuff int local
+	/declare buffGroupMember int local
+	/for buffGroupMember 0 to ${Group}
+		/squelch /tar id ${Group.Member[${buffGroupMember}].ID}
+		/for ibuff 1 to 12
+			/if (${Me.CurrentMana}>${Me.Gem[${ibuff}].Mana} && ${Me.Gem[${ibuff}].TargetType.Find[group]} && ${Me.Gem[${ibuff}].Duration.TotalSeconds}>300 && !${Me.Gem[${ibuff}].TargetType.Equal[pet]} && !${Select[${Me.Gem[${ibuff}].Subcategory},Misc,Invisibility,Undead,Invulnerability]}) {
+				/if (!${Defined[groupbuff_${ibuff}]} || ${groupbuff_${ibuff}}<10) {
+					/squelch /tar id ${Group.Member[${buffGroupMember}].ID}
+					/casting "${Me.Gem[${ibuff}]}" gem${ibuff} -maxtries|3
+					/delay 10s !${Me.Casting.ID}
+					/delay (${Me.Gem[${ibuff}].RecoveryTime)s
+					/if (${Cast.Result.Equal["CAST_SUCCESS"]}) {
+						/if (!${Defined[groupbuff_${ibuff}]}) /declare groupbuff_${ibuff} timer outer
+						/varset groupbuff_${ibuff} ${Me.Gem[${ibuff}].Duration.TotalSeconds}s
+						/echo Group Buff ${Me.Gem[${ibuff}]} timer, ${Me.Gem[${ibuff}].Duration.TotalSeconds}s
+					}		
+				}
+			}
+			/if (${Me.CurrentMana}>${Me.Gem[${ibuff}].Mana} && ${Me.Gem[${ibuff}].SpellType.Equal[beneficial]} && ${Me.Gem[${ibuff}].Duration.TotalSeconds}>300 && !${Me.Gem[${ibuff}].TargetType.Equal[pet]} && !${Me.Gem[${ibuff}].TargetType.Equal[self]} && !${Me.Gem[${ibuff}].TargetType.Find[group]} && !${Select[${Me.Gem[${ibuff}].Subcategory},Misc,Invisibility,Undead,Invulnerability]}) {
+				|/echo bufftimer if (!${Defined[bufftimer_${Me.Name}_${ibuff}]} || ${bufftimer_${Me.Name}_${ibuff}}<10)
+				/if (!${Defined[buff${buffGroupMember}${Me.Gem[${ibuff}].ID}${ibuff}]} || ${buff${buffGroupMember}${Me.Gem[${ibuff}].ID}${ibuff}}<10) {
+					/squelch /tar id ${Group.Member[${buffGroupMember}].ID}
+					/casting "${Me.Gem[${ibuff}]}" gem${ibuff} -maxtries|3
+					/delay 10s !${Me.Casting.ID}
+					/delay (${Me.Gem[${ibuff}].RecoveryTime)s
+					/if (${Cast.Result.Equal["CAST_SUCCESS"]}) {
+						/if (!${Defined[buff${buffGroupMember}${Me.Gem[${ibuff}].ID}${ibuff}]}) /declare buff${buffGroupMember}${Me.Gem[${ibuff}].ID}${ibuff} timer outer
+						/varset buff${buffGroupMember}${Me.Gem[${ibuff}].ID}${ibuff} ${Me.Gem[${ibuff}].Duration.TotalSeconds}s
+						/echo Single Target Buff ${Me.Gem[${ibuff}]} timer, ${Me.Gem[${ibuff}].Duration.TotalSeconds}s
+					}		
+				}
+			}
+			/if ((${Me.CurrentMana}>${Me.Gem[${ibuff}].Mana} && ${Me.Gem[${ibuff}].SpellType.Equal[beneficial]} && ${Me.Gem[${ibuff}].Duration.TotalSeconds}>300 && ${Me.Gem[${ibuff}].TargetType.Equal[self]})||(${Me.Gem[${ibuff}].Name.Equal[holy aura]}&&${HolyAuraFlag}<1)) {
+				/if (!${Defined[bufftimer_${Target.Name}_${ibuff}]} || ${bufftimer_${Target.Name}_${ibuff}}<10) {
+					/casting "${Me.Gem[${ibuff}]}" gem${ibuff} -maxtries|3
+					/delay 10s !${Me.Casting.ID}
+					/delay (${Me.Gem[${ibuff}].RecoveryTime)s
+					/if (${Cast.Result.Equal["CAST_SUCCESS"]}&&!${Me.Gem[${ibuff}].Name.Equal[holy aura]}) {
+						/if (!${bufftimer_${Target.Name}_${ibuff}]}) /declare bufftimer_${Target.Name}_${ibuff} timer outer
+						/varset bufftimer_${Target.Name}_${ibuff} ${Me.Gem[${ibuff}].Duration.TotalSeconds}s
+						/echo Self Buff ${Me.Gem[${ibuff}]} timer, ${Me.Gem[${ibuff}].Duration.TotalSeconds}s
+					}
+					/if (${Me.Gem[${ibuff}].Name.Equal[holy aura]}) /varset HolyAuraFlag 1
+				}
 			}
 			/call CheckCombat
 			/if (${UnderAttack.Equal[TRUE]}) {
-				/squelch /tar ${Me.XTarget[1]}
+				/assist ${Group.MainAssist}
 				/return
 			}
-	    }
-		/if ((${Me.CurrentMana}>${Me.Gem[${i}].Mana} && ${Me.Gem[${i}].SpellType.Equal[beneficial]} && ${Me.Gem[${i}].Duration.TotalSeconds}>300 && ${Me.Gem[${i}].TargetType.Equal[self]})||(${Me.Gem[${i}].Name.Equal[holy aura]}&&${HolyAuraFlag}<1)) {
-			/if (!${Defined[bufftimer_${Me.Name}_${i}]} || ${bufftimer_${Me.Name}_${i}}<10) {
-				/casting "${Me.Gem[${i}]}" gem${i} -maxtries|3
-				/delay 10s !${Me.Casting.ID}
-				/delay 2s
-				/if (${Cast.Result.Equal["CAST_SUCCESS"]}&&!${Me.Gem[${i}].Name.Equal[holy aura]}) {
-					/if (!${Defined[bufftimer_${Me.Name}_${i}]}) /declare bufftimer_${Me.Name}_${i} timer outer
-					/varset bufftimer_${Me.Name}_${i} ${Me.Gem[${i}].Duration.TotalSeconds}s
-					/echo setting ${Me.Gem[${i}]} timer, ${Me.Gem[${i}].Duration.TotalSeconds}s
-					/g setting ${Me.Gem[${i}]} timer, ${Me.Gem[${i}].Duration.TotalSeconds}s
-				}
-				/if (${Me.Gem[${i}].Name.Equal[holy aura]}) /varset HolyAuraFlag 1
-			}
-		}
-   /next i
+	   /next ibuff
+	 /next buffGroupMember
    /squelch /target clear
 /return
 
@@ -245,20 +294,20 @@ Sub Event_Have_Released
    }
    /if (${GotRez}==0) {
       |/gsay Got to log guys sorry. See ya
-      |/camp
+      /camp
       /delay 1s
       /endmac
    }
 /return
 
 Sub Wait4Rez
-   /declare i int local
-   /varset i 1
+   /declare irez int local
+   /varset irez 1
    :rezwait
-|   /varcalc i ${i}+1
+|   /varcalc irez ${irez}+1
    /if (!${Window[ConfirmationDialogBox].Open}) {
          /delay 5s ${Window[ConfirmationDialogBox].Open}
-|         /if (${i}<=80) /goto :rezwait
+|         /if (${irez}<=80) /goto :rezwait
          /doevents Have_Released
          /goto :rezwait
       }
@@ -301,6 +350,7 @@ Sub GetCombatTarget
 /return
 
 Sub Event_Exp
+   /hidecorpse all
    /declare RunTime int local
    /declare RunTime1 float local
    /varset RunTime1 0
@@ -339,7 +389,7 @@ Sub CheckCombat
 /return
 
 Sub CheckMana
-   /if (${Me.PctMana}<80) /call MedBreak
+   /if (${Me.PctMana}<80 && ${AmMelee}==0) /call MedBreak
    /return
 
 Sub ApproachTarget
@@ -354,15 +404,16 @@ Sub ApproachTarget
 /return
 
 Sub Combat
-   /declare i int local
-   /varset i 1
+   /declare icombat int local
+   /varset icombat 1
    :waitfortankloop
       /doevents Check_Damage
       /delay 2s
-      /varcalc i ${i}+1
-      /if (${i}<1) /goto :waitfortankloop
+      /varcalc icombat ${icombat}+1
+      /if (${icombat}<1) /goto :waitfortankloop
    /assist ${Group.MainTank}
    :combatloop
+      /if (${Group.MainAssist.Distance}>40) /call FollowMA
       /call CheckCombat
       /if (!${Target.ID} && ${UnderAttack.Equal[TRUE]}) /goto :combatloop
       /assist ${Group.MainTank}
@@ -374,22 +425,25 @@ Sub Combat
          /if (${Me.Pet.ID}) /pet attack
          :finishcastloop
             /if (!${Me.Casting.ID}) {
-            	/call SpellCheck2
-               /varset i 1 
+               /call SpellCheck2
+               /varset icombat 1 
                :beingattacked
                   /Call CheckCombat
                   /if (${UnderAttack.Equal[FALSE]}) /goto :endcombat
-                  /if (${i}<2) {
-                     /varcalc i ${i}+1
+                  /if (${icombat}<2) {
+                	  /if (${Group.MainAssist.Distance}>40) /call FollowMA
+                	  /varcalc icombat ${icombat}+1
                      /delay 3s
                      /doevents Check_Damage
                      /assist ${Group.MainTank}
                      /delay 1s
                      /goto :beingattacked
                   }
-               /squelch /target clear
-               /assist ${Group.MainTank}
-               /delay 1s
+               /if (!${Target.ID}) {
+            	   /squelch /target clear
+            	   /assist ${Group.MainTank}
+            	   /delay 1s
+               }
                /goto :combatloop
             }
          /delay 2s
@@ -420,13 +474,14 @@ Sub MoveBack
 /return
 
 Sub FollowMA
-/tar ${Group.MainAssist}  
+	/tar ${Group.MainAssist}  
 	/delay 1s
 	:FollowLoop
 	/face fast
 	/if (${Target.Distance}>30) /keypress up hold
 	/if (${Target.Distance}<20) {
 		/keypress up
+		/squelch /target clear
 		/return
 	}
   /goto :FollowLoop
@@ -447,7 +502,7 @@ Sub MedBreak
    /if (${Target.Distance}>30) /call FollowMA
    /call CheckCombat
    /if (${UnderAttack.Equal[TRUE]}) /return
-   /if (!${Me.Sitting}) /sit
+   /if (!${Me.Sitting} && ${AmMelee}==0) /sit
    /delay 3s
    /if (${Me.PctMana}<95) /goto :medloop
 /return
@@ -491,40 +546,51 @@ Sub DoSneak
 /return
 
 Sub SpellCheck2
+/echo sub spellcheck2
 /if (!${Target.ID}||(${Target.Type.Equal[pc]}||${Target.Master.Type.Equal[pc]}||${Target.Type.Equal[corpse]})||${nukeDelay}) /return
 /declare icast int local
 /for icast 1 to 12
 	/if (!${Target.ID}||(${Target.Type.Equal[pc]}||${Target.Master.Type.Equal[pc]}||${Target.Type.Equal[corpse]})||${nukeDelay}) /return
+	|/g Target has ${Target.BuffCount} buffs
+	/if (${Target.BuffCount}>=1 && !${Me.GemTimer[${icast}]} && ${Me.Gem[${icast}].Subcategory.Equal[Dispell]}) {
+		/g Target has ${Target.BuffCount} buffs
+		/casting "${Me.Gem[${icast}]}" gem${icast} -maxtries|3
+		/delay 10s !${Me.Casting.ID}
+		/delay 2s
+	}
 	/if (${Me.CurrentMana}>${Me.Gem[${icast}].Mana} && ${Me.Gem[${icast}].Category.Length} && !${Me.GemTimer[${icast}]}) {
-		/if (${Me.Gem[${icast}].Category.Find[Direct Damage]} && ${Me.PctAggro}<65 && (${Me.Gem[${icast}].TargetType.Equal[${Target.Body}]}||!${Select[${Me.Gem[${icast}].TargetType},Animal,Humanoid,Undead,Plant,Summoned,Uber Giants,Uber Dragons]})) {
+		/if (${Me.Gem[${icast}].Category.Find[Direct]} && ${Me.PctAggro}<65) {
 			/casting "${Me.Gem[${icast}]}" gem${icast} -maxtries|3
 			/delay 10s !${Me.Casting.ID}
+			/delay 2s
 			/varset nukeDelay ${nukeDelay.OriginalValue}
 		}
-		/if (${Me.CurrentMana}>${Me.Gem[${icast}].Mana} && ${Me.Gem[${icast}].Category.Find[Damage Over Time]} && !${${Target.ID}_${Me.Name}_${icast}}  && (${Me.Gem[${icast}].TargetType.Equal[${Target.Body}]}||!${Select[${Me.Gem[${icast}].TargetType},Animal,Humanoid,Undead,Plant,Summoned,Uber Giants,Uber Dragons]})) {
+		/if (${Me.PctAggro}<65 && ${Me.Gem[${icast}].Category.Find[Damage Over Time]} && !${${Target.ID}_${Me.Name}_${icast}}) {
 			/casting "${Me.Gem[${icast}]}" gem${icast} -maxtries|3
 			/delay 10s !${Me.Casting.ID}
+			/delay 2s
 			/if (${Cast.Result.Equal["CAST_SUCCESS"]}) {
 				/if (!${Defined[${Target.ID}_${Me.Name}_${icast}]}) /declare ${Target.ID}_${Me.Name}_${icast} timer outer
 				/varset ${Target.ID}_${Me.Name}_${icast} ${Me.Gem[${icast}].Duration.TotalSeconds}s
 			}
 		}
-		/if (${Me.CurrentMana}>${Me.Gem[${icast}].Mana} && ${Me.Gem[${icast}].TargetType.Equal[LifeTap]} && ${Me.CurrentHPs}<85 && ${Me.PctAggro}<65 && (${Me.Gem[${icast}].TargetType.Equal[${Target.Body}]}||!${Select[${Me.Gem[${icast}].TargetType},Animal,Humanoid,Undead,Plant,Summoned,Uber Giants,Uber Dragons]})) {
+		/if (${Me.Gem[${icast}].Category.Equal[LifeTap]} && ${Me.CurrentHPs}<85 && ${Me.PctAggro}<85) {
 			/casting "${Me.Gem[${icast}]}" gem${icast} -maxtries|3
 			/delay 10s !${Me.Casting.ID}
+			/delay 2s
 		}
-		/if (${Me.CurrentMana}>${Me.Gem[${icast}].Mana} && ${Select[${Me.Gem[${icast}].Subcategory},Slow,Resist Debuffs,Disempowering,Mana Drain]} && (!${${Target.ID}_${Me.Name}_${icast}}||${${Target.ID}_${Me.Name}_${icast}}!<5)  && (${Me.Gem[${icast}].TargetType.Equal[${Target.Body}]}||!${Select[${Me.Gem[${icast}].TargetType},Animal,Humanoid,Undead,Plant,Summoned,Uber Giants,Uber Dragons]})) {
+		/if (${Select[${Me.Gem[${icast}].Subcategory},Slow,Resist Debuffs,Disempowering,Mana Drain]} && (!${${Target.ID}_${Me.Name}_${icast}}||${${Target.ID}_${Me.Name}_${icast}}!<5)) {
 			/if (!${Defined[xa]}) /declare xa int local
 			/for xa 1 to ${Me.XTarget}
 				/if (!${${Me.XTarget[${xa}].ID}_${Me.Name}_${icast}} || ${${Me.XTarget[${xa}].ID}_${Me.Name}_${icast}}<10) {
 					/target ${Me.XTarget[${xa}]}
 					/casting "${Me.Gem[${icast}]}" gem${icast} -maxtries|3
 					/delay 10s !${Me.Casting.ID}
-					/delay 1s
+					/delay 2s
 					/if (${Cast.Result.Equal["CAST_SUCCESS"]}) {
 						/if (!${Defined[${Target.ID}_${Me.Name}_${icast}]}) /declare ${Target.ID}_${Me.Name}_${icast} timer outer
 						/varset ${Target.ID}_${Me.Name}_${icast} ${Me.Gem[${icast}].Duration.TotalSeconds}s
-						/g ${Me.Gem[${icast}]} on ${Target.CleanName}
+						/echo ${Me.Gem[${icast}]} on ${Target.CleanName}
 						/delay 2s
 					}
 				}
@@ -537,8 +603,8 @@ Sub SpellCheck2
 					/squelch /tar id ${Me.XTarget[${xb}].ID}
 					/delay 1s ${Target.ID}==${Me.XTarget[${xb}].ID}
 					/casting "${Me.Gem[${icast}]}" gem${icast} -maxtries|3
-					/delay 5
 					/delay 10s !${Me.Casting.ID}
+					/delay 2s
 					/if (${Cast.Result.Equal["CAST_SUCCESS"]}) {
 						/if (!${Defined[${Target.ID}_${Me.Name}_${icast}]}) /declare ${Target.ID}_${Me.Name}_${icast} timer outer
 						/varset ${Target.ID}_${Me.Name}_${icast} ${Me.Gem[${icast}].Duration.TotalSeconds}s
@@ -593,12 +659,12 @@ Sub Snare
 				/if (${Me.Gem[${inm}].Subcategory.Equal[Root]}) {
 					/if (!${Defined[Root_${Target.ID}]}) /declare Root_${Target.ID} timer outer
 					/varset Root_${Target.ID} ${Me.Gem[${inm}].Duration.TotalSeconds}s
-					/g Rooted! set timer Root_${Target.ID}
+					/echo Rooted! set timer Root_${Target.ID}
 				}
 				/if (${Me.Gem[${inm}].Subcategory.Equal[Snare]}) {
 					/if (!${Defined[Snare_${Target.ID}]}) /declare Snare_${Target.ID} timer outer
 					/varset Snare_${Target.ID} ${Me.Gem[${inm}].Duration.TotalSeconds}s
-					/g Snared! set timer Snare_${Target.ID}
+					/echo Snared! set timer Snare_${Target.ID}
 				}
 			}
 		}

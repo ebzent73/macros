@@ -1,0 +1,317 @@
+| Pottery.mac version 1.0
+|
+| Written by Armysoldier
+|
+| March 5 2006
+|
+| Modifications:
+|
+| 23 APR 2006: Fixed Advanced sub 
+|
+| 1 APR 06: Fixed glitch in the KILN routine
+|           Fixed where Items were not being destroyed as MACRO called for
+|
+| 26 MAR 2006: moved 2 subs and event declarations to CommonSubs.inc
+|
+| This new line of tradeskill macros uses the NEW UI and the OLD UI for TS containers
+| 
+| The Macro will attempt to find the recipe using the NEW UI first
+| If no recipe is found it will go Old school and do a set of combines
+| these macros take into account the SALVAGE function and react accordingly
+| 
+|
+| A special thanks to A_Druid_00 for advising on some streamlining modifications
+| and to Override for his Tradeskill Code that has been around for so long 
+| and is the inspiration for this code
+|
+| Some of the code was pulled from other macros and modified and manipulated 
+| to do the tasks set forth.
+|
+| This code is designed for Abysmal Sea
+|
+| *** FOR THIS CODE TO WORK ***
+| You need to Stand in front of Yoen Ormard
+| You need to be in the first person view
+| You need to ensure that when you click the tradeskill container the NEW UI comes up first
+| the 5 FILES need to be in the macro\common folder (see includes below)
+
+#include common/sell.inc
+#include common/buy.inc
+#include common/packs.inc
+#include common/cleanpacks.inc
+#include common/CommonSubs.inc
+
+
+Sub Main
+    /declare OldSkill int outer ${Me.Skill[Pottery]}
+    /declare SkillMaxWanted int outer
+    /declare PackCode string outer 
+    /declare Component[10] string outer
+    /declare i int outer
+    /declare MerchantNameA string Outer
+    /declare MerchantNameB string Outer
+    /declare CombItemName string outer
+    /declare ItemTo string outer
+    /declare EndingVar int outer
+    /declare DelayMult int outer
+    /declare Container string outer
+    /declare Checkrecipe string outer
+    /declare NewUI int outer
+    /declare DoKiln int outer
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+| Customize these settings if you want
+|                    
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    /varset MerchantNameA "Yoen Ormard"
+    /varset MerchantNameB "Malkidiv"
+    /varset SkillMaxWanted 188
+    /varset DelayMult 1
+    /declare Filename string outer pottery.ini
+    /varset DoKiln 1
+|----------------- 1 for yes do KILN .. 0 for no KILN
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+| Call Read INI for locations array
+|                    
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    /call ReadINIA ${Filename} "Abysmal Sea" 
+    /if (!${Defined[LocArray]}) { 
+       /echo No Loc Array Created...
+       /endmacro 
+    } 
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+| Begin 
+|
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    :start
+
+|--- Check Current Skill against Skill wanted 
+    /echo Pottery is at ${Me.Skill[Pottery]}
+
+    /if (${Me.Skill[Pottery]}>=${SkillMaxWanted}) {
+      /echo Pottery is at ${SkillMaxWanted}. Quiting!
+      /endmacro
+    }
+    /if (${Me.Skill[Pottery]}<41) {
+      /varset CombItemName "LC"
+      /varset ItemTo "Unfired Large Container"
+    }
+    /if (${Me.Skill[Pottery]}>=41 && ${Me.Skill[Pottery]}<102) {
+      /varset CombItemName "SB"
+      /varset ItemTo "Unfired Small Bowl"
+    }
+    /if (${Me.Skill[Pottery]}>=102 && ${Me.Skill[Pottery]}<148) {
+      /varset CombItemName "PVA"
+      /varset ItemTo "Unfired Poison Vial"
+    }
+    /if (${Me.Skill[Pottery]}>=148 && ${Me.Skill[Pottery]}<168) {
+      /varset CombItemName "LPVA"
+      /varset ItemTo "Unfired Lined Poison Vial"
+    }
+    /if (${Me.Skill[Pottery]}>=168 && ${Me.Skill[Pottery]}<=188) {
+      /varset CombItemName "SPVA"
+      /varset ItemTo "Unfired Sealed Poison Vial"
+    }
+
+    /call ReadIni "${CombItemName}"
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+| Buy Components
+|
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    /varset EndingVar 1
+    /varset NewUI 1
+
+    /target ${MerchantNameA}
+
+    /nomodkey /click right target
+
+    /delay 5s ${Window[MerchantWnd].Open}
+
+    /call OpenPacks
+
+    /call Buy "${Component[1]}" 30
+
+    /nomodkey /notify MerchantWnd MW_Done_Button LeftMouseUp
+
+    /echo Moving to ${MerchantNameB}
+
+    /call Movement 1 8 3
+
+    /target ${MerchantNameB}
+   
+    /delay 5s ${Target.ID}==${Spawn[${MerchantNameB}].ID}
+
+    /nomodkey /click right target
+
+    /delay 5s ${Window[MerchantWnd].Open}
+
+    /call Buy "${Component[2]}" 20
+
+    /call Buy "${Component[3]}" 20
+
+    /if (${Me.Skill[Pottery]}>101) /call Buy "${Component[4]}" 20
+
+    /if (${Me.Skill[Pottery]}>41 && ${DoKiln}==1) /call Buy "High Quality Firing Sheet" 20
+
+    /nomodkey /notify MerchantWnd MW_Done_Button LeftMouseUp
+
+    /call ClosePacks
+
+    /call Movement 24 24 0
+
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+| MAKE Items
+|
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 
+      :EnviroWait      
+      /nomodkey /itemtarget Pottery Wheel notarget 
+      /face item nolook 
+      /click left item 
+      /delay 2
+      /doevents 
+
+      /delay 5s ${Window[TradeskillWnd].Open} 
+
+      /if (!${Window[TradeskillWnd].Open}) /goto :EnviroWait 
+ 
+      /call ChooseRecipe
+      /call ClosePacks
+
+
+      /echo ${Me.Skill[Pottery]} Pot Skill
+      /echo ${ItemTo} item to 
+      /echo ${CombItemName} comb name
+      /echo ${DoKiln} Kiln
+
+   /if (${Me.Skill[Pottery]}<=102) {
+    /echo Destroy
+    /call OpenPacks
+    :dest
+    /if (${Me.Skill[Pottery]}<=41) /nomodkey /ctrl /itemnotify ${FindItem[=Unfired Large Container].InvSlot} leftmouseup
+    /if (${Me.Skill[Pottery]}>41 && ${Me.Skill[Pottery]}<=102) /nomodkey /ctrl /itemnotify ${FindItem[=Unfired Small Bowl].InvSlot} leftmouseup
+    /if (!${Cursor.ID}) /goto :next
+    /destroy
+    /goto :dest
+    
+    :next
+    /call Movement 9 10 0
+    }
+
+    /if (${Me.Skill[Pottery]}>102 && ${DoKiln}==0) {
+    /echo No KILN for me
+    /Call OpenPacks
+    :dest2
+    /if (${Me.Skill[Pottery]}>102 && ${Me.Skill[Pottery]}<=148) /nomodkey /ctrl /itemnotify ${FindItem[=Unfired Poison Vial].InvSlot} leftmouseup
+
+    /if (${Me.Skill[Pottery]}>148 && ${Me.Skill[Pottery]}<=168) /nomodkey /ctrl /itemnotify ${FindItem[=Unfired Lined Poison Vial].InvSlot} leftmouseup
+
+    /if (${Me.Skill[Pottery]}>168 && ${Me.Skill[Pottery]}<=188) /nomodkey /ctrl /itemnotify ${FindItem[=Unfired Sealed Poison Vial].InvSlot} leftmouseup
+    /if (!${Cursor.ID}) /goto :next2
+    /destroy
+    /goto :dest2
+    
+    :next2
+     } 
+
+    /if (${Me.Skill[Pottery]}>102 && ${DoKiln}==1) {
+    /echo going to kill... gonna fire these babies up!!
+    /if (${Me.Skill[Pottery]}>102 && ${Me.Skill[Pottery]}<=148) {
+      /varset CombItemName "PVB"
+      /varset ItemTo "Poison Vial"
+    }
+    /if (${Me.Skill[Pottery]}>148 && ${Me.Skill[Pottery]}<=168) {
+      /varset CombItemName "LPVB"
+      /varset ItemTo "Lined Poison Vial"
+    }
+    /if (${Me.Skill[Pottery]}>168 && ${Me.Skill[Pottery]}<=188) {
+      /varset CombItemName "SPVB"
+      /varset ItemTo "Sealed Poison Vial"
+    }
+
+    /call ReadIni "${CombItemName}"
+
+
+    /echo Moving to Kiln
+    /call Movement 9 14 12
+
+      
+      /nomodkey /itemtarget Kiln notarget 
+      /face item nolook 
+      /click left item 
+
+      :EnviroWait      
+      /nomodkey /itemtarget Pottery Wheel notarget 
+      /face item nolook 
+      /click left item 
+      /delay 2
+      /doevents 
+
+      /delay 5s ${Window[TradeskillWnd].Open} 
+
+      /if (!${Window[TradeskillWnd].Open}) /goto :EnviroWait 
+
+      /call ChooseRecipe
+      /call ClosePacks
+      /call Movement 15 18 17
+      }
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+| all done starting over
+|
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    /echo Moving to ${MerchantNameA}
+    /echo Selling off and starting over
+
+    /call Movement 18 23 22
+
+    /target ${MerchantNameA}
+   
+    /delay 5s ${Target.ID}==${Spawn[${MerchantNameA}].ID}
+
+    /nomodkey /click right target
+
+/delay 5s ${Window[MerchantWnd].Open} 
+
+    /call OpenPacks
+
+    /call Sell ${ItemTo}
+
+    /call Sell "${Component[3]}"
+
+    /nomodkey /notify MerchantWnd MW_Done_Button LeftMouseUp
+
+    /call ClosePacks
+
+    /doevents
+
+    /goto :start
+
+    /return
+
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+|Sub Event Skill up
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+Sub Event_Skillup
+        /if (${Me.Skill[Pottery]}>${OldSkill}) {
+        /echo Your Pottery Went Up!! It's now ${Me.Skill[Pottery]}!
+        /varset OldSkill ${Me.Skill[Pottery]}
+/return
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+|Sub Event No Longer Advance 
+|used if there are some subcombines that need to be made in some TS
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Sub Event_Advance
+    /if (${CombItemName.NotEqual[PVB]}) && (${CombItemName.NotEqual[LPVB]}) && (${CombItemName.NotEqual[SPVB]}) /varset EndingVar 2
+  
+/return 

@@ -1,0 +1,117 @@
+#Event HOT_Landed_Self "#*#An earnest  healing spell heals your body."
+#Event HOT_Landed "#1#'s body is covered with a soft glow."
+#Event HOT_Worn_off_Self "#*#The earnest elixir fades."
+#Event HOT_Worn_off "Your Earnest Elixir Rk. II spell has worn off of #1#."
+#Event Shining_Worn_off "Your Shining #1#."
+
+#include RKBase.inc
+#include RKCasterBase.inc
+|#include RKMeleeBase.inc
+#include RKHealerBase.inc
+
+Sub Main
+	/call Init_RKBase
+	/call Init_RKCasterBase
+	/call Init_RKHealerBase
+	|/call Init_RKMeleeBase	
+
+| *** VARIABLE DECLARATIONS
+
+	/varset InCombatStickToCommander TRUE
+
+	/varset EmergencyHealSpell Thirteenth Salve Rk. II
+	/varset EmergencyHealThreshold 45
+	
+	/varset HealSpell Earnest Light Rk. II
+	/varset HoTSpell Earnest Elixir Rk. II
+	/varset GroupHeal Word of Awakening Rk. II
+	/varset EmergencyGroupHeal Word of Awakening Rk. II
+	
+	/call AddToArray "NonCombatSubs" "ClericNonCombatSubs"
+
+	|/call AddToArray "DetrimentalSpells" "Blood of the Devout Rk. II"
+	/call AddToArray "DetrimentalSpells" "Glorious Censure Rk. II"
+	
+	/call AddToArray "GiftSpells" "Word of Awakening Rk. II"
+
+	/call AddToArray "CombatTankBuffs" "Fintar's Retort Rk. II"
+	/call AddToArray "CombatPartyBuffs" "Shining Rampart Rk. II"
+	
+	/call AddToArray "NonCombatSelfBuffs" "Armor of the Solemn"
+	
+	|/call AddToArray "NonCombatSelfBuffs" "Vow of Vanquishing Rk. II"	
+	
+	/call AddToArray "NonCombatSelfBuffs" "Hand of Reliance Rk. II"
+	/call AddToArray "NonCombatSelfBuffs" "Rallied Rampart of Vie Rk. II"
+	/call AddToArray "NonCombatSelfBuffs" "Hand of Will Rk. II"
+
+	|/call AddToArray "CombatSelfBuffs" "Ward of Retaliation Rk. II"
+
+	/call AddToArray "PreTargetAcquisitionCombatActionSubs" "ClericPreTargetAcquisition"
+
+	/call AddToArray "BurnCombatActionSubs" "ClericBurnActions"
+	/call AddToArray "CombatActionSubs" "ClericCombatActions"
+
+	/varset TankHoTThreshold 70
+	/varset TankHealThreshold 80
+	
+	/varset MercBurnThreshold 101
+	
+	/varset SingleTargetHoTThreshold 80
+	/varset SingleTargetHealThreshold 80
+	
+	/varset GroupHealThreshold 70
+	/varset EmergencyGroupHealThreshold 75
+	
+	/echo Done initializing Cleric macro!
+
+| *** INITIALIZATION
+	/echo Starting Box Commander - Cleric Macro
+
+| *** MAIN LOOP
+:loop
+	/call Tick
+	/goto :loop
+/return
+
+Sub ClericCombatActions
+	|/echo ClericCombatActions
+	/if (!${Target.Buff[Awecrash Rk. II].ID}) {
+		/call RKCast "Sound of Fury Rk. II" ${Target.ID}
+	}
+	/if (!${Target.Buff[Sound of Fury Rk. II].ID}) /call RKCast "Awecrash Rk. II" ${Target.ID}
+	
+	/if (!${Me.Mount.ID} && !${Me.Moving}) /call RKCast "Yaulp XI Rk. II"
+	
+	|/if (!${Me.Pet.ID}) /call RKCast "Devout Hammer of Zeal Rk. II" ${Target.ID}
+
+	/if (${Me.SpellReady[Celestial Intervention Rk. II]} && ${Group.MainTank.PctHPs} < 95) /call RKCast "Celestial Intervention Rk. II" ${Group.MainTank.ID}
+
+	
+	/if (${Target.Distance} < 15) /doability 1
+	
+/return FALSE
+
+Sub ClericBurnActions
+	/call RKAACast "Fundament: Third Spire of Divinity"
+	/call RKAACast "Exquisite Benediction"
+	/call RKAACast "Healing Frenzy"
+	/call RKAACast "Flurry of Life"
+/return FALSE
+
+Sub ClericNonCombatSubs
+	/if (!${Bool[${Me.Aura[Aura of the Pious]}]}) {
+		/varset DebugMode TRUE
+		/echo Need Aura of the Pious
+		/call RKMemCast "Aura of the Pious" ${Me.ID}
+				/varset DebugMode FALSE
+	}
+/return FALSE
+
+Sub ClericPreTargetAcquisition
+/return FALSE
+
+
+Sub Event_Shining_Worn_off
+	/varset ShouldCheckPartyBuffs TRUE
+/return FALSE

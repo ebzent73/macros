@@ -1,0 +1,155 @@
+| CE.mac version 1.0
+|
+| Written by Armysoldier
+|
+| March 5 2006
+|
+| Modifications:
+|
+| This new line of tradeskill macros uses the NEW UI and the OLD UI for TS containers
+| 
+| The Macro will attempt to find the recipe using the NEW UI first
+| If no recipe is found it will go Old school and do a set of combines
+| these macros take into account the SALVAGE function and react accordingly
+| 
+|
+| A special thanks to A_Druid_00 for advising on some streamlining modifications
+| and to Override for his Tradeskill Code that has been around for so long 
+| and is the inspiration for this code
+|
+| Some of the code was pulled from other macros and modified and manipulated 
+| to do the tasks set forth.
+|
+| This code is designed for Abysmal Sea
+|
+| *** FOR THIS CODE TO WORK ***
+| You need to Stand by Uiyaniv Tu`Vrozix @ -191,229,96
+| You need to be in the first person view
+| You need to ensure that when you click the tradeskill container the NEW UI comes up first
+| the 5 FILES need to be in the macro\common folder (see includes below)
+| A Mixing Bowl needs to be in slot 8 of your packs
+|
+|
+|Inventory
+| _______
+|| 1 | 5 |
+||___|___|
+|| 2 | 6 | 
+||___|___|
+|| 3 | 7 |
+||___|___|
+|| 4 | 8 |
+||___|___|
+|
+
+
+ 
+
+
+
+#event End "[MQ2] 1320 Essence's"
+|-----------------^^^^ EDIT to the number you want... multiples of 60 
+
+#include common/sell.inc
+#include common/buy.inc
+#include common/packs.inc
+#include common/cleanpacks.inc
+#include common/CommonSubs.inc
+
+
+Sub Main
+    /declare OldSkill int outer ${Me.Skill[Baking]}
+    /declare SkillMaxWanted int outer 200
+    /declare PackCode string outer 
+    /declare Component[10] string outer
+    /declare i int outer
+    /declare MerchantNameA string Outer
+    /declare MerchantNameB string Outer
+    /declare CombItemName string outer
+    /declare ItemTo string outer
+    /declare EndingVar int outer
+    /declare Levelname int outer
+    /declare DelayMult int outer
+    /declare Container string outer
+    /declare Checkrecipe string outer
+    /declare NewUI int outer
+    /declare Filename string outer Baking.ini
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+| Customize these settings if you want
+|                    
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    /varset MerchantNameA "Uiyaniv Tu`Vrozix" 
+    /varset DelayMult 1
+
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+| Begin 
+|
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    :start
+
+      /varset CombItemName "CE"
+      /varset ItemTo "Celestial Essence (The Scent of Marr)"
+
+    /call ReadIni "${CombItemName}"
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+| Buy Components
+|
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    /varset EndingVar 1
+    /varset NewUI 1
+
+    /target ${MerchantNameA}
+
+    /nomodkey /click right target
+
+    /delay 5s ${Window[MerchantWnd].Open}
+
+    /call OpenPacks
+
+    /call Buy "${Component[1]}" 60
+
+    /call Buy "${Component[2]}" 60
+
+
+    /nomodkey /notify MerchantWnd MW_Done_Button LeftMouseUp
+
+    /call ClosePacks
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+| MAKE Items
+|
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+/nomodkey /itemnotify pack8 rightmouseup 
+/doevents 
+/delay 3s ${Window[TradeskillWnd].Open} 
+/if (${Window[TradeskillWnd].Open}==FALSE) /click left Item 
+/delay 3s ${Window[TradeskillWnd].Open} 
+      /call ChooseRecipe
+      /call ClosePacks
+      /echo ${FindItemCount[=Celestial Essence]} Essence's
+    /doevents
+
+    /goto :start
+
+    /return
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+|Sub Event Skill up
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+Sub Event_Skillup
+
+/return
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+|Sub Event No Longer Advance 
+|used if there are some subcombines that need to be made in some TS
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Sub Event_Advance
+    
+/return 

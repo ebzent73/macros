@@ -1,0 +1,166 @@
+#include RKBase.inc
+#include RKCasterBase.inc
+#include RKMeleeBase.inc
+#include RKCrowdControlBase.inc
+
+Sub Main
+	/call Init_RKBase
+	/call AddToArray "NonCombatSubs" "BardNonCombatSubs"
+	/call Init_RKCrowdControlBase
+	/call Init_RKMeleeBase	
+	/call Init_RKCasterBase
+	
+| *** VARIABLE DECLARATIONS
+	
+	/varset SpellMemSlot 11
+	
+	/declare EchoMode bool outer FALSE
+	/declare OverhasteAura bool outer TRUE
+	/declare SlowMode bool outer TRUE
+	/varset MeleeMode TRUE
+	/varset SitBetweenCombat FALSE
+	
+	/varset MultipleTargetMez Wave of Dreams Rk. II
+	/varset SingleTargetMez Lullaby of the Forlorn
+	/varset SingleTargetMezLevelCap 95
+	/varset MultipleTargetMezLevelCap 93
+	
+	/call AddToArray "CombatActionSubs" "ExecuteBardCombatActions"
+	/call AddToArray "DefensiveActionSubs" "ExecuteDefensiveActions"	
+
+	/call AddToArray "PreTargetAcquisitionCombatActionSubs" "CheckTwist"	
+	
+	/call AddToArray "InvisModeSubs" "PeriodicGroupInvis"
+	
+	/call AddToArray "BurnCombatActionSubs" "ExecuteBurnBardCombatActions"
+	
+	/declare RequiemTimer timer outer 125
+
+	/declare AESlowSong string outer "Protan's Melodic Binding"
+	
+	/echo Done initializing bard macro!
+	
+| *** MAIN LOOP
+:loop
+	/call CheckSelos
+	/call Tick
+	/goto :loop
+/return
+
+Sub ExecuteBurnBardCombatActions
+	|/call RKItemCast "Circle of Power I Effect" "Unsuspected Striker"
+	|/call RKDisc "Reflexive Retort"
+	/if (${MeleeMode}) {
+		/call RKDisc "Thousand Blades"
+	} else {
+		/call RKDisc "Puretone Discipline"
+	}
+	/call RKAACast "Fundament: Third Spire of the Minstrels"
+	/call RKAACast "Dance of Blades"	
+/return FALSE
+
+Sub BardNonCombatSubs
+	/if (${DebugMode}) /echo BardNonCombatSubs
+
+	/if (${OverhasteAura}) {
+		/if (!${Bool[${Me.Aura[Aura of the Composer Rk. II]}]}) {
+			/echo casting aura of the composer
+			/twist off
+			/delay 10s ${Me.SpellReady[Aura of the Composer]}
+			/call RKCast "Aura of the Composer" ${Me.ID}
+			/delay 6s
+			/twist off
+			/return TRUE
+		}
+	} else {
+		/if (!${Bool[${Me.Aura[Aura of Renewal Rk. II]}]}) {
+			/echo casting aura of renewal
+			/twist off
+			/delay 10s ${Me.SpellReady[Aura of Renewal Rk. II]}
+			/call RKCast "Aura of Renewal Rk. II" ${Me.ID}
+			/delay 6s
+			/twist off
+			/return TRUE			
+		}
+	}	
+	
+	/if (!${Me.Buff[Symphony of Battle].ID}) /cast item "Rapier of Somber Notes"
+
+/return FALSE
+
+Sub CheckAESlow
+	/call CountTargetsInRange ${Spell[${AESlowSong}].AERange}
+	/if (${Macro.Return} > 1) {
+		/call RKDebuffCast "${AESlowSong}" "${AESlowSong}" ${CurrentTargetId}
+	}
+/return FALSE
+
+Sub ExecuteBardCombatActions
+	/if (${DebugMode}) /echo ExecuteBardCombatActions
+	
+	/call RKAACast "Boastful Bellow"
+	/call RKAACast "Vainglorious Shout"	
+	/call RKAACast "Lyrical Prankster"
+	/call RKAACast "Song of Stone"
+	/call RKAACast "Selo's Kick"
+	
+	/call RKAACast "Fierce Eye"
+	/call RKAACast "Funeral Dirge"
+	/call RKAACast "Quick Time"	
+
+	/return FALSE
+	
+	/if (${Spawn[${targetId}].Distance} <= ${MaxMeleeDistance}) {
+		/if (${CurrentTargetId} && ${RequiemTimer} == 0 && !${Bool[${Target.Slowed}]}) {
+		
+			/echo casting Requiem of Time	
+			/twist off
+			/delay 4s ${Me.SpellReady[Requiem of Time]}
+			/call RKCast "Requiem of Time" ${CurrentTargetId}
+			/delay 4s
+			/twist off
+			/stopcast
+			/varset RequiemTimer 125
+			/return TRUE			
+		}
+	}
+/return FALSE
+
+Sub CheckSelos
+	/if (${DebugMode}) /echo CheckSelos
+	/if (${Me.Buff[Selo's Sonata].ID} && ${Me.Buff[Selo's Sonata].Duration} > 10) /return FALSE
+	/call RKAACast "Selo's Sonata"
+	/delay 2
+	/alt activate 231
+/return FALSE
+
+Sub PeriodicGroupInvis
+	/if (${DebugMode}) /echo Group Invis
+	/if (!${Me.Buff[Shauri's Sonorous Clouding].ID} || ${Me.Buff[Shauri's Sonorous Clouding].Duration} < 100) /call RKAACast "Shauri's Sonorious Clouding"
+/return FALSE
+
+Sub CheckTwist
+	/if (${DebugMode}) /echo CheckTwist
+
+	/if (!${Twist}) {
+		/echo need to twist
+		/twist 1 2 3 4 5
+	}
+/return FALSE
+
+Sub ExecuteDefensiveActions
+	/if (${Me.PctHPs} < 50) {
+		/call RKDisc "Deftdance Discipline"
+		/if (${Macro.Return}) /return TRUE	
+	}
+	
+	/if (${Me.PctHPs} < 80) {
+		/call RKDisc "Resistant Discipline"
+		/if (${Macro.Return}) /return TRUE		
+	}
+	
+	/if (${Me.PctHPs} < 20 && ${Me.Combat}) {
+		/call RKAACast "Fading Memories"
+		/if (${Macro.Return}) /return TRUE	
+	}
+/return FALSE

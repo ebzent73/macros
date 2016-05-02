@@ -1,0 +1,189 @@
+#include RKBase.inc
+#include RKCrowdControlBase.inc
+#include RKMeleeBase.inc
+#include RKCasterBase.inc
+#include RKPetBase.inc
+
+Sub Main
+	/call Init_RKBase
+	/call Init_RKPetBase
+	/call Init_RKMeleeBase
+	/call AddToArray "PreTargetAcquisitionCombatActionSubs" "BardPreCombat"
+	/call Init_RKCrowdControlBase
+	/call AddToArray "NonCombatSubs" "BardNonCombatSubs"
+	/call Init_RKCasterBase
+	
+| *** VARIABLE DECLARATIONS
+
+	/varset StickDistance 7
+	/varset StickFlags behind	
+	/varset SitBetweenCombat FALSE
+
+	/declare OverhasteAura bool outer TRUE
+
+	/varset CCMode FALSE
+	/varset MultipleTargetMez Wave of Quietude
+	/varset SingleTargetMez Slumber of Silisia Rk. II
+	/varset SingleTargetMezLevelCap 108
+
+	/varset CharmMode FALSE
+	/varset CharmSpell "Voice of Motlak"
+	/varset CharmSpellLevelCap 98
+
+	/call AddToArray "PreTargetAcquisitionCombatActionSubs" "CheckTwist"	
+	/call AddToArray "DefensiveActionSubs" "BardDefensives"	
+	/call AddToArray "CombatActionSubs" "BardCombat"
+	/call AddToArray "BurnCombatActionSubs" "BardBurn"
+	/call AddToArray "InvisModeSubs" "PeriodicGroupInvis"
+	
+	/declare AESlowSong string outer Protan's Melodic Binding	
+	/declare RequiemTimer timer outer 125
+	/declare FadeTimer timer outer 50
+
+	/echo Done initializing bard macro!
+	
+| *** MAIN LOOP
+:loop
+	/call CheckSelos
+	/call Tick
+	/goto :loop
+/return
+
+Sub BardBurn
+	/call RKDisc "Reflexive Retort"
+	/call RKDisc "Thousand Blades"
+	/call RKAACast "Fundament: Third Spire of the Minstrels"
+	/call RKAACast "Dance of Blades"	
+	/call RKAACast "Cacophony"
+	/call RKAACast "Bladed Song"
+/return FALSE
+
+Sub BardPreCombat
+	/if (!${Bool[${CharmSpell}]} || ${Me.XTarget} == 0 || !${ShouldICharm} || !${CharmMode}) /return FALSE
+	
+	|/echo checking potential charm pets
+	/if (!${Me.Pet.ID}) {
+		/call GetCharmTarget
+		/if (${Macro.Return} != 0) {
+			/declare charmTargetId int local ${Macro.Return}
+			/call SelectNewTarget ${charmTargetId}
+			
+			/delay 1s ${Target.ID} == ${charmTargetId}
+			
+			/echo casting ${CharmSpell} at ${charmTargetId}
+			/if (${Twist}) { 
+				/twist off
+				/delay 2s
+				/stopcast
+			}
+			/call RKCast "${CharmSpell}" ${charmTargetId}
+			/if (${Macro.Return}) {
+				/target clear
+				/return TRUE
+			}
+		}
+	}
+/return FALSE
+
+Sub BardNonCombatSubs
+	/if (${LowManaMed}) /twist off
+
+	/if (${OverhasteAura}) {
+		/if (!${Bool[${Me.Aura[Aura of Va'Ker]}]}) {
+			/twist off
+			/delay 10s ${Me.SpellReady[Aura of Va'Ker]}
+			/call RKCast "Aura of Va'Ker" ${Me.ID}
+			/delay 6s
+			/twist off
+			/return TRUE
+		}
+	} else {
+		/if (!${Bool[${Me.Aura[Aura of Salarra Rk. II]}]}) {
+			/twist off
+			/delay 10s ${Me.SpellReady[Aura of Salarra Rk. II]}
+			/cast "Aura of Salarra Rk. II"
+			/delay 6s
+			/twist off
+			/return TRUE			
+		}
+	}
+	
+	|/if (!${Me.Buff[Symphony of Battle].ID}) /keypress Num_Slash
+
+/return FALSE
+
+Sub CheckAESlow
+	/call CountTargetsInRange ${Spell[${AESlowSong}].AERange}
+	/if (${Macro.Return} > 1) {
+		/call RKDebuffCast "${AESlowSong}" "${AESlowSong}" ${CurrentTargetId}
+	}
+/return FALSE
+
+Sub BardCombat
+	|/call CheckAESlow
+	/call RKItemSlotCast chest
+	
+	/if (${Me.GemTimer[${Me.Gem[Silisia's Lively Crescendo Rk. II]}]} == 0) {
+		/call RKCast "Silisia's Lively Crescendo Rk. II" ${CurrentTargetId}
+		/return TRUE
+	}
+	
+	/call RKAACast "Boastful Bellow" ${CurrentTargetId}
+	/call RKAACast "Selo's Kick" ${CurrentTargetId}
+	/call RKAACast "Vainglorious Shout" ${CurrentTargetId}	
+
+	/call RKAACast "Lyrical Prankster"
+	/call RKAACast "Song of Stone"
+	/call RKAACast "Fierce Eye"
+	/call RKAACast "Funeral Dirge"
+	/call RKAACast "Quick Time"	
+
+	/if (${Target.ID} && ${RequiemTimer} == 0 && !${Bool[${Target.Slowed}]}) {
+		/call RKCast "Requiem of Time" ${CurrentTargetId}
+		/if (${Macro.Return}) {
+			/delay 3s
+			/stopcast
+			/varset RequiemTimer 125
+		}
+	}
+
+/return FALSE
+
+Sub CheckSelos
+	/if (${DebugMode}) /echo CheckSelos
+	/if (${Me.Buff[Selo's Sonata].ID} && ${Me.Buff[Selo's Sonata].Duration} > 10) /return FALSE
+	/call RKAACast "Selo's Sonata"
+	/delay 2
+	/alt activate 231
+/return FALSE
+
+Sub PeriodicGroupInvis
+	/if (!${Me.Buff[Shauri's Sonorous Clouding].ID} || ${Me.Buff[Shauri's Sonorous Clouding].Duration} < 100) /call RKAACast "Shauri's Sonorious Clouding"
+	/if (${DebugMode}) /echo Group Invis
+/return FALSE
+
+Sub CheckTwist
+	/if (${DebugMode}) /echo CheckTwist
+	/if (${BOTMode} == 5) /return FALSE
+
+	/if (!${Twist} && !${Bool[${Me.Casting.ID}]}) {
+		/if (${DebugMode}) /echo need to twist
+		/twist 1 2 3 4 5
+	}
+/return FALSE
+
+Sub BardDefensives
+	/return FALSE
+	/if (${Me.PctHPs} < 50) /call RKDisc "Deftdance Discipline"
+	/if (${Bool[${Macro.Return}]} && ${Macro.Return}) /return TRUE	
+
+	/if (${Me.PctHPs} < 80) /call RKDisc "Resistant Discipline"
+	/if (${Bool[${Macro.Return}]} && ${Macro.Return}) /return TRUE		
+	
+	/if (${Me.PctHPs} < 70 && ${FadeTimer} == 0) {
+		/echo Getting attacked - Fading
+		/call RKAACast "Fading Memories"
+		/varset FadeTimer 50
+		/if (${Bool[${Macro.Return}]} && ${Macro.Return}) /return TRUE	
+	}
+/return FALSE

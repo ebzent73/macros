@@ -1,0 +1,158 @@
+#include RKBase.inc
+#include RKMeleeBase.inc
+#include RKCasterBase.inc
+|#include RKCrowdControlBase.inc
+
+Sub Main
+	/call Init_RKBase
+	/call Init_RKMeleeBase
+	/call Init_RKCasterBase
+	/call AddToArray "CombatActionSubs" "CheckMeleeDistance"
+	
+	|/call Init_RKCrowdControlBase
+		
+	|/varset CCMode TRUE
+| *** VARIABLE DECLARATIONS
+	|/varset SingleTargetMez Phantom Apparition
+	|/varset MezSub MonkCC
+	|/varset SingleTargetMezLevelCap 85
+
+	/varset TargetHpEngagePercentage 101
+	/varset UpperAggroThreshold 101
+
+	/call AddToArray "InvisModeSubs" "HideAndSneak"
+	/call AddToArray "NonCombatSubs" "MonkNonCombatSubs"
+	/call AddToArray "DefensiveActionSubs" "MonkDefensives"		
+	/call AddToArray "CombatActionSubs" "MonkCombat"
+	/call AddToArray "BurnCombatActionSubs" "MonkBurn"
+	
+	/echo Done initializing Monk macro!
+
+| *** MAIN LOOP
+
+:loop
+	/call Tick
+	/goto :loop
+/return
+
+Sub MonkCC(ccTargetId)
+	/return FALSE
+	/if (${Me.SpellReady[Smokescreen]}) /call RKCast "Smokescreen" ${ccTargetId}
+
+	/if (${Me.CombatAbilityReady[Echo of Distraction]}) {
+		/call RKDisc "Echo of Distraction" ${ccTargetId}
+		/return TRUE
+	}
+	
+	/if (${Me.CombatAbilityReady[Phantom Apparition]}) {
+		/call RKDisc "Echo of Distraction" ${ccTargetId}
+		/return TRUE
+	}	
+/return FALSE
+
+Sub CheckMeleeDistance
+	/if (${Spawn[${RKCommander} pc].ID} == ${Me.ID} && ${Target.Distance} > ${MaxMeleeDistance}) /return TRUE
+/return FALSE
+
+Sub MonkNonCombatSubs
+/return FALSE
+
+Sub MonkBurn
+	/call RKAACast "Focused Destructive Force"	
+	/call RKDisc "Crystalpalm Discipline"
+	/call RKDisc "Scaledfist Discipline"
+
+	
+	/call RKDisc "Assassin Discipline"
+	/call RKAACast "Fundament: Second Spire of the Sensei"
+
+	/call RKAACast "Envenomed Blades"
+	/call RKAACast "Monk's Fury"
+	
+	/call RKDisc "Twisted Chance Discipline"
+	/call RKAACast "Five Point Palm"
+
+	
+/return FALSE
+
+Sub MonkCombat
+	/if (!${Me.Combat}) {
+		/call RKDisc "Jugular Slice"
+		/call RKDisc "Ambush"
+	}
+	
+	/if (!${Bool[${Me.Aura[Master's Aura]}]}) {
+		/call RKDisc "Master's Aura"
+	}
+	
+	/if (!${Me.Song[Fists of Wu].ID}) {
+		/call RKDisc "Fists of Wu"
+	}
+	
+	/if (!${Bool[${Me.Song[Fourth Wind Rk. II]}]}) {
+		/call RKDisc "Fourth Wind Rk. II"
+	}
+
+	/call RKAACast "Crippling Strike" ${CurrentTargetId}
+	
+	/call RKAACast "Eye Gouge" ${CurrentTargetId}
+	
+	/call RKAACast "Infusion of Thunder" ${CurrentTargetId}
+	
+	/call RKAACast "Stunning Kick" ${CurrentTargetId}
+
+	/call RKAACast "Zan Fi's Whistle" ${CurrentTargetId}
+	
+	/call RKDisc "Whorl of Fists"
+	
+	/call RKDisc "Impenetrable Discipline"
+		
+	/call RKDisc "Vigorous Shuriken"
+	
+	/call RKDisc "Drunken Monkey Style"
+	
+	/call RKDisc "Heel of Kanji"
+	/call RKDisc "Punch Through"
+	
+	/if (${DebugMode}) /echo kick
+	/if (${Me.AbilityReady[Kick]}) /doability "Kick"
+	/if (${DebugMode}) /echo Disarm
+	/if (${Me.AbilityReady[Disarm]}) /doability "Disarm"
+	/if (${DebugMode}) /echo Intimidation
+	/if (${Me.AbilityReady[Intimidation]}) /doability "Intimidation"
+	/if (${DebugMode}) /echo Tail Rake
+	/if (${Me.AbilityReady[Tail Rake]}) /doability "Tail Rake"
+	/if (${DebugMode}) /echo Eagle Strike
+	/if (${Me.AbilityReady[Eagle Strike]}) /doability "Eagle Strike"
+	/if (${DebugMode}) /echo Flying Kick
+	/if (${Me.AbilityReady[Flying Kick]}) /doability "Flying Kick"
+	/if (${DebugMode}) /echo Round Kick
+	/if (${Me.AbilityReady[Round Kick]}) /doability "Round Kick"
+	/if (${DebugMode}) /echo Tiger Claw
+	/if (${Me.AbilityReady[Tiger Claw]}) /doability "Tiger Claw"
+
+	/if (${Target.PctHPs} < 30) /return FALSE
+	
+	|/call RKItemSlotCast "chest"	
+	
+/return FALSE
+
+Sub HideAndSneak
+	|/if (!${Me.Invis}) {
+	|	/doability "Hide"
+	|	/doability "Sneak"
+	|}
+	
+	/if (${DebugMode}) /echo Self invis - I'm a Monk... got nothin'
+/return FALSE
+
+Sub MonkDefensives
+	/if (${Me.PctHPs} < 30) /call RKDisc "Defer Death"
+	/if (${Bool[${Macro.Return}]} && ${Macro.Return}) /return TRUE	
+	
+	/if (${Me.PctHPs} < 50) /call RKDisc "Flinch"
+	
+	/if (${Me.PctHPs} < 60) /call RKAACast "Tumble" ${CurrentTargetId}
+	
+	/if (${Me.PctHPs} < 80) /call RKDisc "Healing Will Discipline"
+/return FALSE

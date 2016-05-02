@@ -1,0 +1,129 @@
+#Event CoHIrc "<#1#> CoH me please"
+
+#include RKBase.inc
+#include RKCasterBase.inc
+#include RKPetBase.inc
+
+Sub Main
+	/call Init_RKBase
+	/call Init_RKPetBase
+
+	/call AddToArray "CombatActionSubs" "ExecutePriorityCombatActions"
+	/call AddToArray "InvisModeSubs" "PeriodicGroupInvis"	
+
+	/call Init_RKCasterBase
+	
+| *** VARIABLE DECLARATIONS
+
+	/varset InCombatStickToCommander TRUE
+
+	/varset PetSpellName "Shard of Air"
+
+	/varset TargetHpEngagePercentage 100
+		
+	/call AddToArray "DetrimentalSpells" "Ruthless Servant Rk. II"
+	|/call AddToArray "DetrimentalSpells" "Rain of Razors"
+	/call AddToArray "DetrimentalSpells" "Fickle Flames"
+	/call AddToArray "DetrimentalSpells" "Spear of Molten Steel"
+	/call AddToArray "DetrimentalSpells" "Bolt of Molten Steel Rk. II"	
+
+	/call AddToArray "GiftSpells" "Ruthless Servant Rk. II"
+	/call AddToArray "GiftSpells" "Spear of Molten Steel"
+	
+	/call AddToArray "PetBuffs" "Burnout XI"
+	/call AddToArray "PetBuffs" "Iceflame Armor Rk. II"
+	/call AddToArray "PetBuffs" "Circle of Embers Rk. II"
+	/call AddToArray "PetBuffs" "Molten Veil Rk. II"
+	|/call AddToArray "PetBuffs" "Velocity"
+	/call AddToArray "PetBuffs" "Surge of Arcanum"
+	
+	/call AddToArray "NonCombatSelfBuffs" "Splendrous Guardian Rk. II"
+	/call AddToArray "NonCombatSelfBuffs" "Circle of Embers Rk. II"
+	/call AddToArray "NonCombatSelfBuffs" "Tellurian Bodyguard Rk. II"
+	
+	/call AddToArray "CombatPartyBuffs" "Molten Veil Rk. II"
+	
+	/call AddToArray "CombatActionSubs" "ExecuteMageCombatActions"
+		
+	/call AddToArray "BurnCombatActionSubs" "ExecuteBurnMageCombatActions"
+	/call AddToArray "DefensiveActionSubs" "ExecuteDefensiveActions"
+	/call AddToArray "NonCombatSubs" "MageNonCombatSubs"
+
+	/echo Done initializing Mage macro!
+
+| *** MAIN LOOP
+
+:loop
+	/call Tick
+	/goto :loop
+/return
+
+Sub ExecuteMageCombatActions
+	/if (${Stick.Active}) /call ClearStickTarget
+	/if (${Me.Pet.Distance} > 130) {
+		/docommand /${ChatCommand} pet's too far away - summoning companion
+		/call RKAACast "Summmon Companion"
+	}
+
+	/call RKAACast "Force of Elements"	
+	/call RKAACast "First Spire"	
+	/call RKAACast "Frenzied Burnout"
+	/call RKAACast "Acute Focus Arcanum"
+	/call RKAACast "Fire Core"
+	/call RKAACast "Host of the Elements"	
+	/call RKAACast "Servant of Ro"	
+	
+/return FALSE
+
+Sub ExecuteBurnMageCombatActions
+	/call RKAACast "Virulent Talon"
+	/call RKAACast "Improved Twincast"
+
+/return FALSE
+
+Sub ExecutePriorityCombatActions
+	/if (${Target.ID}) /face fast nolook
+
+	/if (${Me.Pet.PctHPs} < 90) /call RKCast "Steelstance Rk. II"
+	/if (!${Bool[${Target.Malod}]}) {
+		/call RKAACast "Malosinete" ${CurrentTargetId}
+	}
+/return FALSE
+
+Sub MageNonCombatSubs
+	/if (!${Me.Aura.Equal[Arcane Distillect]}) {
+		/call RKBuff "Arcane Distillect" ${Me.ID}
+		/if (${Macro.Return}) /return TRUE
+	}
+	/if (!${Me.Buff[Arcane Symbiosis Recourse].ID} && ${Me.Pet.ID}) {
+		/call RKBuff "Arcane Symbiosis"
+		/if (${Macro.Return}) /return TRUE
+	}
+/return FALSE
+
+Sub PeriodicGroupInvis
+	/if (!${Me.Invis}) /call RKAACast "Group Perfected Invisibility"
+	/if (${DebugMode}) /echo Group Invis
+/return FALSE
+
+Sub ExecuteDefensiveActions
+/return FALSE
+
+Sub Event_CoH(eventText, cohTarget)
+	/if (${cohTarget.Left[1].Compare[ ]}<0) /varset cohTarget ${cohTarget.Right[-2].Left[-1]}
+	/call CoH ${cohTarget}
+/return
+
+Sub Event_CoHIrc(eventText, cohTarget)
+	/if (${cohTarget.Left[1].Compare[ ]}<0) /varset cohTarget ${cohTarget.Right[-2].Left[-1]}
+	/call CoH ${cohTarget}
+/return
+
+Sub CoH(cohTarget)
+	/if (${cohTarget.Left[1].Compare[ ]}<0) /varset cohTarget ${cohTarget.Right[-2].Left[-1]}
+	/echo CoH requested for ${cohTarget}
+	/target pc ${cohTarget}
+	/delay 3
+	/g CoH inc %T
+	/call RKAACast "Call of the Hero"
+/return

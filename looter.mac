@@ -1,0 +1,9 @@
+#include Ninjadvloot.inc
+
+Sub Main
+	/call SetupAdvLootVars
+	:lootagain
+	/call LootMobs
+	/delay 90s
+	/goto lootagain
+	/end

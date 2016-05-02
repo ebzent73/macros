@@ -1,0 +1,71 @@
+#Event HOT_Landed_Self "#*#An earnest  healing spell heals your body."
+#Event HOT_Landed "#1#'s body is covered with a soft glow."
+#Event HOT_Worn_off_Self "#*#The earnest elixir fades."
+#Event HOT_Worn_off "Your Earnest Elixir Rk. II spell has worn off of #1#."
+
+#include RKBase.inc
+#include RKCasterBase.inc
+#include RKHealerBase.inc
+
+Sub Main
+	/call Init_RKBase
+	/call Init_RKHealerBase
+	/call Init_RKCasterBase
+	
+| *** VARIABLE DECLARATIONS
+
+	/varset MaxTargetDistance 5000
+	/varset TargetHpEngagePercentage 100
+	/varset UpperAggroThreshold 90
+	/varset MercBurnThreshold 80
+	
+	/call AddToArray "DetrimentalSpells" "My Favorite Nuke Rk. II"
+	/call AddToArray "DetrimentalSpells" "My Favorite Dot"
+	
+	/call AddToArray "PreTargetAcquisitionCombatActionSubs" "CheckAura"
+	/call AddToArray "CombatActionSubs" "HealerCombat"
+
+	|---- Heal spells -- Either don't set the variable or set thresholds to 0 for spell types you don't want
+	
+	/varset HealSpell Earnest Light Rk. II
+	/varset TankHealThreshold 80
+	/varset SingleTargetHealThreshold 80
+	
+	/varset HoTSpell Earnest Elixir Rk. II
+	/varset TankHoTThreshold 90
+	/varset SingleTargetHoTThreshold 80
+
+	/varset EmergencyHealSpell Thirteenth Salve Rk. II
+	/varset EmergencyHealThreshold 45
+	
+	/varset GroupHeal Word of Awakening Rk. II
+	/varset GroupHealThreshold 70
+	
+	/varset EmergencyGroupHeal Word of Awakening Rk. II
+	/varset EmergencyGroupHealThreshold 75
+	
+	/echo Done initializing macro!
+
+| *** INITIALIZATION
+	/echo Starting Box Commander - Healer Macro
+
+| *** MAIN LOOP
+:loop
+	/call Tick
+	/goto :loop
+/return
+
+Sub CheckAura
+	|/if (!${Bool[${Me.Aura[My Aura]}]}) {
+	|	/echo Applying aura
+	|	/call RKDisc "My Aura"
+	|	/delay 10s ${Bool[${Me.Aura[My Aura]}]}
+	|	/return TRUE
+	|}
+	
+/return FALSE
+
+Sub HealerCombat
+	
+
+/return FALSE

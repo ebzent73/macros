@@ -25,13 +25,15 @@
 Sub Main
 
 |-Edit Below
-/declare  FoodSpell      string outer Cornucopia
-/declare  DrinkSpell     string outer Everfount
+/declare  FoodSpell      string outer Summon Food
+/declare  DrinkSpell     string outer Summon Drink
 /declare  FoodItem       string outer Summoned: Black Bread
 /declare  DrinkItem      string outer Summoned: Globe of Water
-/declare  FoodSpellGem   int outer 5
-/declare  DrinkSpellGem  int outer 6
-/declare  CastAmt        int outer 6
+/declare  FoodSpellGem   int outer 1
+/declare  DrinkSpellGem  int outer 2
+/declare  CastAmt        int outer 10
+/declare  OldSpell1		 string outer
+/declare  OldSpell2		 string outer
 |-Edit Above
 /declare  DoGroupFood    int outer 0
 
@@ -43,48 +45,48 @@ Sub Main
 }      
 
 /if ( !${Me.Gem[${FoodSpell}]} ) {
+	/varset OldSpell1 ${Me.Gem[${FoodSpellGem}]}
   /memspell ${FoodSpellGem} "${FoodSpell}"
   /delay 5s !${Window[SpellBookWnd].Open}
 }
 /if ( !${Me.Gem[${DrinkSpell}]} ) {
+	/varset OldSpell2 ${Me.Gem[${DrinkSpellGem}]}
   /memspell ${DrinkSpellGem} "${DrinkSpell}"
   /delay 5s !${Window[SpellBookWnd].Open}
 }  
 /if ( ${Me.Sitting} ) /stand
 
-/if ( ${FindItemCount["${FoodItem}"]}<40) {
+/if ( ${FindItemCount["${FoodItem}"]}<20) {
   /for b 1 to ${CastAmt}
     /call cast "${FoodSpell}"
     /delay ${Math.Calc[(${Spell["${FoodSpell}"].CastTime}+${Spell["${FoodSpell}"].RecastTime}]}s ${Me.SpellReady[${FoodSpell}]}
+    :ALauto_inv
+        /if (${Cursor.ID}) {
+            /if (${Cursor.NoDrop} && !${Me.FreeInventory}) /return
+            /timed 5 /autoinventory
+            /delay 2s !${Cursor.ID}
+            /goto :ALauto_inv
+        }
   /next b
 }
-/if ( ${FindItemCount["${DrinkItem}"]}<40) {
+/if ( ${FindItemCount["${DrinkItem}"]}<20) {
   /for b 1 to ${CastAmt}
     /call cast "${DrinkSpell}"
     /delay ${Math.Calc[(${Spell["${DrinkSpell}"].CastTime}+${Spell["${DrinkSpell}"].RecastTime}]}s ${Me.SpellReady[${DrinkSpell}]}
+    :ALauto_inv
+        /if (${Cursor.ID}) {
+            /if (${Cursor.NoDrop} && !${Me.FreeInventory}) /return
+            /timed 5 /autoinventory
+            /delay 2s !${Cursor.ID}
+            /goto :ALauto_inv
+        }
   /next b
-}
-:AutoInvLoop
-/if ( ${Cursor.ID} ) {
-  /autoinv
-  /delay 1s
-  /goto :AutoInvLoop
 }
   
 /if ( ${DoGroupFood}==1 ) {
   /for a 1 to ${Group.Members} {
-    /if ( ${Group.Member[${a}].Distance}<50 ) {
-      /for b 1 to ${CastAmt}
-        /call cast "${FoodSpell}"
-        /delay ${Math.Calc[(${Spell["${FoodSpell}"].CastTime}+${Spell["${FoodSpell}"].RecastTime}]}s ${Me.SpellReady[${FoodSpell}]}
-      /next b
-      /for b 1 to ${CastAmt}
-        /call cast "${DrinkSpell}"
-        /delay ${Math.Calc[(${Spell["${DrinkSpell}"].CastTime}+${Spell["${DrinkSpell}"].RecastTime}]}s ${Me.SpellReady[${DrinkSpell}]}
-      /next b
-      /squelch /target clear
-      /target pc ${Group.Member[${a}]}
-      /delay 10s ${Target.ID}
+    /if ( ${Group.Member[${a}].Distance}<50 && !${Group.Member[${a}].Type.Equal[Mercenary]} ) {
+      
       :MoveLoop
       /if ( ${Target.Distance}>12 ) {
         /face
@@ -102,6 +104,19 @@ Sub Main
         /goto :MoveLoop
       }
       /delay 1s
+      
+      /for b 1 to ${CastAmt}
+		  /call cast "${FoodSpell}"
+		  /delay 10s ${Me.SpellReady[${FoodSpell}]}
+		/next b
+		/for b 1 to ${CastAmt}
+		  /call cast "${DrinkSpell}"
+		  /delay 10s ${Me.SpellReady[${DrinkSpell}]}
+		/next b
+		/squelch /target clear
+		/target pc ${Group.Member[${a}]}
+		/delay 10s ${Target.ID}
+      
       :ClickLoop
       /for c 1 to ${Math.Calc[${CastAmt}*2]}
         /click left target
@@ -118,5 +133,13 @@ Sub Main
     }
   }
   /next a  
+}
+/if (${OldSpell1}) {
+	/memspell ${FoodSpellGem} "${OldSpell1}"
+	/delay 5s !${Window[SpellBookWnd].Open}
+}
+/if (${OldSpell2}) {
+	/memspell ${DrinkSpellGem} "${OldSpell2}"
+	/delay 5s !${Window[SpellBookWnd].Open}
 }
 /return

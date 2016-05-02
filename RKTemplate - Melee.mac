@@ -1,0 +1,46 @@
+#include RKBase.inc
+#include RKMeleeBase.inc
+
+Sub Main
+	/call Init_RKBase
+	/call Init_RKMeleeBase
+
+| *** VARIABLE DECLARATIONS
+
+	/varset MaxTargetDistance 5000
+	/varset TargetHpEngagePercentage 100
+	/varset UpperAggroThreshold 90
+	/varset MercBurnThreshold 80
+	
+	/call AddToArray "CombatDiscs" "Bellow of the Mastruq"
+
+	/call AddToArray "CombatAbilities" "Slam"
+	/call AddToArray "CombatAbilities" "Disarm"
+
+	/call AddToArray "PreTargetAcquisitionCombatActionSubs" "CheckAura"
+	/call AddToArray "CombatActionSubs" "WarriorCombat"
+	
+	/echo Done initializing macro!
+
+| *** INITIALIZATION
+	/echo Starting Box Commander - Melee Macro
+
+| *** MAIN LOOP
+:loop
+	/call Tick
+	/goto :loop
+/return
+
+Sub CheckAura
+	/if (!${Bool[${Me.Aura[Myrmidon's Aura]}]}) {
+		/echo Applying aura
+		/call RKDisc "Myrmidon's Aura"
+		/delay 10s ${Bool[${Me.Aura[Myrmidon's Aura]}]}
+		/return TRUE
+	}
+/return FALSE
+
+Sub WarriorCombat
+	
+
+/return FALSE

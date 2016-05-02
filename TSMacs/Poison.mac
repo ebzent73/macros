@@ -1,0 +1,208 @@
+| Poison.mac version 1.0 
+| 
+| Written by Armysoldier 
+| 
+| March 30 2006 
+| 
+| Modifications: 
+| 
+| 30 MAR 2006: Modified to run Poison Making skill by Wallaby 
+| 
+| 26 MAR 2006: moved 2 subs and event declarations to CommonSubs.inc 
+| 
+| This new line of tradeskill macros uses the NEW UI and the OLD UI for TS containers 
+| 
+| The Macro will attempt to find the recipe using the NEW UI first 
+| If no recipe is found it will go Old school and do a set of combines 
+| these macros take into account the SALVAGE function and react accordingly 
+| 
+| 
+| A special thanks to A_Druid_00 for advising on some streamlining modifications 
+| and to Override for his Tradeskill Code that has been around for so long 
+| and is the inspiration for this code 
+| 
+| Some of the code was pulled from other macros and modified and manipulated 
+| to do the tasks set forth. 
+| 
+| This code is designed for Abysmal Sea 
+| 
+| *** FOR THIS CODE TO WORK *** 
+| You need to Stand behind Viliani I`Xvoyt 
+| You need to be in the first person view 
+| You need to ensure that when you click the tradeskill container the NEW UI comes up first 
+| the 5 FILES need to be in the macro\common folder (see includes below) 
+| A Mortar and Pestle needs to be in slot 8 of your packs 
+| 
+| Results of combines are not stackable.... have 4 EMPTY BAGS for this MACRO!!!! 
+| 
+|Inventory 
+| _______ 
+|| 1 | 5 | 
+||___|___| 
+|| 2 | 6 | 
+||___|___| 
+|| 3 | 7 | 
+||___|___| 
+|| 4 | 8 | 
+||___|___| 
+| 
+
+#include common/sell.inc 
+#include common/buy.inc 
+#include common/packs.inc 
+#include common/cleanpacks.inc 
+#include common/CommonSubs.inc 
+
+
+Sub Main 
+    /declare OldSkill int outer ${Me.Skill[Make Poison]} 
+    /declare SkillMaxWanted int outer 
+    /declare PackCode string outer 
+    /declare Component[10] string outer 
+    /declare i int outer 
+    /declare MerchantNameA string Outer 
+    /declare CombItemName string outer 
+    /declare ItemTo string outer 
+    /declare EndingVar int outer 
+    /declare DelayMult int outer 
+    /declare Container string outer 
+    /declare Checkrecipe string outer 
+    /declare NewUI int outer 
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+| Customize these settings if you want 
+|                    
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+
+    /varset MerchantNameA "Viliani I`Xvoyt" 
+    /varset SkillMaxWanted 275 
+    /varset DelayMult 1 
+    /declare Filename string outer Poison.ini 
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+| Begin 
+| 
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+
+    :start 
+
+|--- Check Current Skill against Skill wanted 
+    /echo Poison Making is at ${Me.Skill[Make Poison]} 
+
+    /if (${Me.Skill[Make Poison]}>=${SkillMaxWanted}) { 
+      /echo Poison Making is at ${SkillMaxWanted}. Quiting! 
+      /endmacro 
+    } 
+
+    /if (${Me.Skill[Make Poison]}>=172 && ${Me.Skill[Make Poison]}<275) { 
+      /varset CombItemName "SoS" 
+      /varset ItemTo "Spirit of Sloth" 
+    } 
+
+    /if (${Me.Skill[Make Poison]}>=130 && ${Me.Skill[Make Poison]}<172) { 
+      /varset CombItemName "CR" 
+      /varset ItemTo "Calcium Rot" 
+    } 
+
+    /if (${Me.Skill[Make Poison]}>=98 && ${Me.Skill[Make Poison]}<130) { 
+      /varset CombItemName "BF" 
+      /varset ItemTo "Brain Freeze" 
+    } 
+
+    /if (${Me.Skill[Make Poison]}<98) { 
+      /varset CombItemName "AS" 
+      /varset ItemTo "Atrophic Sap" 
+    } 
+
+
+    /call ReadIni "${CombItemName}" 
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+| Buy Components 
+| 
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+
+    /varset EndingVar 1 
+    /varset NewUI 1 
+
+    /target ${MerchantNameA} 
+
+    /nomodkey /click right target 
+
+    /delay 5s ${Window[MerchantWnd].Open} 
+
+    /call OpenPacks 
+
+    /call Buy "${Component[1]}" 40 
+
+    /call Buy "${Component[2]}" 40 
+
+    /call Buy "${Component[3]}" 80 
+
+    /nomodkey /notify MerchantWnd MW_Done_Button LeftMouseUp 
+
+    /call ClosePacks 
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+| MAKE Items 
+| 
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+
+      
+      /nomodkey /itemnotify pack8 rightmouseup 
+
+/doevents 
+/delay 3s ${Window[TradeskillWnd].Open} 
+/if (!${Window[TradeskillWnd].Open}) /nomodkey /click left Item 
+/delay 3s ${Window[TradeskillWnd].Open} 
+
+      /call ChooseRecipe 
+      /call ClosePacks 
+
+    /target ${MerchantNameA} 
+    
+    /delay 5s ${Target.ID}==${Spawn[${MerchantNameA}].ID} 
+
+    /nomodkey /click right target 
+
+/delay 5s ${Window[MerchantWnd].Open} 
+
+    /call OpenPacks 
+
+    /call Sell ${ItemTo} 
+
+    /if (${Me.Skill[Make Poison]}<=274) { 
+
+    /call Sell "${Component[1]}" 
+
+    /call Sell "${Component[2]}" 
+
+    /call Sell "${Component[3]}" 
+    
+    } 
+
+    /nomodkey /notify MerchantWnd MW_Done_Button LeftMouseUp 
+
+    /call ClosePacks 
+
+    /doevents 
+
+    /goto :start 
+
+    /return 
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+|Sub Event Skill up 
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+Sub Event_Skillup 
+        /if (${Me.Skill[Make Poison]}>${OldSkill}) { 
+        /echo Your Poison Making Went Up!! It's now ${Me.Skill[Make Poison]}! 
+        /varset OldSkill ${Me.Skill[Make Poison]} 
+/return 
+
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+|Sub Event No Longer Advance 
+|used if there are some subcombines that need to be made in some TS 
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+Sub Event_Advance 
+    /varset EndingVar 2 
+/return 
